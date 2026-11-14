@@ -29,8 +29,8 @@ _TIME_SOURCE = {"exif": "photo time", "device": "device time", "upload": "upload
 def main(argv: list[str] | None = None) -> None:
     args = _parser().parse_args(argv)
     load_dotenv(find_dotenv(usecwd=True))  # .env never overrides variables already set
-    settings = load_settings()
     try:
+        settings = load_settings()
         args.run(args, settings)
     except (FoodDatabaseMissing, VisionError, UnknownFood, ValueError, OSError, httpx.HTTPError) as exc:
         # OSError: missing or unreadable photo; httpx.HTTPError: USDA download failed.

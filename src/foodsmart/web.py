@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import UnidentifiedImageError
 from pydantic import BaseModel, Field
 
+from .auth import AuthService, DiaryOwner, install_auth
 from .config import USER_AGENT, Settings
 from .context import NominatimPlaces, PlaceLookup
 from .diary import Diary
@@ -35,6 +36,8 @@ MAX_PHOTO_BYTES = 25 * 1024 * 1024
 class Status(BaseModel):
     gemini_ready: bool
     food_db_ready: bool
+    auth_required: bool
+    email_provider: str
 
 
 class NutrientInfo(BaseModel):
@@ -79,19 +82,23 @@ def create_app(
     *,
     vision: VisionModel | None = None,
     places: PlaceLookup | None = None,
+    auth: AuthService | None = None,
 ) -> FastAPI:
-    """`vision` and `places` default to Gemini (when a key is set) and OpenStreetMap Nominatim."""
+    """`vision` and `places` default to Gemini (when a key is set) and OpenStreetMap Nominatim;
+    `auth` to accounts stored as `settings` say (MongoDB, or memory)."""
     if vision is None and settings.gemini_api_key:
         vision = GeminiVision(settings.gemini_api_key, settings.gemini_model, settings.thinking_level)
     if places is None:
         places = NominatimPlaces(settings.nominatim_url, USER_AGENT)
 
     app = FastAPI(title="FoodSmart", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
+    install_auth(app, auth or AuthService.from_settings(settings))
 
     # SQLite connections are opened per request: FastAPI runs sync handlers on a thread pool.
+    # `owner` is the signed-in user's id, or None for the local diary (see auth.diary_owner).
     @contextmanager
-    def stores() -> Iterator[tuple[FoodDatabase, Diary]]:
-        with closing(FoodDatabase(settings.food_db)) as foods, closing(Diary(settings.diary_db)) as diary:
+    def stores(owner: str | None) -> Iterator[tuple[FoodDatabase, Diary]]:
+        with closing(FoodDatabase(settings.food_db)) as foods, closing(Diary(settings.diary_db, owner)) as diary:
             yield foods, diary
 
     def workflow(foods: FoodDatabase) -> Workflow:
@@ -117,7 +124,12 @@ def create_app(
 
     @app.get("/api/status")
     def status() -> Status:
-        return Status(gemini_ready=vision is not None, food_db_ready=settings.food_db.exists())
+        return Status(
+            gemini_ready=vision is not None,
+            food_db_ready=settings.food_db.exists(),
+            auth_required=settings.auth_required,
+            email_provider=settings.email_provider,
+        )
 
     @app.get("/api/nutrients")
     def nutrients() -> list[NutrientInfo]:
@@ -127,7 +139,9 @@ def create_app(
         ]
 
     @app.post("/api/meals")
-    async def analyze(request: Request, lat: float | None = None, lon: float | None = None) -> MealResult:
+    async def analyze(
+        request: Request, owner: DiaryOwner, lat: float | None = None, lon: float | None = None
+    ) -> MealResult:
         """Body: the photo bytes (JPEG, PNG, HEIC). `lat`/`lon`: device location, opt-in."""
         if (lat is None) != (lon is None):
             raise HTTPException(400, "lat and lon go together.")
@@ -139,10 +153,10 @@ def create_app(
         if not photo:
             raise HTTPException(400, "Send the photo as the request body.")
         location = (lat, lon) if lat is not None and lon is not None else None
-        return await run_in_threadpool(_analyze, bytes(photo), location)
+        return await run_in_threadpool(_analyze, bytes(photo), location, owner)
 
-    def _analyze(photo: bytes, location: tuple[float, float] | None) -> MealResult:
-        with stores() as (foods, diary):
+    def _analyze(photo: bytes, location: tuple[float, float] | None, owner: str | None) -> MealResult:
+        with stores(owner) as (foods, diary):
             try:
                 result = workflow(foods).analyze(
                     io.BytesIO(photo), device_location=location, usual_portions=diary.usual_portions()
@@ -152,25 +166,25 @@ def create_app(
             return diary.save(result) if result.items else result
 
     @app.get("/api/meals/{meal_id}")
-    def show(meal_id: int) -> MealResult:
-        with closing(Diary(settings.diary_db)) as diary:
+    def show(meal_id: int, owner: DiaryOwner) -> MealResult:
+        with closing(Diary(settings.diary_db, owner)) as diary:
             return logged(diary, meal_id)
 
     @app.post("/api/meals/{meal_id}/answer")
-    def answer(meal_id: int, body: Answer) -> MealResult:
+    def answer(meal_id: int, body: Answer, owner: DiaryOwner) -> MealResult:
         """Answer the clarifying question: Gemini revises the analysis and everything is recomputed."""
-        with stores() as (foods, diary):
+        with stores(owner) as (foods, diary):
             result = logged(diary, meal_id)
             if not result.question:
                 raise HTTPException(409, "This meal has no open question.")
             return diary.save(workflow(foods).answer(result, body.answer.strip()))
 
     @app.patch("/api/meals/{meal_id}/items/{index}")
-    def fix(meal_id: int, index: int, body: Correction) -> MealResult:
+    def fix(meal_id: int, index: int, body: Correction, owner: DiaryOwner) -> MealResult:
         """Exact grams collapse the item's range and become a usual portion; fdc_id swaps the match."""
         if body.grams is None and body.fdc_id is None:
             raise HTTPException(400, "Send grams and/or fdc_id.")
-        with stores() as (foods, diary):
+        with stores(owner) as (foods, diary):
             result = logged(diary, meal_id)
             if not 0 <= index < len(result.items):
                 raise HTTPException(404, f"Meal #{meal_id} has no item {index}.")
@@ -197,9 +211,9 @@ def create_app(
         )
 
     @app.get("/api/days/{day}")
-    def day(day: date) -> DayView:
+    def day(day: date, owner: DiaryOwner) -> DayView:
         """Meals and totals for one local date. Information only: no targets."""
-        with closing(Diary(settings.diary_db)) as diary:
+        with closing(Diary(settings.diary_db, owner)) as diary:
             summaries = summarize_days(diary.meals_between(day, day))
         if not summaries:
             return DayView(day=day, meals=[], totals={}, daily_value_pct={})
