@@ -18,9 +18,9 @@
   <link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
   <script>
-    // Theme: "light" or "dark" on <html> before first paint, from the choice saved by an Appearance
-    // control (the footer's or the one in Settings), else the system setting, which System keeps
-    // following. Every control marked data-theme-input shows the same choice.
+    // Theme: "light" or "dark" on <html> before first paint, from the choice saved by Settings'
+    // Appearance control, else the system setting, which System keeps following. Every control
+    // marked data-theme-input shows the same choice.
     (function () {
       var d = document, root = d.documentElement, key = "mealscholar-theme", choice = "";
       var system = matchMedia("(prefers-color-scheme: dark)");
@@ -231,17 +231,6 @@
   <footer class="footer">
     <p>Nutrient data: U.S. Department of Agriculture, Agricultural Research Service, <a href="https://fdc.nal.usda.gov/">FoodData Central</a> (CC0). Places &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL).</p>
     <p id="footer-note">Information, not medical advice. Any goal is one you set yourself; no insulin or carb dosing advice.</p>
-    <fieldset class="appearance">
-      <legend class="eyebrow appearance__label">Appearance</legend>
-      <div class="seg">
-        <input id="theme-system" class="seg__input visually-hidden" type="radio" name="theme" value="system" data-theme-input checked>
-        <label class="seg__opt" for="theme-system"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-monitor"/></svg>System</label>
-        <input id="theme-light" class="seg__input visually-hidden" type="radio" name="theme" value="light" data-theme-input>
-        <label class="seg__opt" for="theme-light"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-sun"/></svg>Light</label>
-        <input id="theme-dark" class="seg__input visually-hidden" type="radio" name="theme" value="dark" data-theme-input>
-        <label class="seg__opt" for="theme-dark"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-moon"/></svg>Dark</label>
-      </div>
-    </fieldset>
   </footer>
 
   <button id="plus-button" class="plus" type="button" aria-label="Analyze a meal" title="Analyze a meal" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg></button>

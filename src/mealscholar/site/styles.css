@@ -718,19 +718,7 @@ body[data-screen="auth"] .footer {
   padding-bottom: calc(32px + var(--safe-bottom));
 }
 
-/* Appearance: System, Light or Dark as native radios drawn like the tab bar, the choice in ink. */
-.appearance {
-  min-width: 0;
-  margin: 12px 0 0;
-  padding: 0;
-  border: 0;
-}
-
-.appearance__label {
-  padding: 0;
-  margin-bottom: 8px;
-}
-
+/* Appearance in Settings: System, Light or Dark as native radios drawn like the tab bar, the choice in ink. */
 .seg {
   position: relative;
   display: grid;
