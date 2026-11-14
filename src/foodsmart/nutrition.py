@@ -142,8 +142,18 @@ _STOPWORDS = frozenset(
 # one the query did not ask for is penalized beyond an ordinary extra word.
 _NEGATIONS = frozenset(
     {
-        "no", "non", "without", "meatless", "diet", "free", "nonfat", "decaffeinated",
-        "unsweetened", "light", "reduced", "low",
+        "no",
+        "non",
+        "without",
+        "meatless",
+        "diet",
+        "free",
+        "nonfat",
+        "decaffeinated",
+        "unsweetened",
+        "light",
+        "reduced",
+        "low",
     }
 )
 # Forms nobody eats as-is: a plate never holds lemonade concentrate or dry instant tea, but they
@@ -232,8 +242,8 @@ class _Scorer:
         matched = sum(w for t, w in self.weights.items() if t in stems)
         extras = stems - self.weights.keys()
         negations = sum(1 for w in words if w in _NEGATIONS and _stem(w) not in self.weights)
-        processed = 0 if "prepared" in words else sum(
-            1 for w in words if w in _PROCESSED and _stem(w) not in self.weights
+        processed = (
+            0 if "prepared" in words else sum(1 for w in words if w in _PROCESSED and _stem(w) not in self.weights)
         )
         score = (
             3 * matched

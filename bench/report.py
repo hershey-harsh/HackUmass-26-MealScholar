@@ -1,8 +1,8 @@
 """Score bench/results/runs.jsonl against bench/ground_truth.py and write bench/results/summary.md.
 
-    uv run python bench/report.py                                  # tables
-    uv run python bench/report.py --rematch                        # redo the USDA lookup with current code
-    uv run python bench/report.py --overlays 'gemini-4-hydrogen|low|default'   # draw boxes, rep 0
+uv run python bench/report.py                                  # tables
+uv run python bench/report.py --rematch                        # redo the USDA lookup with current code
+uv run python bench/report.py --overlays 'gemini-4-hydrogen|low|default'   # draw boxes, rep 0
 """
 
 from __future__ import annotations

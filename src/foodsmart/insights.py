@@ -61,9 +61,7 @@ def period_report(first: date, last: date, meals: list[MealResult]) -> PeriodRep
             average = sum(values) / len(days)
             dv_pct = 100 * average / n.daily_value if n.daily_value else None
             low_days = (
-                sum(1 for v in values if 100 * v / n.daily_value < LOW_DV_PCT)
-                if n.micro and n.daily_value
-                else None
+                sum(1 for v in values if 100 * v / n.daily_value < LOW_DV_PCT) if n.micro and n.daily_value else None
             )
             trends.append(NutrientTrend(n.key, average, dv_pct, low_days))
     return PeriodReport(first, last, len(days), sum(len(d.meals) for d in days), trends)
