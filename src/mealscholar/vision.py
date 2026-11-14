@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import base64
 import io
-from collections.abc import Mapping
-from typing import Protocol
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Protocol
 
 from google import genai
 from PIL import Image, ImageOps
@@ -13,7 +13,12 @@ from pydantic import ValidationError
 
 from .schemas import MealAnalysis, MealContext
 
+if TYPE_CHECKING:
+    from .dining import DishFacts
+
 MAX_IMAGE_SIDE = 1536
+MENU_NAMES = 100
+"""Menu dishes listed in the prompt at most: the photo's meal first (campus.candidates)."""
 
 SYSTEM_PROMPT = """\
 You estimate food portions from meal photos for a nutrition logger.
@@ -34,6 +39,9 @@ You estimate food portions from meal photos for a nutrition logger.
 - hidden_fat_likely is true when cooking oil, butter, dressing or sauce is probably there
   but not visible.
 - box_2d is the item's bounding box [ymin, xmin, ymax, xmax] normalized to 0-1000.
+- menu_item and servings_low/likely/high: only when the message lists today's menu and the
+  food is clearly that listed dish; otherwise null. name always describes what the photo
+  shows, never the menu.
 - question: at most one short question about the single uncertainty with the biggest
   calorie impact (cooking fat, drink size, sugar in a drink, hidden layer, sauce amount).
   Use null when nothing material is uncertain.
@@ -54,12 +62,25 @@ The user answered: {answer}
 Return the full corrected analysis. Change only what the answer affects (grams, cooking method, \
 fdc_query, hidden_fat_likely); add an item if the answer reveals one. If the answer pins down an \
 amount, such as a drink size, a count, or how much dressing, narrow grams_low and grams_high of \
-the items it affects to match. Set question to null."""
+the items it affects to match. Keep menu_item and the servings unless the answer changes them. Set \
+question to null."""
+
+_MENU_FIELDS = ("menu_item", "servings_low", "servings_likely", "servings_high")
+
+
+def response_schema() -> dict:
+    """MealAnalysis as the JSON schema sent to Gemini: the menu fields have defaults so stored
+    meals validate, but here they are required-but-nullable like the rest (see schemas.py)."""
+    schema = MealAnalysis.model_json_schema()
+    item = schema["$defs"]["FoodItem"]
+    item["required"] = [*item.get("required", []), *(f for f in _MENU_FIELDS if f not in item.get("required", []))]
+    return schema
+
 
 _RESPONSE_FORMAT = {
     "type": "text",
     "mime_type": "application/json",
-    "schema": MealAnalysis.model_json_schema(),
+    "schema": response_schema(),
 }
 
 
@@ -82,8 +103,15 @@ def prepare_image(img: Image.Image, max_side: int = MAX_IMAGE_SIDE) -> bytes:
     return buf.getvalue()
 
 
-def context_prompt(context: MealContext, usual_portions: Mapping[str, int]) -> str:
-    lines = [f"Photo taken {context.taken_at:%H:%M} local time ({context.meal_slot})."]
+def context_prompt(
+    context: MealContext,
+    usual_portions: Mapping[str, int],
+    menu: Sequence[DishFacts] = (),
+    hall: str | None = None,
+) -> str:
+    """What the model is told besides the photo: the date and time (a 00:30 plate is late night of
+    the day before), the place, the user's usual portions, and the hall's menu when one is given."""
+    lines = [f"Photo taken {context.taken_at:%a %Y-%m-%d %H:%M} local time ({context.meal_slot})."]
     if (place := context.place) is not None:
         detail = place.kind.replace("_", " ") + (f", cuisine: {place.cuisine}" if place.cuisine else "")
         chain = " (chain)" if place.chain else ""
@@ -91,6 +119,15 @@ def context_prompt(context: MealContext, usual_portions: Mapping[str, int]) -> s
     if usual_portions:
         known = "; ".join(f"{name}: {grams} g" for name, grams in usual_portions.items())
         lines.append(f"This user's usual portions from past corrections: {known}.")
+    if menu:
+        lines.append(f"Today's menu at {hall}, dishes for this meal first:")
+        lines += [f"- {d.name} (serving: {d.serving_size or 'unknown'})" for d in menu[:MENU_NAMES]]
+        lines.append(
+            "If a food is one of these dishes, set menu_item to that exact name and servings_low/likely/high "
+            "to how many of its listed servings are on the plate, as a range like grams. name stays what "
+            "the photo shows. Otherwise set menu_item and the servings to null. Estimate grams for every "
+            "item either way."
+        )
     return "\n".join(lines)
 
 

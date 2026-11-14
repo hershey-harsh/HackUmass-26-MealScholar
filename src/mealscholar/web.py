@@ -11,6 +11,7 @@ from collections.abc import Iterator
 from contextlib import closing, contextmanager
 from datetime import date
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
@@ -28,7 +29,7 @@ from .insights import summarize_days
 from .nutrients import NUTRIENTS
 from .nutrition import FoodDatabase, FoodDatabaseMissing
 from .pipeline import UnknownFood, Workflow, correct
-from .prefs import PrefsStore, install_prefs, open_prefs_store
+from .prefs import MAX_LOCATION_ID, PrefsStore, install_prefs, open_prefs_store
 from .schemas import MealResult, Range
 from .vision import GeminiVision, VisionError, VisionModel
 
@@ -116,7 +117,7 @@ def create_app(
     def workflow(foods: FoodDatabase) -> Workflow:
         if vision is None:
             raise HTTPException(503, "Set GEMINI_API_KEY in .env, then restart `mealscholar serve`.")
-        return Workflow(vision=vision, foods=foods, places=places)
+        return Workflow(vision=vision, foods=foods, places=places, menus=dining)
 
     def logged(diary: Diary, meal_id: int) -> MealResult:
         result = diary.get(meal_id)
@@ -159,9 +160,15 @@ def create_app(
 
     @app.post("/api/meals")
     async def analyze(
-        request: Request, owner: DiaryOwner, lat: float | None = None, lon: float | None = None
+        request: Request,
+        owner: DiaryOwner,
+        lat: float | None = None,
+        lon: float | None = None,
+        location_id: Annotated[int | None, Query(ge=1, le=MAX_LOCATION_ID)] = None,
     ) -> MealResult:
-        """Body: the photo bytes (JPEG, PNG, HEIC). `lat`/`lon`: device location, opt-in."""
+        """Body: the photo bytes (JPEG, PNG, HEIC). `lat`/`lon`: device location, opt-in.
+        `location_id`: the dining location whose menu the foods are matched against (from
+        /api/dining/nearest or the user's dining halls); without it nutrients come from USDA only."""
         if (lat is None) != (lon is None):
             raise HTTPException(400, "lat and lon go together.")
         photo = bytearray()
@@ -172,13 +179,18 @@ def create_app(
         if not photo:
             raise HTTPException(400, "Send the photo as the request body.")
         location = (lat, lon) if lat is not None and lon is not None else None
-        return await run_in_threadpool(_analyze, bytes(photo), location, owner)
+        return await run_in_threadpool(_analyze, bytes(photo), location, owner, location_id)
 
-    def _analyze(photo: bytes, location: tuple[float, float] | None, owner: str | None) -> MealResult:
+    def _analyze(
+        photo: bytes, location: tuple[float, float] | None, owner: str | None, location_id: int | None
+    ) -> MealResult:
         with stores(owner) as (foods, diary):
             try:
                 result = workflow(foods).analyze(
-                    io.BytesIO(photo), device_location=location, usual_portions=diary.usual_portions()
+                    io.BytesIO(photo),
+                    device_location=location,
+                    usual_portions=diary.usual_portions(),
+                    location_id=location_id,
                 )
             except Image.DecompressionBombError as exc:
                 raise HTTPException(413, "That photo has too many pixels. Send a regular camera photo.") from exc

@@ -34,8 +34,7 @@ from types import SimpleNamespace
 from mealscholar.config import load_settings
 from mealscholar.nutrition import FoodDatabase
 from mealscholar.pipeline import Workflow
-from mealscholar.schemas import MealAnalysis
-from mealscholar.vision import REFINE_PROMPT, SYSTEM_PROMPT, GeminiVision, VisionError
+from mealscholar.vision import REFINE_PROMPT, SYSTEM_PROMPT, GeminiVision, VisionError, response_schema
 
 ROOT = Path(__file__).resolve().parent.parent
 PHOTOS = sorted((ROOT / "test_pictures").glob("*.jpeg"))
@@ -43,9 +42,10 @@ NON_MEAL_PHOTOS = sorted((ROOT / "bench" / "nonfood").glob("*.jpg"))
 RESULTS = ROOT / "bench" / "results" / "runs.jsonl"
 _RETRY_STATUS = {429, 500, 502, 503, 504}
 PROMPT = hashlib.sha256(
-    (SYSTEM_PROMPT + REFINE_PROMPT + json.dumps(MealAnalysis.model_json_schema(), sort_keys=True)).encode()
+    (SYSTEM_PROMPT + REFINE_PROMPT + json.dumps(response_schema(), sort_keys=True)).encode()
 ).hexdigest()[:8]
-"""Fingerprint of what Gemini is told. Runs recorded before prompts were fingerprinted have none."""
+"""Fingerprint of what Gemini is told: the prompts and the schema as sent. Runs recorded before
+prompts were fingerprinted have none."""
 
 # Phases C and D: what the user would type after the clarifying question.
 ANSWERS = {

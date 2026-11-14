@@ -15,7 +15,7 @@ from dotenv import find_dotenv, load_dotenv
 from .config import USER_AGENT, Settings, load_settings
 from .context import NominatimPlaces
 from .diary import Diary
-from .dining import MAX_ALERT_DAYS, open_digest, send_favorites_digests
+from .dining import MAX_ALERT_DAYS, open_digest, open_dining, send_favorites_digests
 from .insights import LOW_DV_PCT, period_report, summarize_days
 from .mailer import make_sender
 from .nutrients import BY_KEY, NUTRIENTS
@@ -58,6 +58,7 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--lat", type=float, help="device latitude at capture (opt-in)")
     p.add_argument("--lon", type=float, help="device longitude at capture (opt-in)")
     p.add_argument("--use-photo-location", action="store_true", help="opt in to the photo's GPS tags")
+    p.add_argument("--hall", type=int, metavar="LOCATION_ID", help="dining location id; match foods to its menu")
     p.add_argument("--answer", help="answer to the clarifying question (skips the prompt)")
     p.add_argument("--no-log", action="store_true", help="don't save to the diary")
     p.add_argument("--json", action="store_true", help="print the result as JSON")
@@ -129,6 +130,7 @@ def cmd_analyze(args: argparse.Namespace, settings: Settings) -> None:
         vision=GeminiVision(settings.gemini_api_key, settings.gemini_model, settings.thinking_level),
         foods=FoodDatabase(settings.food_db),
         places=NominatimPlaces(settings.nominatim_url, USER_AGENT),
+        menus=open_dining(settings),  # None without MONGODB_URI
     )
     result = workflow.analyze(
         args.photo,
@@ -136,6 +138,7 @@ def cmd_analyze(args: argparse.Namespace, settings: Settings) -> None:
         device_location=(args.lat, args.lon) if args.lat is not None else None,
         read_photo_gps=args.use_photo_location,
         usual_portions=diary.usual_portions(),
+        location_id=args.hall,
     )
     if result.question:
         answer = args.answer
@@ -247,6 +250,8 @@ def _format_meal(result: MealResult) -> str:
     if ctx.place:
         cuisine = f", {ctx.place.cuisine}" if ctx.place.cuisine else ""
         lines.append(f"Place: {ctx.place.name} ({ctx.place.kind.replace('_', ' ')}{cuisine})")
+    if result.menu:
+        lines.append(f"Menu: {result.menu.location_name}, {result.menu.date}")
     if result.scale_reference:
         lines.append(f"Size judged against: {result.scale_reference}")
     lines.append("")
@@ -257,7 +262,13 @@ def _format_meal(result: MealResult) -> str:
             grams += f" ({item.grams_low}-{item.grams_high})"
         extra = ", likely hidden oil/butter" if item.hidden_fat_likely else ""
         lines.append(f"{i:>3}. {item.name}: {grams}, {item.cooking_method.replace('_', ' ')}{extra}")
-        if r.match:
+        if r.source == "campus" and r.dish is not None:
+            lines.append(f"     Campus menu: {r.dish.name} ({r.dish.serving_size}) at {r.dish.location_name}")
+            if (kcal := r.nutrients.get("energy_kcal")) is not None:
+                lines.append(f"     {_fmt_range(kcal, 'kcal')}")
+            if r.match:
+                lines.append(f"     micronutrients from USDA: {r.match.description}")
+        elif r.match:
             lines.append(f"     USDA: {r.match.description} [{r.match.data_type} #{r.match.fdc_id}]")
             if (kcal := r.nutrients.get("energy_kcal")) is not None:
                 lines.append(f"     {_fmt_range(kcal, 'kcal')}")
