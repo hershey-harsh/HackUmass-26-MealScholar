@@ -60,6 +60,14 @@ class Food:
     per_100g: dict[str, float]
 
 
+@dataclass(frozen=True, slots=True)
+class Matches:
+    foods: list[Food]
+    exact: bool
+    """True when every word of the main food (the query before its first comma) is in each
+    result. Loose results are only suggestions: "Acai bowl" loosely matches "Ramen bowl"."""
+
+
 class FoodDatabaseMissing(RuntimeError):
     def __init__(self, path: Path) -> None:
         super().__init__(f"USDA food database not found at {path}. Run `foodsmart fdc-import` first.")
@@ -267,38 +275,43 @@ class FoodDatabase:
         ).fetchone()
         return _food(row) if row else None
 
-    def search(self, query: str, *, hints: tuple[str, ...] = (), limit: int = 5) -> list[Food]:
+    def search(self, query: str, *, hints: tuple[str, ...] = (), limit: int = 5) -> Matches:
         """Rank foods for an FNDDS-style query such as "Rice, white, cooked, made with oil".
 
         The words before the first comma name the food and must all match; the remaining
         words and `hints` (e.g. "cooked", "oil") only improve ranking. If no food contains
-        every head word, any word may match.
+        every head word, the result is loose: any query word may match, and hints are dropped
+        so that "oil" can never pull in "Oil, avocado" (884 kcal/100 g) for "Avocado toast".
         """
         head = _terms(query.split(",", 1)[0])
-        terms = _terms(" ".join((query, *hints)))
-        if not terms:
-            return []
-        any_term = " OR ".join(_quoted(terms))
-        expressions = [any_term]
         if head:
-            expressions.insert(0, f"({' AND '.join(_quoted(head))}) AND ({any_term})")
-        scorer = _Scorer.for_query(query, hints)
-        for expression in expressions:
-            rows = self._con.execute(
-                """
-                SELECT f.fdc_id, f.description, f.data_type, f.nutrients, f.category, bm25(foods_fts)
-                FROM foods_fts
-                JOIN foods AS f ON f.fdc_id = foods_fts.rowid
-                WHERE foods_fts MATCH ?
-                ORDER BY bm25(foods_fts)
-                LIMIT ?
-                """,
-                (expression, _CANDIDATE_POOL),
-            ).fetchall()
+            any_term = " OR ".join(_quoted(_terms(" ".join((query, *hints)))))
+            rows = self._candidates(f"({' AND '.join(_quoted(head))}) AND ({any_term})")
             if rows:
-                rows.sort(key=scorer.key)
-                return [_food(r[:4]) for r in rows[:limit]]
-        return []
+                return Matches(_ranked(rows, _Scorer.for_query(query, hints), limit), exact=True)
+        terms = _terms(query)
+        if not terms:
+            return Matches([], exact=False)
+        rows = self._candidates(" OR ".join(_quoted(terms)))
+        return Matches(_ranked(rows, _Scorer.for_query(query, ()), limit), exact=False)
+
+    def _candidates(self, expression: str) -> list[tuple]:
+        return self._con.execute(
+            """
+            SELECT f.fdc_id, f.description, f.data_type, f.nutrients, f.category, bm25(foods_fts)
+            FROM foods_fts
+            JOIN foods AS f ON f.fdc_id = foods_fts.rowid
+            WHERE foods_fts MATCH ?
+            ORDER BY bm25(foods_fts)
+            LIMIT ?
+            """,
+            (expression, _CANDIDATE_POOL),
+        ).fetchall()
+
+
+def _ranked(rows: list[tuple], scorer: _Scorer, limit: int) -> list[Food]:
+    rows.sort(key=scorer.key)
+    return [_food(r[:4]) for r in rows[:limit]]
 
 
 def _food(row: tuple[int, str, str, str]) -> Food:

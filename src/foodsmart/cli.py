@@ -8,6 +8,8 @@ from collections.abc import Iterable
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+import httpx
+
 from .config import USER_AGENT, Settings, load_settings
 from .context import NominatimPlaces
 from .diary import Diary
@@ -26,7 +28,8 @@ def main(argv: list[str] | None = None) -> None:
     settings = load_settings()
     try:
         args.run(args, settings)
-    except (FoodDatabaseMissing, VisionError, UnknownFood, ValueError) as exc:
+    except (FoodDatabaseMissing, VisionError, UnknownFood, ValueError, OSError, httpx.HTTPError) as exc:
+        # OSError: missing or unreadable photo; httpx.HTTPError: USDA download failed.
         print(f"error: {exc}", file=sys.stderr)
         raise SystemExit(1) from exc
 
@@ -88,8 +91,10 @@ def cmd_fdc_import(args: argparse.Namespace, settings: Settings) -> None:
 
 
 def cmd_search(args: argparse.Namespace, settings: Settings) -> None:
-    foods = FoodDatabase(settings.food_db)
-    for food in foods.search(args.query, limit=args.limit):
+    found = FoodDatabase(settings.food_db).search(args.query, limit=args.limit)
+    if found.foods and not found.exact:
+        print("(loose: no food contains every word before the first comma; closest results)")
+    for food in found.foods:
         kcal = food.per_100g.get("energy_kcal")
         energy = f"{kcal:.0f} kcal/100 g" if kcal is not None else "no energy data"
         print(f"{food.fdc_id:>8}  {food.description}  [{food.data_type}; {energy}]")
@@ -217,7 +222,9 @@ def _format_meal(result: MealResult) -> str:
             if (kcal := r.nutrients.get("energy_kcal")) is not None:
                 lines.append(f"     {_fmt_range(kcal, 'kcal')}")
         else:
-            lines.append("     USDA: no match, not counted")
+            lines.append("     USDA: no close match, not counted")
+            for alt in r.alternatives[:3]:
+                lines.append(f"       closest: {alt.description} (fix with --food {alt.fdc_id})")
     if result.items:
         lines += ["", "Total", _format_nutrients(result.totals, result.daily_value_pct)]
     if result.partial_nutrients:
