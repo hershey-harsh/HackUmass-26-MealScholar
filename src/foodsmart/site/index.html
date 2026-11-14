@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>FoodSmart · Every meal is a range</title>
+  <meta name="description" content="Snap a meal photo. Get the foods, grams and nutrients as honest ranges, never a single fake-precise number.">
+  <meta name="theme-color" content="#f3eee4">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231b1a16'/%3E%3Crect x='6' y='14' width='20' height='4' rx='2' fill='%23f3eee4' opacity='.35'/%3E%3Crect x='9' y='14' width='13' height='4' rx='2' fill='%23f3eee4'/%3E%3Crect x='15' y='9' width='2' height='14' fill='%23e04a24'/%3E%3C/svg%3E">
+  <link rel="preload" href="/fonts/instrument-serif.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/instrument-serif-italic.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header wrap">
+    <a class="wordmark" href="/">Food<em>Smart</em></a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="#capture" data-action="new">Analyze</a>
+      <a href="#today">Today</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section id="capture" class="capture wrap" aria-labelledby="capture-title">
+      <div class="capture__intro">
+        <p class="label">Meal photo &rarr; foods &rarr; USDA nutrients</p>
+        <h1 id="capture-title" class="display">
+          <span class="line"><span style="--i:0">Every meal</span></span>
+          <span class="line"><span style="--i:1">is a <em class="range-word">range<span class="band band--hero" aria-hidden="true"><span class="band__range"></span><span class="band__tick"></span></span></em>.</span></span>
+        </h1>
+        <p class="lede">Snap a photo of your plate. Gemini names each food and estimates its weight; USDA FoodData Central supplies the nutrients. You get honest ranges, never a single fake-precise number.</p>
+      </div>
+
+      <div class="capture__panel">
+        <div id="viewfinder" class="viewfinder" data-state="empty">
+          <span class="corner corner--tl" aria-hidden="true"></span>
+          <span class="corner corner--tr" aria-hidden="true"></span>
+          <span class="corner corner--bl" aria-hidden="true"></span>
+          <span class="corner corner--br" aria-hidden="true"></span>
+
+          <div class="viewfinder__empty">
+            <p class="viewfinder__title"><span class="if-fine">Drop a meal photo</span><span class="if-coarse">Photograph your plate</span></p>
+            <p class="viewfinder__or label if-fine">or</p>
+            <button id="choose" class="button button--primary" type="button" aria-describedby="photo-hint"><span class="if-fine">Choose a photo</span><span class="if-coarse">Take or choose a photo</span></button>
+            <input id="photo" class="visually-hidden" type="file" accept="image/*,.heic,.heif" tabindex="-1" aria-hidden="true">
+            <p id="photo-hint" class="viewfinder__hint">JPEG, PNG or HEIC, up to 25&nbsp;MB</p>
+            <div id="setup" class="setup" hidden></div>
+          </div>
+
+          <div id="preview" class="viewfinder__preview" hidden>
+            <img alt="The meal photo being analyzed">
+            <span class="scan" aria-hidden="true"></span>
+            <p class="viewfinder__working label" aria-hidden="true">Identifying foods &middot; estimating grams</p>
+          </div>
+        </div>
+
+        <label class="switch-row">
+          <input id="use-location" class="switch" type="checkbox">
+          <span>
+            <span class="switch-row__title">Use my location to name the place</span>
+            <span class="switch-row__hint">Only the place name is kept. Coordinates are dropped right after the lookup.</span>
+          </span>
+        </label>
+        <p id="capture-status" class="status" role="status" aria-live="polite"></p>
+      </div>
+
+      <ol class="protocol">
+        <li><span class="protocol__n">01</span><span class="protocol__term">Photo</span><span class="protocol__desc">Analyzed in memory, never stored. Location only if you switch it on.</span></li>
+        <li><span class="protocol__n">02</span><span class="protocol__term">Foods &amp; grams</span><span class="protocol__desc">Gemini lists each food with a low, likely and high weight. It never outputs nutrient numbers.</span></li>
+        <li><span class="protocol__n">03</span><span class="protocol__term">Nutrients</span><span class="protocol__desc">Grams &times; USDA values per 100&nbsp;g. Weigh a food and its range collapses.</span></li>
+      </ol>
+    </section>
+
+    <section id="result" class="result wrap" aria-labelledby="result-title" hidden></section>
+
+    <section id="today" class="today wrap" aria-labelledby="today-title">
+      <div class="section-head">
+        <h2 id="today-title" class="h2">Today</h2>
+        <p id="today-date" class="label"></p>
+      </div>
+      <div id="today-body" class="today__body" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer wrap">
+    <p>Nutrient data: U.S. Department of Agriculture, Agricultural Research Service, <a href="https://fdc.nal.usda.gov/">FoodData Central</a> (CC0). Places &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL).</p>
+    <p>Information, not medical advice. No calorie targets, no insulin or carb dosing advice.</p>
+  </footer>
+</body>
+</html>

@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import BinaryIO
 
 from PIL import ExifTags, Image
 from pillow_heif import register_heif_opener
@@ -17,8 +18,9 @@ register_heif_opener()
 _EXIF_TIME_FORMAT = "%Y:%m:%d %H:%M:%S"
 
 
-def load_image(path: Path) -> Image.Image:
-    img = Image.open(path)
+def load_image(photo: Path | BinaryIO) -> Image.Image:
+    """`photo` may be an in-memory stream so uploads never touch the disk."""
+    img = Image.open(photo)
     img.load()
     return img
 

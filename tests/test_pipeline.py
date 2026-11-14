@@ -78,6 +78,18 @@ def test_totals_are_grams_times_database_values_with_ranges(food_db, analysis, m
     assert result.context.meal_slot == "lunch"
 
 
+def test_loose_lookup_is_suggested_not_counted(food_db, meal_photo):
+    # "Cola bowl" shares only "cola" with "Soft drink, cola"; counting it would put wrong numbers in the totals.
+    bowl_only = MealAnalysis(
+        is_food=True, items=[item("cola bowl", "Cola bowl", 100, 150, 200)], scale_reference=None, question=None
+    )
+    _, result = analyze(food_db, bowl_only, meal_photo)
+
+    (bowl,) = result.items
+    assert bowl.match is None and 4 in [a.fdc_id for a in bowl.alternatives]
+    assert result.totals == {}
+
+
 def test_answer_recomputes_from_refined_analysis(food_db, analysis, meal_photo):
     workflow, result = analyze(food_db, analysis, meal_photo)
     answered = workflow.answer(result.model_copy(update={"id": 7}), "yes, oil")

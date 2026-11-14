@@ -2,7 +2,7 @@ from foodsmart.nutrients import per_100g
 
 
 def top(food_db, query, hints=()):
-    return food_db.search(query, hints=hints)[0].fdc_id
+    return food_db.search(query, hints=hints).foods[0].fdc_id
 
 
 def test_generic_default_beats_shorter_but_more_specific_food(food_db):

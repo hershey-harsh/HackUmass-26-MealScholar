@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import BinaryIO
 
 from .compute import item_nutrients, summarize
 from .context import PlaceLookup, build_context
@@ -41,7 +42,7 @@ class Workflow:
 
     def analyze(
         self,
-        photo: Path,
+        photo: Path | BinaryIO,
         *,
         device_time: datetime | None = None,
         device_location: tuple[float, float] | None = None,
@@ -72,12 +73,18 @@ class Workflow:
         items: list[ItemResult] = []
         for item in analysis.items if analysis.is_food else ():
             hints = _COOKING_HINTS[item.cooking_method] + (("oil",) if item.hidden_fat_likely else ())
-            found = self.foods.search(item.fdc_query, hints=hints) or self.foods.search(item.name, hints=hints)
-            if not found:
-                notes.append(f"No USDA match for '{item.name}'; it is not counted in the totals.")
-                items.append(ItemResult(item=item, match=None))
+            found = self.foods.search(item.fdc_query, hints=hints)
+            if not found.exact:
+                by_name = self.foods.search(item.name, hints=hints)
+                if by_name.exact or not found.foods:
+                    found = by_name
+            if found.exact:
+                items.append(_item_result(item, found.foods[0], [_match(f) for f in found.foods[1:]]))
                 continue
-            items.append(_item_result(item, found[0], [_match(f) for f in found[1:]]))
+            # A loose match ("Ramen bowl" for an acai bowl) would put wrong numbers in the totals;
+            # offer it as a suggestion instead.
+            items.append(ItemResult(item=item, match=None, alternatives=[_match(f) for f in found.foods]))
+            notes.append(f"No close USDA match for '{item.name}'; not counted until you pick one.")
         if not analysis.is_food:
             notes.append("No food or drink detected in the photo.")
         return summarize(
