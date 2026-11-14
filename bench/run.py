@@ -1,7 +1,7 @@
 """Run Gemini configurations over test_pictures/ through the real MealScholar pipeline.
 
 Each run is photo -> metadata -> GeminiVision (production prompt + schema) -> USDA lookup -> totals,
-exactly as `foodsmart analyze --no-log`, with latency and token usage recorded per Gemini call.
+exactly as `mealscholar analyze --no-log`, with latency and token usage recorded per Gemini call.
 
     uv run --env-file .env python bench/run.py --phase a      # model x thinking level sweep
     uv run --env-file .env python bench/run.py --phase b      # media resolution sweep
@@ -23,10 +23,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 
-from foodsmart.config import load_settings
-from foodsmart.nutrition import FoodDatabase
-from foodsmart.pipeline import Workflow
-from foodsmart.vision import GeminiVision, VisionError
+from mealscholar.config import load_settings
+from mealscholar.nutrition import FoodDatabase
+from mealscholar.pipeline import Workflow
+from mealscholar.vision import GeminiVision, VisionError
 
 ROOT = Path(__file__).resolve().parent.parent
 PHOTOS = sorted((ROOT / "test_pictures").glob("*.jpeg"))

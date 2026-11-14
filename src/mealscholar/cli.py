@@ -41,7 +41,7 @@ def main(argv: list[str] | None = None) -> None:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="foodsmart", description="MealScholar: photo -> foods -> USDA nutrients.")
+    parser = argparse.ArgumentParser(prog="mealscholar", description="MealScholar: photo -> foods -> USDA nutrients.")
     sub = parser.add_subparsers(required=True, metavar="command")
 
     p = sub.add_parser("fdc-import", help="download USDA FoodData Central and build the local database")

@@ -18,10 +18,10 @@ from pathlib import Path
 from ground_truth import PHOTOS, Photo, classify
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
-from foodsmart.config import load_settings
-from foodsmart.nutrition import FoodDatabase
-from foodsmart.pipeline import Workflow
-from foodsmart.schemas import MealResult
+from mealscholar.config import load_settings
+from mealscholar.nutrition import FoodDatabase
+from mealscholar.pipeline import Workflow
+from mealscholar.schemas import MealResult
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "bench" / "results"

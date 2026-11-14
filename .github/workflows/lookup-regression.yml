@@ -7,11 +7,11 @@ name: Lookup regression
 on:
   pull_request:
     paths:
-      - "src/foodsmart/nutrition.py"
-      - "src/foodsmart/nutrients.py"
-      - "src/foodsmart/compute.py"
-      - "src/foodsmart/pipeline.py"
-      - "src/foodsmart/schemas.py"
+      - "src/mealscholar/nutrition.py"
+      - "src/mealscholar/nutrients.py"
+      - "src/mealscholar/compute.py"
+      - "src/mealscholar/pipeline.py"
+      - "src/mealscholar/schemas.py"
       - "bench/**"
       - "pyproject.toml"
       - "uv.lock"
@@ -19,11 +19,11 @@ on:
   push:
     branches: [main]
     paths:
-      - "src/foodsmart/nutrition.py"
-      - "src/foodsmart/nutrients.py"
-      - "src/foodsmart/compute.py"
-      - "src/foodsmart/pipeline.py"
-      - "src/foodsmart/schemas.py"
+      - "src/mealscholar/nutrition.py"
+      - "src/mealscholar/nutrients.py"
+      - "src/mealscholar/compute.py"
+      - "src/mealscholar/pipeline.py"
+      - "src/mealscholar/schemas.py"
       - "bench/**"
       - "pyproject.toml"
       - "uv.lock"
@@ -46,12 +46,12 @@ jobs:
       # changes the key; the old zips are restored and only the new file is downloaded.
       - uses: actions/cache@v6
         with:
-          path: ~/.foodsmart/downloads
-          key: fdc-downloads-${{ hashFiles('src/foodsmart/nutrition.py') }}
+          path: ~/.mealscholar/downloads
+          key: fdc-downloads-${{ hashFiles('src/mealscholar/nutrition.py') }}
           restore-keys: fdc-downloads-
 
       - run: uv sync --locked
 
-      - run: uv run foodsmart fdc-import
+      - run: uv run mealscholar fdc-import
 
       - run: uv run python bench/report.py --rematch --check

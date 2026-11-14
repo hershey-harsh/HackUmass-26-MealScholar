@@ -70,7 +70,7 @@ class Matches:
 
 class FoodDatabaseMissing(RuntimeError):
     def __init__(self, path: Path) -> None:
-        super().__init__(f"USDA food database not found at {path}. Run `foodsmart fdc-import` first.")
+        super().__init__(f"USDA food database not found at {path}. Run `mealscholar fdc-import` first.")
 
 
 def build_database(

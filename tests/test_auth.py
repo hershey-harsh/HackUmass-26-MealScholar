@@ -1,6 +1,6 @@
 """Accounts over HTTP: sessions, email links, limits, cross-site checks and per-user diaries.
 
-Everything runs on the in-memory account store. Set FOODSMART_TEST_MONGODB_URI to also run the
+Everything runs on the in-memory account store. Set MEALSCHOLAR_TEST_MONGODB_URI to also run the
 store tests against MongoDB; they use the throwaway database `mealscholar_test` and drop it.
 """
 
@@ -23,10 +23,10 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-import foodsmart.auth
-from foodsmart import cli
-from foodsmart.auth import AuthError, AuthService, Client, RateLimiter, Rule, hash_password, verify_password
-from foodsmart.auth_store import (
+import mealscholar.auth
+from mealscholar import cli
+from mealscholar.auth import AuthError, AuthService, Client, RateLimiter, Rule, hash_password, verify_password
+from mealscholar.auth_store import (
     EmailTaken,
     EmailToken,
     MemoryAuthStore,
@@ -35,11 +35,11 @@ from foodsmart.auth_store import (
     Session,
     utc_now,
 )
-from foodsmart.config import load_settings
-from foodsmart.diary import Diary
-from foodsmart.mailer import SmtpSender, verification_email
-from foodsmart.schemas import FoodItem, MealAnalysis, MealContext, MealResult
-from foodsmart.web import create_app
+from mealscholar.config import load_settings
+from mealscholar.diary import Diary
+from mealscholar.mailer import SmtpSender, verification_email
+from mealscholar.schemas import FoodItem, MealAnalysis, MealContext, MealResult
+from mealscholar.web import create_app
 
 PASSWORD = "correct horse battery"
 NEW_PASSWORD = "a brand new password"
@@ -120,7 +120,7 @@ def make_app(home, clock):
     """App factory: environment variables as keyword arguments, in-memory accounts by default."""
 
     def make(*, store=None, vision=None, **env):
-        settings = load_settings({"FOODSMART_HOME": str(home), **env})
+        settings = load_settings({"MEALSCHOLAR_HOME": str(home), **env})
         auth = AuthService.from_settings(settings, store=store or MemoryAuthStore(), clock=clock)
         return create_app(settings, vision=vision or FakeVision(), auth=auth)
 
@@ -195,7 +195,7 @@ def test_register_signs_in_and_logout_signs_out(make_app, clock):
     assert client.post("/api/auth/logout").status_code == 204  # also fine when signed out
 
 
-@pytest.mark.parametrize(("env", "secure"), [({}, True), ({"FOODSMART_COOKIE_SECURE": "0"}, False)])
+@pytest.mark.parametrize(("env", "secure"), [({}, True), ({"MEALSCHOLAR_COOKIE_SECURE": "0"}, False)])
 def test_session_cookie_flags_and_only_its_hash_is_stored(make_app, clock, env, secure):
     app = make_app(**env)
     res = register(browser(app))
@@ -380,7 +380,7 @@ def test_login_is_limited_per_ip_and_email(make_app):
 
 def test_register_is_limited_per_ip(make_app):
     app = make_app()
-    allowed = foodsmart.auth.REGISTER_PER_IP.limit
+    allowed = mealscholar.auth.REGISTER_PER_IP.limit
     assert allowed >= 20  # people on one campus Wi-Fi share an address
     for i in range(allowed):
         assert register(browser(app), email=f"user{i}@example.com").status_code == 201
@@ -451,7 +451,7 @@ def test_cf_connecting_ip_counts_only_from_the_local_tunnel(make_app, clock):
 
 
 def test_email_verification_link(make_app, clock):
-    app = make_app(FOODSMART_PUBLIC_URL="https://meals.example/")
+    app = make_app(MEALSCHOLAR_PUBLIC_URL="https://meals.example/")
     client = browser(app)
     register(client)
 
@@ -645,13 +645,13 @@ def test_access_log_hides_coordinates(make_app, caplog):
 
 def test_the_dummy_hash_is_ready_before_the_first_sign_in(make_app, monkeypatch):
     """Made at startup, so the first sign-in with an unknown email after a restart isn't the slow one."""
-    foodsmart.auth._dummy_hash.cache_clear()
+    mealscholar.auth._dummy_hash.cache_clear()
     app = make_app()
 
     def no_hashing(password):
         raise AssertionError("a password was hashed during sign-in")
 
-    monkeypatch.setattr(foodsmart.auth, "hash_password", no_hashing)
+    monkeypatch.setattr(mealscholar.auth, "hash_password", no_hashing)
     assert login(browser(app), email="nobody@example.com").json() == BAD_LOGIN
 
 
@@ -660,7 +660,7 @@ def test_dev_outbox_only_when_enabled(make_app):
     register(client)
     assert client.get("/api/auth/dev/outbox").status_code == 404
 
-    app = make_app(FOODSMART_DEV_OUTBOX="1")
+    app = make_app(MEALSCHOLAR_DEV_OUTBOX="1")
     client = browser(app)
     register(client)
     client.post("/api/auth/forgot-password", json={"email": "sam@example.com"})
@@ -678,7 +678,7 @@ def test_demo_links_only_when_enabled(make_app):
     assert client.post("/api/auth/resend-verification").json() == {}
     assert client.post("/api/auth/forgot-password", json={"email": "sam@example.com"}).json() == {}
 
-    app = make_app(FOODSMART_DEMO_VERIFY_LINK="1", FOODSMART_PUBLIC_URL="https://meals.example")
+    app = make_app(MEALSCHOLAR_DEMO_VERIFY_LINK="1", MEALSCHOLAR_PUBLIC_URL="https://meals.example")
     client = browser(app)
     url = register(client).json()["demo_verify_url"]
     assert url.startswith("https://meals.example/?verify=")
@@ -698,12 +698,12 @@ def test_demo_links_only_when_enabled(make_app):
 
 
 def test_smtp_is_a_placeholder_that_does_not_block_sign_up(make_app, caplog):
-    with pytest.raises(NotImplementedError, match="FOODSMART_EMAIL_PROVIDER=outbox"):
+    with pytest.raises(NotImplementedError, match="MEALSCHOLAR_EMAIL_PROVIDER=outbox"):
         SmtpSender().send(verification_email("sam@example.com", "https://meals.example/?verify=x"))
 
-    app = make_app(FOODSMART_EMAIL_PROVIDER="smtp")
+    app = make_app(MEALSCHOLAR_EMAIL_PROVIDER="smtp")
     client = browser(app)
-    with caplog.at_level(logging.ERROR, logger="foodsmart.auth"):
+    with caplog.at_level(logging.ERROR, logger="mealscholar.auth"):
         assert register(client).status_code == 201
     assert "Couldn't send the verify_email email" in caplog.text
     assert app.state.auth.store.recent_emails(20) == []
@@ -714,7 +714,7 @@ def test_smtp_is_a_placeholder_that_does_not_block_sign_up(make_app, caplog):
 
 
 def test_cross_site_writes_are_refused(make_app):
-    app = make_app(FOODSMART_PUBLIC_URL="https://mealscholar.example")
+    app = make_app(MEALSCHOLAR_PUBLIC_URL="https://mealscholar.example")
     client = browser(app)
     body = {"email": "sam@example.com", "password": PASSWORD}
     for origin in ("https://evil.example", "null", "https://testserver.evil.example", "http://[::1"):
@@ -850,7 +850,7 @@ def test_diary_from_before_accounts_keeps_its_rows_as_the_local_users(tmp_path):
 
 
 def test_without_required_sign_in_the_web_app_uses_the_local_diary(make_app, home):
-    app = make_app(FOODSMART_AUTH_REQUIRED="0")
+    app = make_app(MEALSCHOLAR_AUTH_REQUIRED="0")
     client = browser(app)
     assert client.get("/api/status").json()["auth_required"] is False
 
@@ -880,13 +880,13 @@ def test_account_settings_from_the_environment():
     custom = load_settings(
         {
             "MONGODB_URI": "mongodb://localhost",
-            "FOODSMART_MONGODB_DB": "other",
-            "FOODSMART_AUTH_REQUIRED": "0",
-            "FOODSMART_PUBLIC_URL": "https://meals.example/",
-            "FOODSMART_COOKIE_SECURE": "false",
-            "FOODSMART_EMAIL_PROVIDER": "SMTP",
-            "FOODSMART_DEMO_VERIFY_LINK": "1",
-            "FOODSMART_DEV_OUTBOX": "yes",
+            "MEALSCHOLAR_MONGODB_DB": "other",
+            "MEALSCHOLAR_AUTH_REQUIRED": "0",
+            "MEALSCHOLAR_PUBLIC_URL": "https://meals.example/",
+            "MEALSCHOLAR_COOKIE_SECURE": "false",
+            "MEALSCHOLAR_EMAIL_PROVIDER": "SMTP",
+            "MEALSCHOLAR_DEMO_VERIFY_LINK": "1",
+            "MEALSCHOLAR_DEV_OUTBOX": "yes",
         }
     )
     assert (custom.mongodb_uri, custom.mongodb_db) == ("mongodb://localhost", "other")
@@ -894,9 +894,9 @@ def test_account_settings_from_the_environment():
     assert [getattr(custom, flag) for flag in flags] == [False, False, True, True]
 
     for name, value in (
-        ("FOODSMART_AUTH_REQUIRED", "maybe"),
-        ("FOODSMART_EMAIL_PROVIDER", "pigeon"),
-        ("FOODSMART_PUBLIC_URL", "meals.example"),
+        ("MEALSCHOLAR_AUTH_REQUIRED", "maybe"),
+        ("MEALSCHOLAR_EMAIL_PROVIDER", "pigeon"),
+        ("MEALSCHOLAR_PUBLIC_URL", "meals.example"),
     ):
         with pytest.raises(ValueError, match=name):
             load_settings({name: value})
@@ -905,27 +905,27 @@ def test_account_settings_from_the_environment():
 def test_a_malformed_setting_is_a_clean_cli_error(monkeypatch, tmp_path, capsys):
     """Every command reads the settings, so a typo in an account setting must not be a traceback."""
     monkeypatch.setattr(cli, "load_dotenv", lambda *args, **kwargs: None)
-    monkeypatch.setenv("FOODSMART_HOME", str(tmp_path))
-    monkeypatch.setenv("FOODSMART_COOKIE_SECURE", "2")
+    monkeypatch.setenv("MEALSCHOLAR_HOME", str(tmp_path))
+    monkeypatch.setenv("MEALSCHOLAR_COOKIE_SECURE", "2")
     with pytest.raises(SystemExit) as stopped:
         cli.main(["day", "2026-11-13"])
     assert stopped.value.code == 1
-    assert capsys.readouterr().err == "error: FOODSMART_COOKIE_SECURE must be 1 or 0, not '2'.\n"
+    assert capsys.readouterr().err == "error: MEALSCHOLAR_COOKIE_SECURE must be 1 or 0, not '2'.\n"
 
 
 def test_warns_when_the_secure_cookie_meets_a_plain_http_url(make_app, caplog):
-    with caplog.at_level(logging.WARNING, logger="foodsmart.auth"):
-        make_app(FOODSMART_PUBLIC_URL="https://meals.example")
-        make_app(FOODSMART_COOKIE_SECURE="0")
-        assert "FOODSMART_COOKIE_SECURE" not in caplog.text
+    with caplog.at_level(logging.WARNING, logger="mealscholar.auth"):
+        make_app(MEALSCHOLAR_PUBLIC_URL="https://meals.example")
+        make_app(MEALSCHOLAR_COOKIE_SECURE="0")
+        assert "MEALSCHOLAR_COOKIE_SECURE" not in caplog.text
         make_app()  # the defaults: a Secure cookie and http://127.0.0.1:8000
-        assert "Set FOODSMART_COOKIE_SECURE=0 to sign in over plain HTTP" in caplog.text
+        assert "Set MEALSCHOLAR_COOKIE_SECURE=0 to sign in over plain HTTP" in caplog.text
 
 
-# --- account stores (memory, and MongoDB when FOODSMART_TEST_MONGODB_URI is set) ----------
+# --- account stores (memory, and MongoDB when MEALSCHOLAR_TEST_MONGODB_URI is set) ----------
 
 
-STORES = ["memory", "mongo"] if os.environ.get("FOODSMART_TEST_MONGODB_URI") else ["memory"]
+STORES = ["memory", "mongo"] if os.environ.get("MEALSCHOLAR_TEST_MONGODB_URI") else ["memory"]
 
 
 @pytest.fixture(params=STORES)
@@ -933,7 +933,7 @@ def store(request):
     if request.param == "memory":
         yield MemoryAuthStore()
         return
-    mongo = MongoAuthStore.connect(os.environ["FOODSMART_TEST_MONGODB_URI"], MONGO_TEST_DB)
+    mongo = MongoAuthStore.connect(os.environ["MEALSCHOLAR_TEST_MONGODB_URI"], MONGO_TEST_DB)
     try:
         if mongo.db.list_collection_names():
             pytest.skip(f"{MONGO_TEST_DB} already has data; not touching it")

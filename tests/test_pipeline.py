@@ -3,9 +3,9 @@ from datetime import datetime
 import pytest
 from PIL import Image
 
-from foodsmart.diary import Diary
-from foodsmart.pipeline import UnknownFood, Workflow, correct
-from foodsmart.schemas import FoodItem, MealAnalysis
+from mealscholar.diary import Diary
+from mealscholar.pipeline import UnknownFood, Workflow, correct
+from mealscholar.schemas import FoodItem, MealAnalysis
 
 
 def item(name, query, low, likely, high, *, method="unknown", hidden_fat=False):

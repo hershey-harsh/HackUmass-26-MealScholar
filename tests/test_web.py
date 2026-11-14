@@ -7,9 +7,9 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from foodsmart.config import load_settings
-from foodsmart.vision import VisionError
-from foodsmart.web import create_app
+from mealscholar.config import load_settings
+from mealscholar.vision import VisionError
+from mealscholar.web import create_app
 
 
 class FailingVision:
@@ -24,7 +24,7 @@ class FailingVision:
 
 
 def client(home, vision) -> TestClient:
-    settings = load_settings({"FOODSMART_HOME": str(home), "FOODSMART_AUTH_REQUIRED": "0"})
+    settings = load_settings({"MEALSCHOLAR_HOME": str(home), "MEALSCHOLAR_AUTH_REQUIRED": "0"})
     return TestClient(create_app(settings, vision=vision), raise_server_exceptions=False)
 
 
@@ -67,7 +67,7 @@ def test_photos_that_wont_decode_get_a_client_error(home, photo, status):
 
 def test_gemini_failure_reply_hides_the_providers_error(home, caplog):
     raw = 'Gemini request failed: 403 PERMISSION_DENIED {"message": "API key not valid"}'
-    with caplog.at_level(logging.WARNING, logger="foodsmart.web"):
+    with caplog.at_level(logging.WARNING, logger="mealscholar.web"):
         app = client(home, FailingVision(VisionError(raw)))
         res = app.post("/api/meals?lat=42.389123&lon=-72.528456", content=jpeg())
     assert res.status_code == 502

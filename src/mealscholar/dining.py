@@ -896,7 +896,7 @@ def send_favorites_digests(
 
 
 def open_digest(settings: Settings) -> tuple[AuthStore, PrefsStore, Dining]:
-    """The accounts, preferences and menus in MongoDB, for `foodsmart alerts-digest`."""
+    """The accounts, preferences and menus in MongoDB, for `mealscholar alerts-digest`."""
     dining = open_dining(settings)
     if dining is None:
         raise ValueError("alerts-digest needs MONGODB_URI: accounts, preferences and menus are in MongoDB.")

@@ -35,7 +35,7 @@ Fill this in at kickoff so every agent knows whose files are whose.
 
 | Area | Owner (GitHub login) | Folders |
 |---|---|---|
-| AI food detection (photo → nutrients) | `killerfrost22` (Joseph) | `src/foodsmart/`, `tests/`, `pyproject.toml`, `uv.lock` |
+| AI food detection (photo → nutrients) | `killerfrost22` (Joseph) | `src/mealscholar/`, `tests/`, `pyproject.toml`, `uv.lock` |
 | UI/UX, login/registration, site deploy | `hershey-harsh` (Harsh) | `web/`, `.github/workflows/deploy-site.yml` |
 | UMass Dining menu data | `hershey-harsh` (Harsh) | none, it's in MongoDB Atlas (db `umass_dining`) |
 | Pitch deck and video | `gabbyao` (Gabby) | `video/` |
@@ -59,7 +59,7 @@ Design MUST NOT override [the rules the code enforces](README.md#rules-the-code-
 - labels micronutrients as estimates;
 - shows a calorie goal only if the user set one during onboarding (goals are the user's own); never gives insulin or carb-dosing advice.
 
-The frontend's data contract is `MealResult` in `src/foodsmart/schemas.py`, printed by `uv run foodsmart analyze PHOTO --json`. The app lives in `src/foodsmart/site/` (plain HTML/CSS/JS, no build step) and talks to the JSON API in `src/foodsmart/web.py`; run it with `uv run foodsmart serve`.
+The frontend's data contract is `MealResult` in `src/mealscholar/schemas.py`, printed by `uv run mealscholar analyze PHOTO --json`. The app lives in `src/mealscholar/site/` (plain HTML/CSS/JS, no build step) and talks to the JSON API in `src/mealscholar/web.py`; run it with `uv run mealscholar serve`.
 
 ### Definition of done
 

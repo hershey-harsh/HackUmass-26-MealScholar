@@ -83,12 +83,12 @@ jobs:
           if [ "$LIVE" != "$GITHUB_SHA" ]; then echo "::error::the site serves $LIVE, expected $GITHUB_SHA"; exit 1; fi
           echo "Live: https://hackumass.mannava.org (commit ${GITHUB_SHA:0:7})"
 
-      # The MealScholar app (`foodsmart serve`) at https://mealscholar.mannava.org.
+      # The MealScholar app (`mealscholar serve`) at https://mealscholar.mannava.org.
       # It runs from ~/Services/mealscholar/app under launchd job
       # org.mannava.mealscholar.app, sandboxed so it can't read the rest of the Mac.
       # Its data (USDA db, diary) and .env (GEMINI_API_KEY) live outside app/.
       - name: Deploy the app
-        if: steps.tip.outputs.skip != '1' && hashFiles('src/foodsmart/web.py') != ''
+        if: steps.tip.outputs.skip != '1' && hashFiles('src/mealscholar/web.py') != ''
         shell: bash
         run: |
           set -euo pipefail
@@ -97,7 +97,7 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > "$B/app/.deployed-sha"
           # Cloudflare caches the app's .js and .css for 4 h, so the page asks for them
           # with ?v=<commit>; __COMMIT__ in the app's index.html becomes this commit.
-          find "$B/app/src/foodsmart/site" -name '*.html' -exec env LC_ALL=C sed -i '' -e "s/__COMMIT__/${GITHUB_SHA:0:7}/g" {} +
+          find "$B/app/src/mealscholar/site" -name '*.html' -exec env LC_ALL=C sed -i '' -e "s/__COMMIT__/${GITHUB_SHA:0:7}/g" {} +
           cd "$B/app"
           /usr/bin/sandbox-exec -f "$B/sync.sb" /opt/homebrew/bin/uv sync --frozen --no-dev
           launchctl kickstart -k "gui/$(id -u)/org.mannava.mealscholar.app"
