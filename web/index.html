@@ -154,20 +154,20 @@
     <!-- The app's screens, fanned out. Without JavaScript this is a plain sideways row. -->
     <div class="fan" data-fan aria-roledescription="carousel" aria-label="Screens from the app" role="region">
       <div class="fan__track" data-fan-track>
-        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="1 of 7: The lunch photo, in ranges">
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="1 of 7: Brunch, in ranges">
           <div class="fan-card__vis fv-lunch" aria-hidden="true">
-            <div class="fv-lunch__photo"><img src="img/meal-pizza-640.jpg" alt="" width="640" height="400" loading="lazy" decoding="async"><span class="ps-pin">1</span></div>
+            <div class="fv-lunch__photo"><img src="img/meal-omelette-640.jpg" alt="" width="640" height="400" loading="lazy" decoding="async"><span class="ps-pin ps-pin--at" style="left:60%;top:72%">1</span><span class="ps-pin ps-pin--at" style="left:26%;top:48%">2</span><span class="ps-pin ps-pin--at" style="left:48%;top:20%">3</span></div>
             <div class="ps-total">
               <span class="ps-total__k">Calories</span>
               <span class="ps-total__s">most likely</span>
-              <span class="ps-total__v">1,197<small>kcal</small></span>
-              <span class="ps-total__r">range 1,011–1,436 kcal</span>
+              <span class="ps-total__v">866<small>kcal</small></span>
+              <span class="ps-total__r">range 736–997 kcal</span>
               <span class="band band--kcal band--dark"></span>
             </div>
           </div>
           <div class="fan-card__body">
-            <p class="fan-card__title">The lunch photo, in ranges</p>
-            <p class="fan-card__text">One pizza, 380–540 g, and 1,011–1,436 kcal. No weighing.</p>
+            <p class="fan-card__title">Brunch, in ranges</p>
+            <p class="fan-card__text">Three foods, 736–997 kcal, two from Franklin’s menu.</p>
             <div class="fan-card__btns">
               <a class="fan-btn fan-btn--fill" href="https://app.mealscholar.health">Open the app</a>
               <a class="fan-btn" href="#how">Learn more</a>
@@ -178,13 +178,13 @@
         <article class="fan-card" data-slide aria-roledescription="slide" aria-label="2 of 7: One question, at most">
           <div class="fan-card__vis fv-ask" aria-hidden="true">
             <span class="mini__label">One question</span>
-            <span class="fv-ask__q">Is the sauce creamy, or tomato/BBQ?</span>
-            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>Creamy</span><span class="opt">Tomato/BBQ</span></span>
-            <span class="fv-ask__toast"><svg><use href="#i-check"/></svg>Now butter chicken pizza</span>
+            <span class="fv-ask__q">Is the soda diet or regular?</span>
+            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>Diet</span><span class="opt">Regular</span></span>
+            <span class="fv-ask__toast"><svg><use href="#i-check"/></svg>Now diet cola</span>
           </div>
           <div class="fan-card__body">
             <p class="fan-card__title">One question, at most</p>
-            <p class="fan-card__text">If a photo is unclear, it asks you one thing, then recomputes.</p>
+            <p class="fan-card__text">Only when it changes the numbers, and only what you can answer at a glance.</p>
             <div class="fan-card__btns">
               <a class="fan-btn fan-btn--fill" href="https://app.mealscholar.health">Open the app</a>
               <a class="fan-btn" href="#how">Learn more</a>
@@ -218,9 +218,9 @@
         <article class="fan-card" data-slide aria-roledescription="slide" aria-label="4 of 7: 19 nutrients">
           <div class="fan-card__vis fv-nutr" aria-hidden="true">
             <div class="mini mini--nutr">
-              <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>1,197</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">1,011–1,436</small></div>
-              <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>51.3</b> g</span><span class="band band--prot"></span><small class="nrow__r">87–123% DV</small></div>
-              <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>149.8</b> g</span><span class="band band--carb"></span><small class="nrow__r">46–65% DV</small></div>
+              <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>866</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">736–997</small></div>
+              <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>37.4</b> g</span><span class="band band--prot"></span><small class="nrow__r">62–88% DV</small></div>
+              <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>48.7</b> g</span><span class="band band--carb"></span><small class="nrow__r">14–21% DV</small></div>
             </div>
           </div>
           <div class="fan-card__body">
@@ -302,35 +302,37 @@
         <a class="pill-link" href="#how">See how it works<svg aria-hidden="true"><use href="#i-arrow-se"/></svg></a>
       </div>
       <div class="why__visual">
-        <div class="phone" role="img" aria-label="The app on a phone, showing the result for the lunch photo: 1 food found, chicken and red onion pizza, 380 to 540 grams, likely 450. Calories 1,011 to 1,436, likely 1,197.">
+        <div class="phone" role="img" aria-label="The app on a phone, showing the result for a brunch photo: 3 foods found. An omelet with vegetables and cheese, 180 to 260 grams, likely 220; red potato home fries, 90 to 140 grams, likely 115; guacamole, 70 to 110 grams, likely 90. Two of them come from Franklin's menu and one from USDA. Calories 736 to 997, likely 866.">
           <div class="phone__screen">
             <div class="ps-status"><span>9:41</span><span class="ps-sig"><i></i><i></i><i></i><b></b></span></div>
             <div class="ps-bar">
               <svg class="ps-mark"><use href="#mark"/></svg>
-              <span class="ps-title">Lunch</span>
+              <span class="ps-title">Brunch</span>
               <span class="ps-ex">Example</span>
             </div>
             <div class="ps-photo ps-photo--real">
-              <img src="img/meal-pizza-640.jpg" alt="" width="640" height="400" decoding="async">
-              <span class="ps-pin" aria-hidden="true">1</span>
+              <img src="img/meal-omelette-640.jpg" alt="" width="640" height="400" decoding="async">
+              <span aria-hidden="true"><span class="ps-pin ps-pin--at" style="left:60%;top:72%">1</span><span class="ps-pin ps-pin--at" style="left:26%;top:48%">2</span><span class="ps-pin ps-pin--at" style="left:48%;top:20%">3</span></span>
             </div>
             <div class="ps-total">
               <span class="ps-total__k">Calories</span>
               <span class="ps-total__s">most likely</span>
-              <span class="ps-total__v">1,197<small>kcal</small></span>
-              <span class="ps-total__r">range 1,011–1,436 kcal</span>
+              <span class="ps-total__v">866<small>kcal</small></span>
+              <span class="ps-total__r">range 736–997 kcal</span>
               <span class="band band--kcal band--dark"></span>
             </div>
             <div class="ps-card ps-foods">
-              <div class="ps-food"><span class="pin">1</span><span class="ps-food__nm">Chicken and red onion pizza</span><span class="ps-food__g"><b>450 g</b><small>380–540</small></span></div>
-              <div class="ps-food ps-food--src"><span class="ps-src">Not on today’s campus menu · USDA match</span></div>
+              <div class="ps-food"><span class="pin">1</span><span class="ps-food__nm">Omelet, vegetables and cheese</span><span class="ps-food__g"><b>220 g</b><small>180–260</small></span></div>
+              <div class="ps-food"><span class="pin">2</span><span class="ps-food__nm">Red potato home fries</span><span class="ps-food__g"><b>115 g</b><small>90–140</small></span></div>
+              <div class="ps-food"><span class="pin">3</span><span class="ps-food__nm">Guacamole</span><span class="ps-food__g"><b>90 g</b><small>70–110</small></span></div>
+              <div class="ps-food ps-food--src"><span class="ps-src">2 from Franklin’s menu · 1 from USDA</span></div>
             </div>
           </div>
         </div>
         <div class="float float--q" aria-hidden="true">
-          <span class="float__label">One question</span>
-          <span class="float__q">Creamy sauce, or tomato/BBQ?</span>
-          <span class="opts"><span class="opt opt--on">Creamy</span><span class="opt">Tomato/BBQ</span></span>
+          <span class="float__label">From Franklin’s menu</span>
+          <span class="float__q">Omelet Station, 303 kcal per 5 oz</span>
+          <span class="opts"><span class="opt opt--on">1.3–1.8 servings</span></span>
         </div>
       </div>
       <ol class="why__list">
@@ -353,7 +355,7 @@
         <p class="eyebrow">How it works</p>
         <h2 id="how-title" class="h2">From photo to nutrients</h2>
       </div>
-      <p class="section-sub">Five steps, shown with a real lunch photo.</p>
+      <p class="section-sub">Five steps, shown with a real brunch photo.</p>
     </div>
     <ol class="steps">
       <li class="step">
@@ -362,9 +364,9 @@
           <h3>Snap your meal</h3>
           <p>Take a photo of your plate. That’s all you do.</p>
         </div>
-        <div class="mock" role="img" aria-label="Camera screen with a real photo: three slices of chicken and red onion pizza on a white plate, and a button to take or choose a photo.">
+        <div class="mock" role="img" aria-label="Camera screen with a real photo: an omelet with home fries and guacamole on a white plate, and a button to take or choose a photo.">
           <div class="vf">
-            <img src="img/meal-pizza-640.jpg" srcset="img/meal-pizza-640.jpg 640w, img/meal-pizza-1280.jpg 1280w" sizes="(max-width: 899px) 92vw, 640px" width="640" height="400" alt="" loading="lazy" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+            <img src="img/meal-omelette-640.jpg" srcset="img/meal-omelette-640.jpg 640w, img/meal-omelette-1280.jpg 1280w" sizes="(max-width: 899px) 92vw, 640px" width="640" height="400" alt="" loading="lazy" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
             <i class="vf__c vf__c--tl"></i><i class="vf__c vf__c--tr"></i><i class="vf__c vf__c--bl"></i><i class="vf__c vf__c--br"></i>
           </div>
           <div class="mini mini--bar">
@@ -379,11 +381,13 @@
           <h3>Foods and how much</h3>
           <p>The AI names each food and works out how much is there, as a low, likely and high amount. No weighing.</p>
         </div>
-        <div class="mock" role="img" aria-label="1 food found: chicken and red onion pizza, about 380 to 540 grams, likely 450, sized against the dinner plate. Checked against today's campus menu first, then USDA.">
+        <div class="mock" role="img" aria-label="3 foods found: an omelet with vegetables and cheese, 180 to 260 grams, likely 220; red potato home fries, 90 to 140 grams, likely 115; guacamole, 70 to 110 grams, likely 90. Sized against the dinner plate, then matched to Franklin's menu, with USDA as the backup.">
           <div class="mini mini--foods">
-            <div class="ml-head"><span>1 food found</span><span>low · likely · high</span></div>
-            <div class="ml-row"><span class="pin">1</span><span class="ml-n">Chicken and red onion pizza</span><span class="ml-g">380 · <b>450</b> · 540 g</span><span class="band band--f2"></span></div>
-            <p class="ml-note">Sized against the dinner plate · checked against today’s campus menu, then USDA</p>
+            <div class="ml-head"><span>3 foods found</span><span>low · likely · high</span></div>
+            <div class="ml-row"><span class="pin">1</span><span class="ml-n">Omelet, vegetables and cheese</span><span class="ml-g">180 · <b>220</b> · 260 g</span><span class="band band--f2"></span></div>
+            <div class="ml-row"><span class="pin">2</span><span class="ml-n">Red potato home fries</span><span class="ml-g">90 · <b>115</b> · 140 g</span><span class="band band--f2"></span></div>
+            <div class="ml-row"><span class="pin">3</span><span class="ml-n">Guacamole</span><span class="ml-g">70 · <b>90</b> · 110 g</span><span class="band band--f2"></span></div>
+            <p class="ml-note">Sized against the dinner plate · matched to Franklin’s menu, then USDA</p>
           </div>
         </div>
       </li>
@@ -391,15 +395,15 @@
         <div class="step__text">
           <span class="step__num">03</span>
           <h3>One question, if needed</h3>
-          <p>If the photo is unclear, it asks you one thing, then recomputes.</p>
+          <p>If something that changes the numbers is unclear, it asks one thing you can answer at a glance, like diet or regular. This plate needed none.</p>
         </div>
-        <div class="mock" role="img" aria-label="The question it asked about this photo: Is the sauce on the pizza a creamy or butter sauce, or a tomato or BBQ sauce? Creamy or butter is picked, and the food becomes butter chicken and red onion pizza.">
+        <div class="mock" role="img" aria-label="The question step for this photo: none was needed, because nothing that changes the numbers was unclear.">
           <div class="mini mini--q">
             <span class="mini__label">One question</span>
-            <span class="mini__q">Is the sauce on the pizza a creamy/butter sauce or a tomato/BBQ sauce?</span>
-            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>Creamy</span><span class="opt">Tomato/BBQ</span></span>
+            <span class="mini__q">None needed for this plate.</span>
+            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>Everything was clear</span></span>
           </div>
-          <div class="toast"><svg><use href="#i-check"/></svg>Now butter chicken pizza</div>
+          <div class="toast"><svg><use href="#i-check"/></svg>Ready to log</div>
         </div>
       </li>
       <li class="step step--wide">
@@ -409,14 +413,14 @@
           <p>If the food is on today’s campus menu, the nutrients come from the dining hall’s own nutrition facts. If not, from USDA FoodData Central. The AI never outputs nutrient numbers.</p>
           <span class="dot-chip">Campus menu first&nbsp;· USDA as a backup</span>
         </div>
-        <div class="mock mock--side" role="img" aria-label="Nutrients for this pizza: calories 1,011 to 1,436 kcal, likely 1,197. Protein 51.3 grams, 87 to 123 percent of the Daily Value. Carbohydrate 149.8 grams, 46 to 65 percent. Worked example: pizza, 450 grams times 11.4 grams of protein per 100 grams, equals 51.3 grams of protein.">
+        <div class="mock mock--side" role="img" aria-label="Nutrients for this brunch: calories 736 to 997 kcal, likely 866. Protein 37.4 grams, 62 to 88 percent of the Daily Value. Carbohydrate 48.7 grams, 14 to 21 percent. Worked example from Franklin's own label: the Omelet Station is 303 kcal per 5 ounce serving, and 220 grams is about 1.55 servings, so 470 kcal.">
           <div class="mini mini--nutr">
-            <div class="mini__head"><span class="mini__label">Nutrients</span><span class="mini__label">Lunch</span></div>
-            <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>1,197</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">1,011–1,436 kcal</small></div>
-            <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>51.3</b> g</span><span class="band band--prot"></span><small class="nrow__r">87–123% DV</small></div>
-            <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>149.8</b> g</span><span class="band band--carb"></span><small class="nrow__r">46–65% DV</small></div>
+            <div class="mini__head"><span class="mini__label">Nutrients</span><span class="mini__label">Brunch</span></div>
+            <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>866</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">736–997 kcal</small></div>
+            <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>37.4</b> g</span><span class="band band--prot"></span><small class="nrow__r">62–88% DV</small></div>
+            <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>48.7</b> g</span><span class="band band--carb"></span><small class="nrow__r">14–21% DV</small></div>
           </div>
-          <div class="formula"><span class="formula__k">Pizza, protein</span>450 g × 11.4 g per 100 g<b>= 51.3 g protein</b></div>
+          <div class="formula"><span class="formula__k">Omelet Station, Franklin’s label</span>220 g ÷ 5 oz serving × 303 kcal<b>= 470 kcal</b></div>
         </div>
       </li>
       <li class="step step--fix">
@@ -425,11 +429,11 @@
           <h3>Check it, log it</h3>
           <p>If it got a food wrong, swap it with one tap. Then log it to your day.</p>
         </div>
-        <div class="mock" role="img" aria-label="Check and log: butter chicken pizza, about 380 to 540 grams, likely 450, estimated from the photo. Not on today's campus menu, so it's matched to USDA: Pizza, cheese, from restaurant or fast food, with a Swap button. Then Log to Today.">
+        <div class="mock" role="img" aria-label="Check and log: an omelet with vegetables and cheese, about 180 to 260 grams, likely 220, estimated from the photo. It's on Franklin's menu as the Omelet Station, 303 kcal per 5 ounce serving, with a Swap button. Then Log to Today.">
           <div class="mini mini--fix">
-            <div class="fx-head"><span class="pin">1</span><b>Butter chicken pizza</b><span class="fx-chg"><span class="fx-new">~450 g</span></span></div>
-            <div class="fx-row"><span class="fx-k">Amount</span><span class="fx-food">380–540 g, estimated from the photo</span></div>
-            <div class="fx-row"><span class="fx-k">Match</span><span class="fx-food">Not on today’s campus menu, so USDA: Pizza, cheese, from restaurant</span><span class="fx-swap">Swap</span></div>
+            <div class="fx-head"><span class="pin">1</span><b>Omelet, vegetables and cheese</b><span class="fx-chg"><span class="fx-new">~220 g</span></span></div>
+            <div class="fx-row"><span class="fx-k">Amount</span><span class="fx-food">180–260 g, estimated from the photo</span></div>
+            <div class="fx-row"><span class="fx-k">Match</span><span class="fx-food">On Franklin’s menu: Omelet Station, 303 kcal per 5 oz</span><span class="fx-swap">Swap</span></div>
             <div class="fx-foot"><span class="fx-log">Log to Today</span><span class="fx-ok"><svg><use href="#i-check"/></svg>Added to today</span></div>
           </div>
         </div>
@@ -687,8 +691,8 @@
       </div>
     </div>
     <div class="band-cta__chip" aria-hidden="true">
-      <span class="band-cta__chip-top"><span>Lunch</span><span class="band-cta__ex">Example</span></span>
-      <span class="band-cta__chip-v">1,011–1,436 <small>kcal</small></span>
+      <span class="band-cta__chip-top"><span>Brunch</span><span class="band-cta__ex">Example</span></span>
+      <span class="band-cta__chip-v">736–997 <small>kcal</small></span>
       <span class="band band--kcal"></span>
     </div>
   </section>
