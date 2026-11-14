@@ -14,6 +14,20 @@ const els = {
   auth: $("#auth"),
   capture: $("#capture"),
   captureTitle: $("#capture-title"),
+  snapTools: $("#snap-tools"),
+  snapToolsHome: $("#snap-tools-home"),
+  locateAsk: $("#locate-ask"),
+  menuView: $("#menu"),
+  menuTitle: $("#menu-title"),
+  menuSub: $("#menu-sub"),
+  menuHalls: $("#menu-halls"),
+  menuBody: $("#menu-body"),
+  weekView: $("#week"),
+  weekPageTitle: $("#week-page-title"),
+  weekSub: $("#week-sub"),
+  railAlerts: $("#rail-alerts"),
+  railDot: $("#rail-alerts .rail__dot"),
+  railSettings: $("#rail-settings"),
   viewfinder: $("#viewfinder"),
   library: $("#photo"),
   camera: $("#camera"),
@@ -40,7 +54,6 @@ const els = {
   dashWeek: $("#dash-week"),
   dashMicro: $("#dash-micro"),
   tabs: $$(".tab[data-view]"),
-  badges: $$(".tab__badge"),
   accountButton: $("#account-button"),
   account: $("#account"),
   accountKicker: $("#account-kicker"),
@@ -75,15 +88,14 @@ const state = {
   ready: false,
   analyzing: false,
   nutrients: [],
-  // Each tab keeps its own meal: a new analysis, with its photo, under Analyze and a logged meal
-  // under Today. Only the active tab's meal is on screen.
+  // A new analysis, with its photo, shows on the capture screen; a logged meal opens over Today.
+  // Only the meal of the view on show is on screen.
   slots: { analyze: null, today: null }, // { result, photoUrl }
   shown: null, // the slot rendered into #result
   open: null, // { index, kind, id } while the edit sheet is open
   dismissedQuestion: null,
-  view: "analyze",
-  home: "analyze", // the screen everything else stacks on: Analyze, or the Today dashboard with accounts
-  scroll: { analyze: 0, today: 0, list: 0 },
+  view: "today", // today, menu or week (the tabs), or analyze (a photo being read, then its result)
+  scroll: { analyze: 0, today: 0, menu: 0, week: 0, list: 0 },
   openedMeal: null,
   // Accounts: only when GET /api/status says auth_required.
   authRequired: false,
@@ -99,7 +111,7 @@ const state = {
   day: null, // the day on show, YYYY-MM-DD
   todayKey: null, // what "today" was when last checked
   dashSeq: 0,
-  microOpen: false,
+  microOpen: true, // the Week tab's vitamins card
   scoreOpen: false, // the health score's "How it's scored" disclosure
   // Preferences (goals, dining halls, diet, favorites, alerts): only once GET /api/me/prefs answers
   // 200, either for the signed-in account or for the server's one "local" user when sign-in is
@@ -324,13 +336,20 @@ function placeBands(root) {
 }
 
 // ---------------------------------------------------------------- views
-// One view at a time on every screen: Today (the dashboard, or a logged meal opened from it) and
-// Analyze (the capture screen, or a new result). Phones switch with the tab bar at the bottom,
-// wide screens with the tabs in the top bar.
+// Three tabs, Today, Menu and Week: the dock at the bottom on phones, the sidebar on laptops. A
+// photo has no tab of its own: picking one (the + button) opens the capture screen, which shows the
+// photo while it's read and then its result. A logged meal opens over Today.
 
-/** The slot #result shows: the active tab's meal, if it has one. */
+const TABS = ["today", "menu", "week"];
+const isTab = (view) => TABS.includes(view);
+/** A tab that can show right now: Menu needs the campus menus. */
+const canShow = (view) => isTab(view) && (view !== "menu" || diningOn());
+
+/** The slot #result shows: the capture screen's new meal, or the meal opened over Today. */
 function shownKey() {
-  return state.slots[state.view] ? state.view : null;
+  if (state.view === "analyze") return state.slots.analyze ? "analyze" : null;
+  if (state.view === "today") return state.slots.today ? "today" : null;
+  return null;
 }
 
 const shownMeal = () => state.shown?.result ?? null;
@@ -339,6 +358,17 @@ function replayEntrance(el) {
   el.classList.remove("is-entering");
   void el.offsetWidth;
   el.classList.add("is-entering");
+}
+
+/** The photo options (pick again, open the camera, use location) sit at the top of the capture
+    screen, and at the top of a new result under its back button. One set of controls, moved. */
+function placeTools() {
+  const nav = state.shown && state.shown === state.slots.analyze ? $(".result__nav", els.result) : null;
+  if (nav) {
+    if (nav.nextElementSibling !== els.snapTools) nav.after(els.snapTools);
+  } else if (els.snapTools.parentElement !== els.snapToolsHome) {
+    els.snapToolsHome.append(els.snapTools);
+  }
 }
 
 /** Put the meal that belongs on screen into #result, or hide it. `enter` names a slot that just arrived. */
@@ -354,8 +384,12 @@ function syncResult({ enter = null } = {}) {
     state.shown = slot;
     state.open = null;
     if (slot) renderResult(entering ? "enter" : "switch");
-    else els.result.innerHTML = "";
+    else {
+      placeTools();
+      els.result.innerHTML = "";
+    }
   }
+  placeTools();
   markOpenMeal();
   if (!entering) return;
   replayEntrance(els.result);
@@ -372,26 +406,37 @@ function syncTabs() {
 
 function setView(view) {
   if (view === state.view) return;
-  state.scroll[state.view] = window.scrollY;
+  const leaving = state.view;
+  state.scroll[leaving] = window.scrollY;
+  // The capture screen and a meal opened over Today belong to where they were opened: leaving
+  // closes them (an analysis still running carries on, and says when it's done).
+  if (leaving === "analyze") {
+    discardSlot("analyze");
+    if (!state.analyzing) setStatus("");
+  }
+  if (leaving === "today" && state.slots.today) discardSlot("today");
   state.view = view;
   document.body.dataset.view = view;
   queueSideFit();
   syncTabs();
-  if (view === "analyze") showBadge(false);
   syncResult();
   $$(".view").forEach(replayEntrance);
-  window.scrollTo(0, state.scroll[view] ?? 0);
-  if (view === "today") ensureDashboard();
+  window.scrollTo(0, isTab(view) ? state.scroll[view] ?? 0 : 0);
+  if (view === "today" || view === "week") ensureDashboard();
+  if (view === "menu") ensureMenus();
 }
 
 function scrollTop() {
   window.scrollTo({ top: 0, behavior: reducedMotion.matches ? "auto" : "smooth" });
 }
 
+const viewTitle = (view) => ({ today: els.todayTitle, menu: els.menuTitle, week: els.weekPageTitle })[view] ?? null;
+
 for (const tab of els.tabs) {
   tab.addEventListener("click", (event) => {
     event.preventDefault();
     const view = tab.dataset.view;
+    if (!canShow(view)) return;
     if (view !== state.view) setView(view);
     // Tapping the active tab again goes back to the start of that view, as in native apps.
     else if (state.slots[view]) closeSlot(view, { focus: view === "today" });
@@ -493,9 +538,9 @@ const visibleTab = () => els.tabs.find((tab) => tab.matches("[aria-current]") &&
 function setViewfinder(mode) {
   els.viewfinder.dataset.state = mode;
   const analyzing = mode === "analyzing";
-  $(".viewfinder__empty", els.viewfinder).hidden = analyzing;
-  els.preview.hidden = !analyzing;
+  els.viewfinder.hidden = !analyzing;
   els.viewfinder.setAttribute("aria-busy", String(analyzing));
+  els.captureTitle.textContent = analyzing ? "Reading your plate" : "Snap a meal";
 }
 
 function setStatus(message, { error = false, target = els.status } = {}) {
@@ -536,12 +581,7 @@ function devicePosition() {
   });
 }
 
-/** A dot on the Analyze tab: a result finished while you were on Today. */
-function showBadge(on) {
-  for (const badge of els.badges) badge.hidden = !on;
-}
-
-/** Focus the start of the capture screen: the photo button, or the heading while it can't be used. */
+/** Focus the start of the capture screen: its heading while a photo is read, else the photo button. */
 function focusCapture() {
   const usable = !state.analyzing && !els.choose.disabled;
   (usable ? els.choose : els.captureTitle).focus({ preventScroll: true });
@@ -554,8 +594,9 @@ async function analyze(file) {
     setStatus("That file isn't an image. Choose a JPEG, PNG or HEIC photo.", { error: true });
     return;
   }
-  // A new photo replaces the last analysis and brings Analyze to the front.
+  // A new photo replaces the last analysis (or the logged meal on show) and opens the capture screen.
   const leaving = Boolean(state.shown) || state.view !== "analyze";
+  if (state.shown && state.shown === state.slots.today) discardSlot("today");
   discardSlot("analyze");
   setView("analyze");
   syncResult();
@@ -564,6 +605,7 @@ async function analyze(file) {
     replayEntrance(els.capture);
   }
   syncHistory();
+  els.captureTitle.focus({ preventScroll: true });
 
   // The photo's URL belongs to this request, so opening another meal meanwhile can't take it away.
   // The analysis also belongs to the account that started it: signing out or a session ending
@@ -576,8 +618,6 @@ async function analyze(file) {
   els.previewImg.src = photoUrl;
   state.analyzing = true;
   setViewfinder("analyzing");
-  // On a short phone the frame's bottom, where the progress pill sits, would hide behind the tab bar.
-  els.viewfinder.scrollIntoView({ block: "nearest", behavior: reducedMotion.matches ? "auto" : "smooth" });
   setStatus("Analyzing your photo. This usually takes a few seconds.");
 
   let query = "";
@@ -612,10 +652,9 @@ async function analyze(file) {
     if (state.view === "analyze") {
       syncResult({ enter: "analyze" });
     } else {
-      // The user moved to Today while waiting: leave them there and point at the Analyze tab.
-      syncResult();
-      showBadge(true);
-      toast("Your meal is ready. Open Analyze to see it.");
+      // The user moved on while waiting: leave them there. A logged meal is on Today now.
+      discardSlot("analyze");
+      toast(result.id != null ? "Your meal is ready. It's under Today." : result.items.length ? "Your photo is analyzed." : "No food found in that photo.");
     }
     syncHistory();
     if (result.id != null) refreshDays([mealDay(result)]);
@@ -623,7 +662,7 @@ async function analyze(file) {
     URL.revokeObjectURL(photoUrl);
     if (current() && !err.signedOut && !err.cancelled) {
       setStatus(err.message, { error: true });
-      if (state.view !== "analyze") toast("That photo couldn't be analyzed. Open Analyze to see why.");
+      if (state.view !== "analyze") toast(`That photo couldn't be analyzed. ${err.message}`);
     }
   } finally {
     // After a sign-out the capture screen belongs to whoever is next (stopAnalysis cleared it).
@@ -654,7 +693,6 @@ function stopAnalysis() {
   els.camera.value = "";
   setStatus("");
   setPickers(state.ready);
-  showBadge(false);
 }
 
 function discardSlot(key) {
@@ -662,10 +700,9 @@ function discardSlot(key) {
   if (!slot) return;
   if (slot.photoUrl) URL.revokeObjectURL(slot.photoUrl);
   state.slots[key] = null;
-  if (key === "analyze") showBadge(false);
 }
 
-/** Close a tab's meal: Analyze goes back to the capture screen, Today to the dashboard. */
+/** Close a meal: a logged one goes back to the dashboard, a new one (and the capture screen) to Today. */
 function closeSlot(key, { focus = false } = {}) {
   const slot = state.slots[key];
   if (!slot) return;
@@ -682,26 +719,19 @@ function closeSlot(key, { focus = false } = {}) {
     }
     return;
   }
-  window.scrollTo(0, 0);
-  replayEntrance(els.capture);
-  if (focus) focusCapture();
+  leaveCapture({ focus });
 }
 
-/** Back to a fresh capture screen. */
-function startNewMeal() {
-  if (state.shown && state.shown === state.slots.today) discardSlot("today"); // leaving a logged meal closes it
-  discardSlot("analyze");
-  if (!state.analyzing) setStatus("");
-  setView("analyze");
-  syncResult();
-  window.scrollTo(0, 0);
-  replayEntrance(els.capture);
-  syncHistory();
-  focusCapture();
+/** Off the capture screen, back to Today (an analysis still running carries on). */
+function leaveCapture({ focus = false } = {}) {
+  if (state.view === "analyze") setView("today");
+  window.scrollTo(0, state.scroll.today ?? 0);
+  if (focus) els.todayTitle.focus({ preventScroll: true });
 }
 
-/** "Snap a meal": straight to the photo picker. The app moves to Analyze once a photo is chosen,
-    so cancelling the picker leaves you where you were. */
+/** "Snap a meal" (the + buttons, Snap another meal, Take or choose a photo): straight to the photo
+    picker, which on a phone offers the camera or the library. The capture screen opens once a
+    photo is chosen, so cancelling the picker leaves you where you were. */
 function snapMeal() {
   if (!state.ready) return;
   if (state.analyzing) {
@@ -730,6 +760,7 @@ function markOpenMeal() {
 function renderResult(mode = "update", { focus } = {}) {
   const previous = mode === "update" ? snapshotBands(els.result) : new Map();
   els.result.innerHTML = resultHtml(state.shown);
+  placeTools();
   els.result.classList.toggle("is-settled", mode !== "enter"); // entrance animations play once per meal
   if (mode === "switch") placeBands(els.result);
   else animateBands(els.result, previous);
@@ -759,7 +790,7 @@ function resultHtml(slot) {
 
   return `
     <div class="result__nav">
-      <button class="back" type="button" data-action="back">${icon("chevron-left")}${fromToday ? esc(name) : "New photo"}</button>
+      <button class="back" type="button" data-action="back">${icon("chevron-left")}${fromToday ? esc(name) : "Today"}</button>
     </div>
     <article class="card meal-card${photoUrl ? " meal-card--photo" : ""}">
       ${photoUrl ? photoHtml(result, photoUrl) : ""}
@@ -777,10 +808,10 @@ function resultHtml(slot) {
     ${noFood ? "" : notesHtml(result)}
     <div class="result__foot">
       <button class="cta cta--block" type="button" data-action="new">
-        <span class="cta__pill">Analyze another meal</span>
+        <span class="cta__pill">Snap another meal</span>
         <span class="cta__dot" aria-hidden="true">${icon("arrow")}</span>
       </button>
-      <button class="btn btn--secondary btn--block" type="button" data-action="see-today">${icon("home")}${fromToday ? `Back to ${esc(backTo)}` : "See today"}</button>
+      <button class="btn btn--secondary btn--block" type="button" data-action="see-today">${icon("home")}${fromToday ? `Back to ${esc(backTo)}` : "Back to today"}</button>
       ${result.id != null ? `<div class="result__delete" data-delete>${deleteLinkHtml()}</div>` : ""}
     </div>`;
 }
@@ -792,7 +823,7 @@ function deleteLinkHtml() {
 
 function deleteAskHtml() {
   return `
-    <p class="delete__ask">Delete this meal? Today and This week drop its calories.</p>
+    <p class="delete__ask">Delete this meal? Today and Week drop its calories.</p>
     <div class="delete__row">
       <button class="btn btn--danger" type="button" data-action="delete-confirm">${icon("trash")}Delete</button>
       <button class="btn btn--secondary" type="button" data-action="delete-cancel">Keep it</button>
@@ -1048,8 +1079,7 @@ async function deleteMeal(button) {
     const day = mealDay(slot.result);
     if (state.openedMeal === id) state.openedMeal = null;
     closeSlot(key);
-    if (key === "today") els.todayTitle.focus({ preventScroll: true });
-    else focusCapture();
+    els.todayTitle.focus({ preventScroll: true });
     refreshDays([day]);
     syncHistory();
     toast("Meal deleted.");
@@ -1066,15 +1096,13 @@ els.result.addEventListener("click", (event) => {
       syncHistory();
       break;
     case "new":
-      startNewMeal();
+      snapMeal();
       break;
     case "see-today":
       if (shownKey() === "today") {
         closeSlot("today", { focus: true });
       } else {
-        setView("today");
-        window.scrollTo(0, 0);
-        els.todayTitle.focus({ preventScroll: true });
+        leaveCapture({ focus: true });
       }
       syncHistory();
       break;
@@ -1681,6 +1709,7 @@ function renderDay() {
     els.dashRecent.innerHTML = "";
     return;
   }
+  const keepMicroFocus = els.dashMicro.contains(document.activeElement);
   const previous = new Map([...snapshotBands(els.dashDay), ...snapshotBands(els.dashMicro)]);
   // Keyboard focus on a meal (the phone list or a laptop card) comes back to the same meal.
   const focusedMeal = document.activeElement?.closest?.("[data-meal]")?.dataset.meal ?? null;
@@ -1689,11 +1718,12 @@ function renderDay() {
   if (view.meals.length) {
     const score = state.prefsOn ? scoreHtml(view) : "";
     els.dashDay.innerHTML = heroHtml(view) + statsHtml(view) + score + mealsHtml(view);
-    els.dashMicro.innerHTML = microHtml(view);
+    els.dashMicro.innerHTML = microHtml(view) || microEmptyHtml(key, true);
   } else {
     els.dashDay.innerHTML = emptyDayHtml(key);
-    els.dashMicro.innerHTML = "";
+    els.dashMicro.innerHTML = microEmptyHtml(key, false);
   }
+  if (keepMicroFocus) $("summary", els.dashMicro)?.focus({ preventScroll: true });
   els.dashRecent.innerHTML = state.prefsOn ? recentHtml(view) : "";
   if (focusedMeal != null) visibleOne(`[data-meal="${CSS.escape(focusedMeal)}"]`, els.today)?.focus({ preventScroll: true });
   animateBands(els.dashDay, previous);
@@ -1874,18 +1904,33 @@ function mealsHtml(view) {
     </section>`;
 }
 
+/** "today", "yesterday" or "on Thu, Nov 12", for sentences about the day on show. */
+function dayPhrase(key) {
+  const name = dayName(key);
+  return key === state.todayKey ? "today" : name === "Yesterday" ? "yesterday" : `on ${name}`;
+}
+
+/** The Week tab's vitamins card is about the day picked in the chart (today unless another is). */
 function microHtml(view) {
   const rows = nutrientRowsHtml(view.totals, view.daily_value_pct, { micro: true, prefix: "dm" });
   if (!rows) return "";
   return `
     <details class="card micro-card"${state.microOpen ? " open" : ""}>
-      <summary><h2 class="micro-card__title">Vitamins and minerals</h2><span class="chip">Estimates</span></summary>
+      <summary><span class="micro-card__titles"><h2 class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(capitalize(dayName(state.day)))}</span></span><span class="chip">Estimates</span></summary>
       <div class="micro-card__body">
-        <p class="note">Photos can't show vitamins and minerals well, so these are rough estimates. A weekly trend says more than one day.</p>
+        <p class="note">Photos can't show vitamins and minerals well, so these are rough estimates. A weekly trend says more than one day. Pick a day in the chart to see its own.</p>
         <ul class="nutrients">${rows}</ul>
         <p class="note">${DV_NOTE}</p>
       </div>
     </details>`;
+}
+
+function microEmptyHtml(key, logged) {
+  return `
+    <section class="card micro-card micro-card--empty" aria-labelledby="micro-empty-title">
+      <div class="micro-card__titles"><h2 id="micro-empty-title" class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(capitalize(dayName(key)))}</span></div>
+      <p class="note">${logged ? `No vitamin or mineral estimates for the meals ${esc(dayPhrase(key))}.` : `Nothing logged ${esc(dayPhrase(key))}, so there's nothing to estimate.`} Pick another day in the chart.</p>
+    </section>`;
 }
 
 function emptyDayHtml(key) {
@@ -1954,6 +1999,7 @@ function weekDay(key) {
 }
 
 function renderWeek() {
+  renderWeekSub();
   const days = lastDays(state.todayKey, 7).map(weekDay);
   const sig = `${state.day}|${days.map((d) => `${d.key}:${d.version}:${d.view ? "v" : d.failed ? "e" : "p"}`).join(",")}`;
   if (sig === rendered.week) return;
@@ -1975,9 +2021,16 @@ function renderWeek() {
 function weekHead() {
   return `
     <div class="section-head">
-      <h2 id="week-title" class="section-title" tabindex="-1">This week</h2>
+      <h2 id="week-title" class="section-title" tabindex="-1">Calories by day</h2>
       <p class="eyebrow">Likely kcal and range</p>
     </div>`;
+}
+
+function renderWeekSub() {
+  const days = lastDays(state.todayKey, 7);
+  const first = parseDay(days[0]);
+  const last = parseDay(days[6]);
+  els.weekSub.textContent = `${monthDay.format(first)} to ${monthDay.format(last)}`;
 }
 
 function weekErrorHtml(days) {
@@ -2148,7 +2201,7 @@ els.dashWeek.addEventListener("focusout", hideWeekTip);
 
 // ---- dashboard events
 
-els.todayView.addEventListener("click", (event) => {
+function dashClick(event) {
   const target = event.target;
   const pager = target.closest("[data-strip]");
   if (pager) {
@@ -2178,6 +2231,10 @@ els.todayView.addEventListener("click", (event) => {
       if (!action.isConnected) (inWeek ? $("#week-title", els.dashWeek) : els.todayTitle)?.focus({ preventScroll: true });
       return;
     }
+    case "locate-allow":
+      return allowLocation(action);
+    case "locate-later":
+      return dismissLocateAsk();
     case "resend":
       return resendLink(action);
     case "demo-verify":
@@ -2190,9 +2247,14 @@ els.todayView.addEventListener("click", (event) => {
     case "retry-prefs":
       return retryPrefs(action);
   }
+  const dish = target.closest("[data-dish]");
+  if (dish) return openDish(dish.dataset.dish, dish);
   const meal = target.closest("[data-meal]");
   if (meal) openMealFrom(meal);
-});
+}
+
+els.todayView.addEventListener("click", dashClick);
+els.weekView.addEventListener("click", dashClick);
 
 els.dashMicro.addEventListener("toggle", (event) => (state.microOpen = event.target.open), true);
 els.dashDay.addEventListener("toggle", (event) => event.target.matches(".score__how") && (state.scoreOpen = event.target.open), true);
@@ -3157,8 +3219,10 @@ async function signOut(button) {
 
 // --------------------------------------------------------------- history
 // Every screen above the home screen has a history entry, so the Android back gesture and the
-// browser's back button step back through the app (a logged meal, then Today, then a result)
-// instead of leaving it. Home is Analyze, or the Today dashboard when accounts are on. Signed out,
+// browser's back button step back through the app instead of leaving it. Home is Today; Menu and
+// Week sit one step above it (#menu, #week), and so do a logged meal and the capture screen (a
+// photo being read, then its result). Switching tabs replaces that step, so back from any tab is
+// Today, and back from Today leaves the app. Signed out,
 // home is Welcome and Sign in, Create account and Forgot password stack on it ({ auth: [...] }
 // entries). Signing in or out folds the old stack back into one home entry, so back from the
 // dashboard never returns to a sign-in form.
@@ -3168,23 +3232,17 @@ const _bootParams = new URLSearchParams(location.search);
 _bootParams.delete("install");
 let baseUrl = location.pathname + (_bootParams.toString() ? "?" + _bootParams.toString() : "");
 
-const SLOT_LAYER = { analyze: "result", today: "meal" };
-const otherView = () => (state.home === "analyze" ? "today" : "analyze");
-
-/** The screens stacked above the home screen right now. */
+/** The screens stacked above Today right now. */
 function layers() {
   if (document.body.dataset.screen !== "app") return [];
-  const out = [];
-  if (state.slots[state.home]) out.push(SLOT_LAYER[state.home]);
-  const other = otherView();
-  if (state.view === other) {
-    out.push(other);
-    if (state.slots[other]) out.push(SLOT_LAYER[other]);
-  }
-  return out;
+  if (state.view === "today") return state.slots.today ? ["meal"] : [];
+  return [state.view];
 }
 
-const urlFor = (list) => (list.includes("today") ? `${baseUrl}#today` : baseUrl);
+const HASH = { menu: "#menu", week: "#week" };
+const urlFor = (list) => `${baseUrl}${HASH[list[0]] ?? ""}`;
+/** The tab a #hash names, if any: #today, #menu or #week. */
+const hashView = () => (isTab(location.hash.slice(1)) ? location.hash.slice(1) : null);
 const entryLayers = (entry) => (Array.isArray(entry?.layers) ? entry.layers : []);
 const isAuthEntry = (entry) => Array.isArray(entry?.auth);
 
@@ -3248,6 +3306,12 @@ window.addEventListener("popstate", (event) => {
   }
   if (screen !== "app") return;
   if (isAuthEntry(entry)) return syncHistory(); // a sign-in form from before signing in: stay in the app
+  // A #today, #menu or #week typed into the address bar (or a link to one): a new entry with no state.
+  if (!entry && hashView()) {
+    const view = canShow(hashView()) ? hashView() : "today";
+    applyLayers(view === "today" ? [] : [view]);
+    return;
+  }
   applyLayers(entryLayers(entry));
 });
 
@@ -3259,14 +3323,15 @@ function applyLayers(target) {
   if (els.account.open) closeAccount({ restoreFocus: false });
   if (els.panel.open) closePanel({ restoreFocus: false });
   if (dropped("meal")) closeSlot("today", { focus: true });
-  if (dropped("result")) closeSlot("analyze", { focus: true });
-  const other = otherView();
-  setView(target.includes(other) ? other : state.home);
+  const top = target[0];
+  // The capture screen only comes back while it has something to show.
+  const view = top === "analyze" ? (state.analyzing || state.slots.analyze ? "analyze" : "today") : canShow(top) ? top : "today";
+  setView(view);
   const now = layers();
   if (now.join() !== target.join()) history.replaceState({ layers: now }, "", urlFor(now));
   // Focus that was left in a view that is now hidden goes to the view's tab.
   const active = document.activeElement;
-  if (active && active !== document.body && !active.getClientRects().length) visibleTab()?.focus({ preventScroll: true });
+  if (active && active !== document.body && !active.getClientRects().length) (visibleTab() ?? viewTitle(state.view))?.focus({ preventScroll: true });
 }
 
 // ------------------------------------------------------------ preferences
