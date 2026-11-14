@@ -5706,10 +5706,15 @@ body[data-screen="onboard"] .toast {
   }
 
   /* Title left, day arrows right, and the week strip centered on the page between them. */
+  /* The sidebar narrows this row at 1024: the date keeps one line and the strip gives way. */
   body[data-prefs="on"] .dash-head__row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 35rem) minmax(0, 1fr);
+    grid-template-columns: minmax(max-content, 1fr) minmax(0, 35rem) minmax(max-content, 1fr);
     gap: 20px;
+  }
+
+  body[data-prefs="on"] .dash-head__date {
+    white-space: nowrap;
   }
 
   body[data-prefs="on"] .strip {
