@@ -1,6 +1,6 @@
 # MealScholar TODO
 
-As of Sat Nov 14, 10:35 AM EST. Owners follow the table in `AGENTS.md`. Deadlines come from `TIMELINE.md`.
+As of Sat Nov 14, 10:55 AM EST. Owners follow the table in `AGENTS.md`. Deadlines come from `TIMELINE.md`.
 Tick a box when it's done. When a contract changes, post on the board.
 
 ## 1. Merge chain and cleanup
@@ -67,6 +67,10 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
 - [x] Prize tracks, decided in `submissions/devpost.md` (Harsh can still change them). Devpost allows only one [HACKUMASS] category, and every project is considered for the grand prizes automatically.
   - [HACKUMASS] category: **Best UMass Hack**. Best UI/UX, Most Impactful AI Hack and Best Pitch are [HACKUMASS] categories too, so we can't also enter them.
   - Sponsor opt-ins, which don't count toward that limit: **[MLH] Best Use of Gemini API** (talking points in `BENCHMARK.md`) and **Best Use of MongoDB Atlas**.
+- [ ] Gabby has acquired **mealscholar.health** (registered at Porkbun, 10:51 AM EST).
+  - [ ] **Harsh**: move the landing page and the app there (#55). The steps are in the issue: decide which address serves what and when, add the domain to Cloudflare, add the tunnel hostnames, set the app's public URL, and update the links and the QR code. Decide before the 7 PM recording whether the video shows the new address.
+  - [ ] **Gabby**: at Porkbun, switch the nameservers to the two Cloudflare gives Harsh (#55, step 2).
+  - [ ] **Harsh + Gabby**: `.health` is run by GoDaddy Registry, so in `submissions/devpost.md` the answer to "Domains registered with GoDaddy Registry during this hackathon" becomes `mealscholar.health` instead of "None".
 - [ ] **Harsh**: make the repo public before submitting, or drop the code link. Judges get a 404 on a private repo. Harsh's Claude says nothing secret is in the repo.
 - [ ] **Joseph or Harsh**: put the numeric Gemini project number in `submissions/devpost.md`. We only have the project ID (`gen-lang-client-…`). The draft explains where to find the number.
 - [ ] **Harsh**: if campus menu matching (section 2) isn't live when you submit, submit the story as written. If it is, make the two swaps in `submissions/devpost.md`.
