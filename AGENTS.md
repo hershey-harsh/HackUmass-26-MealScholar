@@ -35,12 +35,12 @@ Fill this in at kickoff so every agent knows whose files are whose.
 
 | Area | Owner (GitHub login) | Folders |
 |---|---|---|
-| Core AI: food detection, photo → nutrients pipeline (Gemini vision, USDA lookup, diary, insights) | `killerfrost22` (Joseph) | `src/foodsmart/`, `tests/`, `pyproject.toml`, `uv.lock` |
-| UI/UX, login and registration; the site deploy | `hershey-harsh` (Harsh) | `web/`, `.github/workflows/deploy-site.yml` |
-| UMass Dining menu data (MongoDB Atlas, database `umass_dining`) | `hershey-harsh` (Harsh) | none (the data lives in Atlas) |
-| Pitch deck and presentation | `gabbyao` (Gabby) | none in the repo yet |
+| AI food detection (photo → nutrients) | `killerfrost22` (Joseph) | `src/foodsmart/`, `tests/`, `pyproject.toml`, `uv.lock` |
+| UI/UX, login/registration, site deploy | `hershey-harsh` (Harsh) | `web/`, `.github/workflows/deploy-site.yml` |
+| UMass Dining menu data | `hershey-harsh` (Harsh) | none, it's in MongoDB Atlas (db `umass_dining`) |
+| Pitch deck and video | `gabbyao` (Gabby) | `video/` |
 
-`web/` is live at https://hackumass.mannava.org: every push to `main` redeploys it (`.github/workflows/deploy-site.yml`, on the self-hosted runner on Harsh's Mac mini).
+The site at https://hackumass.mannava.org is `web/`, and it redeploys on every push to `main`. It's plain static files, no build step. The deploy runs on Harsh's Mac mini, which only takes `deploy-site.yml` from `main` in a version Harsh approved, so use `ubuntu-latest` for other workflows and ask on the board before changing the deploy.
 
 ## 5. Website work
 

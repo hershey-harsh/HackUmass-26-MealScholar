@@ -1,9 +1,46 @@
-# FoodSmart
+# MealScholar
 
 Snap a meal photo, get foods, grams and nutrients — as ranges, never a single fake-precise number.
+A HackUMass XIV project, piloting at UMass. The Python package and CLI are still named `foodsmart`.
 
 Gemini identifies the foods and estimates grams. **It never outputs nutrient numbers**: code looks
 each food up in a local copy of USDA FoodData Central and multiplies.
+
+## Sites
+
+| Site | URL | Source | Deploys |
+|---|---|---|---|
+| Landing page | https://hackumass.mannava.org | `web/`: static HTML/CSS/JS, no build step | Every push to `main` |
+| App | https://mealscholar.mannava.org | `foodsmart serve`: JSON API in `src/foodsmart/web.py`, UI in `src/foodsmart/site/` | Live now from [#7] and [#13], which aren't merged yet. Once `web.py` is on `main`, every push to `main` redeploys it |
+
+Both deploy through `.github/workflows/deploy-site.yml` on Harsh's Mac mini; ask on the team board
+before changing it (see [AGENTS.md](AGENTS.md)).
+
+**Landing page.** What MealScholar does and why the numbers are ranges, a five-step walkthrough on
+a real lunch photo, and the 19 nutrients it tracks. "Open the app" goes to the app and offers Add
+to Home Screen.
+
+**App** (in review: [#7], [#13]). Phone-first, with bottom tabs for Today and Analyze and a camera
+button.
+
+- **Analyze**: snap, choose or drop a photo (JPEG, PNG or HEIC, up to 25 MB). Location is off
+  unless you switch it on, and only the place name is saved. Photos are analyzed in memory and
+  never stored.
+- **Result**: the meal's calories as a range with the most likely value; each food with its
+  low/likely/high grams, its box on the photo and its USDA match. At most one clarifying question,
+  then everything recomputes. In a sheet, weigh a food to collapse its range or swap its USDA match.
+- **Today**: the day's calories and nutrients as ranges with % Daily Value (a label reference, not
+  a goal), vitamins and minerals labelled as estimates, meals by slot, this week at a glance, and
+  previous/next day. Tap a meal to reopen and correct it.
+- **Add to Home Screen**: installs as a web app (Android prompt, iPhone steps); no app store.
+
+Also in review, on top of these: sign-in and accounts ([#11]); onboarding preferences and UMass
+Dining menus ([#15]).
+
+[#7]: https://github.com/hershey-harsh/HackUmass-26-MealScholar/pull/7
+[#11]: https://github.com/hershey-harsh/HackUmass-26-MealScholar/pull/11
+[#13]: https://github.com/hershey-harsh/HackUmass-26-MealScholar/pull/13
+[#15]: https://github.com/hershey-harsh/HackUmass-26-MealScholar/pull/15
 
 ## Workflow
 

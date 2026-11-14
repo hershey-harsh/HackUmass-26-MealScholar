@@ -1,11 +1,18 @@
-# Deploys web/ to https://hackumass.mannava.org on every push to main.
+# Deploys web/ to https://hackumass.mannava.org, and the MealScholar app to
+# https://mealscholar.mannava.org, on every push to main.
 #
 # It runs on the self-hosted runner on Harsh's Mac mini (label hackumass-deploy),
 # which copies web/ into ~/Services/hackumass/site. A local server (launchd job
 # org.mannava.hackumass.site) serves that folder and the hackumass Cloudflare
 # tunnel publishes it, so the new version is live when this job goes green.
+# web/ is published as plain static files: if it ever needs a build (npm etc.),
+# add the build here and publish its output folder instead.
+#
+# Only this workflow, on main, may use that runner, and only in a version the
+# owner has approved on the Mac (a job-started hook there checks it), so editing
+# this file needs Harsh's approval before it runs.
 # Any __COMMIT__ / __DEPLOYED_AT__ in an .html file is replaced with the
-# deployed commit and time.
+# deployed commit and time; version.txt holds the full commit id.
 name: Deploy site
 
 on:
@@ -13,7 +20,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# One deploy at a time; a newer push waits for the running one, then deploys.
+# One deploy at a time; a newer push waits for the running one.
 concurrency:
   group: deploy-site
   cancel-in-progress: false
@@ -23,30 +30,74 @@ permissions:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, hackumass-deploy]
+    if: github.ref == 'refs/heads/main'
+    runs-on: [hackumass-deploy]
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Publish web/ to the site folder
+      # A re-run of an old run, or a run queued behind a newer push, must not
+      # put older content back: only the commit at the tip of main deploys.
+      - name: Skip unless this is the tip of main
+        id: tip
         shell: bash
         run: |
           set -euo pipefail
+          TIP="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$TIP" != "$GITHUB_SHA" ]; then
+            echo "main is at ${TIP:0:7}; skipping ${GITHUB_SHA:0:7} (the newer commit deploys itself)"
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish web/ to the site folder
+        if: steps.tip.outputs.skip != '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -L web ] || [ ! -d web ]; then echo "::error::web/ must be a real directory (not a symlink)"; exit 1; fi
+          if [ -f web/package.json ]; then echo "::error::web/ has a package.json: add a build step to this workflow and publish its output"; exit 1; fi
           SITE="$HOME/Services/hackumass/site"
-          SHORT="${GITHUB_SHA:0:7}"
-          STAMP="$(date -u '+%Y-%m-%d %H:%M UTC')"
-          STAGE="$(mktemp -d)"
-          trap 'rm -rf "$STAGE"' EXIT
+          STAGE="$RUNNER_TEMP/site"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
           rsync -a --exclude '.*' web/ "$STAGE/"
           # Symlinks could point anywhere on this Mac; the public site never gets them.
           find "$STAGE" -type l -print -delete
-          find "$STAGE" -name '*.html' -exec sed -i '' -e "s/__COMMIT__/$SHORT/g" -e "s/__DEPLOYED_AT__/$STAMP/g" {} +
+          test -s "$STAGE/index.html" || { echo "::error::web/index.html is missing or empty; not publishing"; exit 1; }
+          SHORT="${GITHUB_SHA:0:7}"
+          STAMP="$(date -u '+%Y-%m-%d %H:%M UTC')"
+          find "$STAGE" -name '*.html' -exec env LC_ALL=C sed -i '' -e "s/__COMMIT__/$SHORT/g" -e "s/__DEPLOYED_AT__/$STAMP/g" {} +
+          printf '%s\n' "$GITHUB_SHA" > "$STAGE/version.txt"
           mkdir -p "$SITE"
-          rsync -a --delete --exclude '.*' "$STAGE/" "$SITE/"
+          # New files go to a hidden temp folder first and replace the old ones
+          # only once all of them have arrived, so a killed deploy leaves the
+          # old site whole.
+          rsync -a --delete-after --delay-updates --exclude '.*' "$STAGE/" "$SITE/"
 
       - name: Check the site serves this commit
+        if: steps.tip.outputs.skip != '1'
         shell: bash
         run: |
           set -euo pipefail
-          curl -fsS http://127.0.0.1:8710/ | grep -q "${GITHUB_SHA:0:7}"
+          LIVE="$(curl -fsS --max-time 10 --retry 5 --retry-connrefused http://127.0.0.1:8710/version.txt)"
+          if [ "$LIVE" != "$GITHUB_SHA" ]; then echo "::error::the site serves $LIVE, expected $GITHUB_SHA"; exit 1; fi
           echo "Live: https://hackumass.mannava.org (commit ${GITHUB_SHA:0:7})"
+
+      # The MealScholar app (`foodsmart serve`) at https://mealscholar.mannava.org.
+      # It runs from ~/Services/mealscholar/app under launchd job
+      # org.mannava.mealscholar.app, sandboxed so it can't read the rest of the Mac.
+      # Its data (USDA db, diary) and .env (GEMINI_API_KEY) live outside app/.
+      - name: Deploy the app
+        if: steps.tip.outputs.skip != '1' && hashFiles('src/foodsmart/web.py') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          B="$HOME/Services/mealscholar"
+          rsync -a --delete --exclude '.git' --exclude '.venv' --exclude 'web/' ./ "$B/app/"
+          printf '%s\n' "$GITHUB_SHA" > "$B/app/.deployed-sha"
+          cd "$B/app"
+          /usr/bin/sandbox-exec -f "$B/sync.sb" /opt/homebrew/bin/uv sync --frozen --no-dev
+          launchctl kickstart -k "gui/$(id -u)/org.mannava.mealscholar.app"
+          curl -fsS --max-time 10 --retry 15 --retry-delay 2 --retry-connrefused http://127.0.0.1:8720/api/status
+          echo
+          echo "Live: https://mealscholar.mannava.org (commit ${GITHUB_SHA:0:7})"
