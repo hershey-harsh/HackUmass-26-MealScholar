@@ -43,6 +43,10 @@ FIXTURE_FOODS = {
         ),
         food(7, "Topping from cheese pizza", kcal_protein_fat(230, 12, 16), wweia="Pizza"),
         food(8, "Milk, human", [], wweia="Human milk"),
+        # FNDDS writes "Pizza with pepperoni", no comma after the main food.
+        food(13, "Pizza with pepperoni, from restaurant or fast food, thin crust", kcal_protein_fat(282, 12, 13), wweia="Pizza"),
+        food(14, "Lemonade, fruit juice drink", kcal_protein_fat(46, 0, 0), wweia="Fruit drinks"),
+        food(16, "Salad dressing, NFS, for salads", kcal_protein_fat(430, 0.9, 44), wweia="Salad dressing"),
     ],
     "Foundation": [
         # Many Foundation foods carry only Atwater energy (958/957), no 208.
@@ -52,11 +56,13 @@ FIXTURE_FOODS = {
             [("957", "kcal", 39), ("958", "kcal", 31), ("203", "g", 2.6), ("268", "kJ", 132)],
             category="Vegetables and Vegetable Products",
         ),
+        food(17, "Mixed salad greens, raw", kcal_protein_fat(21, 1.6, 0.2), category="Vegetables and Vegetable Products"),
     ],
     "SR Legacy": [
         food(10, 'PIZZA HUT 14" Cheese Pizza, Pan Crust', kcal_protein_fat(276, 11, 13), category="Fast Foods"),
         food(11, "Babyfood, juice, orange", kcal_protein_fat(45, 0.6, 0.3), category="Baby Foods"),
         food(12, "Orange juice, raw", kcal_protein_fat(45, 0.7, 0.2), category="Fruits and Fruit Juices"),
+        food(15, "Lemonade, frozen concentrate, pink", kcal_protein_fat(192, 0.2, 0.7), category="Beverages"),
     ],
 }
 
