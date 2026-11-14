@@ -54,13 +54,13 @@ supply the nutrition facts. Review the sources, correct a match and log your mea
 | **Check the match** | Inspect the USDA source, search alternatives and correct the selected food. |
 | **Your food diary** | Meals by day, calorie and nutrient totals, % Daily Value and weekly views. |
 | **Phone-first app** | Today, Menu and Week views, camera entry points and Add to Home Screen. |
+| **Campus menu first** | Each upload names a dining hall: the one you're at with location on, else the hall picked on Menu, else your main hall. A food that is a listed dish uses the hall's label; the rest use USDA. |
 | **Campus dining APIs** | UMass Dining locations, menus, dish search, nearby halls and favorites alerts. |
 
 ### Current limitations
 
-- **Campus matching still needs app integration.** The backend can use a campus label when
-  `POST /api/meals` receives an explicit `location_id`; it does not infer a hall from GPS or saved
-  preferences. The browser upload does not yet send that hall, so its photo results still use USDA.
+- **The backend doesn't pick the hall.** `POST /api/meals` uses a campus label only when it gets
+  a `location_id`; the app chooses that hall. API and CLI callers without one get USDA only.
 - **Accounts depend on deployment settings.** Sign-in and onboarding screens exist. Production must
   require authentication; disabling it shares one local diary and preferences among all visitors,
   not a private diary per device.
@@ -188,7 +188,7 @@ Set these in `.env` or your shell.
 | `GEMINI_API_KEY` | Not set | Required for photo analysis. |
 | `MEALSCHOLAR_MODEL` | `gemini-4-hydrogen` | Vision model; see [model benchmarks](BENCHMARK.md). |
 | `MEALSCHOLAR_THINKING` | `low` | Thinking level. Gemini 4 supports `low`, `medium`, `high`, `xhigh`; `minimal` is for 3.x Flash/Flash-Lite only. |
-| `MEALSCHOLAR_HOME` | `~/.mealscholar` | USDA database, downloads and SQLite diary. |
+| `MEALSCHOLAR_HOME` | `~/.mealscholar` | USDA database, downloads, SQLite diary and logged meals' photos. |
 | `MEALSCHOLAR_NOMINATIM_URL` | Public OpenStreetMap Nominatim | Place lookup; the public service allows 1 request/second. |
 
 <details>
@@ -218,20 +218,23 @@ For production, use persistent accounts, require sign-in and set `MEALSCHOLAR_PU
 Configure SMTP and verify delivered confirmation/reset links before relying on email. Favorites
 digests also need an explicit schedule; SMTP configuration alone does not schedule them.
 
-Meals and learned portions remain in `MEALSCHOLAR_HOME/diary.sqlite`; MongoDB stores accounts and
-preferences, not the diary. Back up both stores and verify restoration.
+Meals and learned portions remain in `MEALSCHOLAR_HOME/diary.sqlite`, and logged meals' photos in
+`MEALSCHOLAR_HOME/photos/`; MongoDB stores accounts and preferences, not the diary. Back up both
+stores and verify restoration.
 
 </details>
 
 ## Rules the code enforces
 
 - **Data, not guesses:** the model estimates foods and amounts; a matching campus label supplies
-  the main nutrients when a hall is explicitly selected, with USDA as fallback and micronutrient source.
+  the main nutrients when the upload names a hall, with USDA as fallback and micronutrient source.
 - **Ranges stay visible:** photo-based amounts have low/likely/high estimates. A meal's or a day's
   range adds its foods' errors as partly correlated (`compute.SHARED_ERROR`), not every low and
   every high at once. Exact-weight corrections through the CLI or API can collapse a range.
-- **Private by default:** location is opt-in; coordinates and photos are not stored in the diary.
-  Images sent to Gemini are re-encoded without EXIF, using `store=False`.
+- **Private by default:** location is opt-in, and coordinates are not stored. A logged meal keeps
+  its photo, re-encoded from the pixels alone (no EXIF, GPS, XMP or color profile) as a 1280 px
+  JPEG and a 320 px thumbnail that only its owner can fetch. Deleting the meal, the history or the
+  account deletes them. Images sent to Gemini are re-encoded without EXIF, using `store=False`.
 - **Estimates, not diagnosis:** micronutrients are labelled as estimates; weekly averages count
   only days with logged meals.
 - **Your goals, not prescriptions:** calorie goals are optional and user-selected. % Daily Value
@@ -345,8 +348,8 @@ Built for HackUMass XIV by three teammates.
   and SR Legacy data, CC0.
 - **Places:** [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL,
   via Nominatim.
-- **Campus menus:** UMass Dining data in MongoDB Atlas, currently used by the dining APIs,
-  not by the photo nutrient calculation.
+- **Campus menus:** UMass Dining data in MongoDB Atlas, used by the dining APIs and, for a food
+  that is a listed dish, for its nutrients.
 
 ---
 
