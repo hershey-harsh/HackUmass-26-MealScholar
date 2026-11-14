@@ -1,4 +1,5 @@
-# Deploys web/ to https://hackumass.mannava.org on every push to main.
+# Deploys web/ to https://hackumass.mannava.org, and the MealScholar app to
+# https://mealscholar.mannava.org, on every push to main.
 #
 # It runs on the self-hosted runner on Harsh's Mac mini (label hackumass-deploy),
 # which copies web/ into ~/Services/hackumass/site. A local server (launchd job
@@ -81,3 +82,22 @@ jobs:
           LIVE="$(curl -fsS --max-time 10 --retry 5 --retry-connrefused http://127.0.0.1:8710/version.txt)"
           if [ "$LIVE" != "$GITHUB_SHA" ]; then echo "::error::the site serves $LIVE, expected $GITHUB_SHA"; exit 1; fi
           echo "Live: https://hackumass.mannava.org (commit ${GITHUB_SHA:0:7})"
+
+      # The MealScholar app (`foodsmart serve`) at https://mealscholar.mannava.org.
+      # It runs from ~/Services/mealscholar/app under launchd job
+      # org.mannava.mealscholar.app, sandboxed so it can't read the rest of the Mac.
+      # Its data (USDA db, diary) and .env (GEMINI_API_KEY) live outside app/.
+      - name: Deploy the app
+        if: steps.tip.outputs.skip != '1' && hashFiles('src/foodsmart/web.py') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          B="$HOME/Services/mealscholar"
+          rsync -a --delete --exclude '.git' --exclude '.venv' --exclude 'web/' ./ "$B/app/"
+          printf '%s\n' "$GITHUB_SHA" > "$B/app/.deployed-sha"
+          cd "$B/app"
+          /usr/bin/sandbox-exec -f "$B/sync.sb" /opt/homebrew/bin/uv sync --frozen --no-dev
+          launchctl kickstart -k "gui/$(id -u)/org.mannava.mealscholar.app"
+          curl -fsS --max-time 10 --retry 15 --retry-delay 2 --retry-connrefused http://127.0.0.1:8720/api/status
+          echo
+          echo "Live: https://mealscholar.mannava.org (commit ${GITHUB_SHA:0:7})"
