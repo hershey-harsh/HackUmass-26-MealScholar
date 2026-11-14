@@ -401,12 +401,13 @@ for (const tab of els.tabs) {
   });
 }
 
-/** 64–82em: the shell fills the window, so the fixed + button sits over the side column's corner.
-    The upcoming-meal card keeps its bottom edge just above the button: at the top of the page the
-    column starts under the title and week strip, pinned it starts under the bar, and the card takes
-    whatever height is left either way. A stylesheet can't tell the two states apart, so the height
-    is set here on scroll and resize. */
-const narrowLaptop = matchMedia("(min-width: 64em) and (max-width: 81.99em)");
+/** Laptops: wherever the dashboard reaches the window's right edge, the fixed + button sits over the
+    side column's corner. The upcoming-meal card then keeps its bottom edge just above the button: at
+    the top of the page the column starts under the title and week strip, pinned it starts under the
+    bar, and the card takes whatever height is left either way. A stylesheet can't tell the two
+    states apart, so the height is set here on scroll and resize. Where the + sits clear of the
+    column (very wide windows), the card still fits the window, 16px above its bottom edge. */
+const laptop = matchMedia("(min-width: 64em)");
 const PLUS_LANE = 104; // the 60px button, 28px from the bottom, and a 16px gap above it
 let sideFitQueued = false;
 
@@ -414,12 +415,18 @@ function fitSideCard() {
   sideFitQueued = false;
   const card = $(".upcoming", els.dashSide);
   if (!card) return;
-  if (!narrowLaptop.matches || document.body.dataset.view !== "today") {
+  const plus = els.plus && getComputedStyle(els.plus).display !== "none" ? els.plus.getBoundingClientRect() : null;
+  const box = card.getBoundingClientRect();
+  if (!laptop.matches || document.body.dataset.view !== "today") {
     card.style.maxHeight = "";
     return;
   }
-  const top = card.getBoundingClientRect().top;
-  card.style.maxHeight = `${Math.max(240, Math.round(window.innerHeight - PLUS_LANE - top))}px`;
+  // Clear of the +, the card still ends 16px above the window's bottom edge.
+  const lane = plus && plus.left < box.right ? PLUS_LANE : 16;
+  // Never measure from above the pinned line: once the page end pushes the column up, the card
+  // keeps its pinned height and moves with it, instead of growing into the space it left.
+  const pinned = parseFloat(getComputedStyle(els.dashSide).top) || 0;
+  card.style.maxHeight = `${Math.max(240, Math.round(window.innerHeight - lane - Math.max(box.top, pinned)))}px`;
 }
 
 function queueSideFit() {
@@ -434,7 +441,29 @@ const onScroll = () => {
 };
 window.addEventListener("scroll", onScroll, { passive: true });
 window.addEventListener("resize", queueSideFit);
-narrowLaptop.addEventListener("change", queueSideFit);
+laptop.addEventListener("change", queueSideFit);
+
+/** Laptops: the pinned left column scrolls inside itself when it's taller than its slot (larger
+    browser text, a short window, an open "How it's scored"). Its scrollbar is hidden, so a soft fade
+    at its bottom edge (styles.css) shows while more of it sits below. */
+function markColumnMore() {
+  const col = els.dashDay;
+  col.classList.toggle("has-more", laptop.matches && col.scrollHeight - col.scrollTop - col.clientHeight > 2);
+}
+
+const columnSizes = new ResizeObserver(markColumnMore);
+
+/** Watches the column and each card in it, so a card that grows or shrinks updates the fade too. */
+function watchColumn() {
+  columnSizes.disconnect();
+  columnSizes.observe(els.dashDay);
+  for (const card of els.dashDay.children) columnSizes.observe(card);
+}
+
+watchColumn();
+new MutationObserver(watchColumn).observe(els.dashDay, { childList: true });
+els.dashDay.addEventListener("scroll", markColumnMore, { passive: true });
+laptop.addEventListener("change", markColumnMore);
 
 /** The tab that is on screen for this layout: the tab bar on phones, the top bar on wide screens. */
 const visibleTab = () => els.tabs.find((tab) => tab.matches("[aria-current]") && tab.getClientRects().length);
@@ -1453,32 +1482,117 @@ function renderDashHead() {
   renderStrip();
 }
 
-/** Laptop, with preferences: Monday to Sunday of this week, today ringed, the day on show filled in,
-    days still ahead disabled. A past day opens like any other (the same data-day handler). */
+/** Laptop, with preferences: a slide of weeks, Monday to Sunday on each page, the current week last
+    and on show first. Swipe, scroll sideways or use the chevrons at the ends to page a week; the day
+    arrows still step one day and the slide follows the day on show. Today is ringed, the day on show
+    filled in, days still ahead disabled. A past day opens like any other (the same data-day handler). */
+const STRIP_WEEKS = 8; // this week and the 7 before it
+const WEEK_MS = 7 * 864e5;
+const strip = { key: "", day: null, page: 0, pages: 0, timer: 0 };
+
+const mondayOf = (key) => shiftDay(key, -((parseDay(key).getDay() + 6) % 7));
+const weeksBetween = (from, to) => Math.round((parseDay(to) - parseDay(from)) / WEEK_MS); // DST-safe
+const stripTrack = () => $(".strip__track", els.strip);
+
+function stripDayHtml(key, today) {
+  const date = parseDay(key);
+  const isToday = key === today;
+  const future = key > today;
+  const label = `${isToday ? "Today, " : ""}${longDay.format(date)}${future ? ", still ahead" : ""}`;
+  return `
+    <button class="strip__day${isToday ? " is-today" : ""}" type="button" data-day="${key}"${key === state.day ? ' aria-current="date"' : ""}${future ? " disabled" : ""} aria-label="${esc(label)}">
+      <span class="strip__name" aria-hidden="true">${weekdayShort.format(date)}</span>
+      <span class="strip__num" aria-hidden="true">${date.getDate()}</span>
+    </button>`;
+}
+
 function renderStrip() {
   if (!state.prefsOn) {
     els.strip.hidden = true;
     els.strip.innerHTML = "";
+    strip.key = "";
     return;
   }
   const today = state.todayKey;
-  const monday = shiftDay(today, -((parseDay(today).getDay() + 6) % 7));
-  const html = Array.from({ length: 7 }, (_, i) => shiftDay(monday, i))
-    .map((key) => {
-      const date = parseDay(key);
-      const isToday = key === today;
-      const future = key > today;
-      const label = `${isToday ? "Today, " : ""}${longDay.format(date)}${future ? ", still ahead" : ""}`;
-      return `
-        <button class="strip__day${isToday ? " is-today" : ""}" type="button" data-day="${key}"${key === state.day ? ' aria-current="date"' : ""}${future ? " disabled" : ""} aria-label="${esc(label)}">
-          <span class="strip__name" aria-hidden="true">${weekdayShort.format(date)}</span>
-          <span class="strip__num" aria-hidden="true">${date.getDate()}</span>
-        </button>`;
-    })
-    .join("");
+  const thisMonday = mondayOf(today);
+  // Eight weeks, or as many as it takes to reach a day picked further back with the day arrows.
+  const back = Math.max(STRIP_WEEKS - 1, weeksBetween(mondayOf(state.day), thisMonday));
+  const key = `${today}|${back}`;
+  if (key !== strip.key) {
+    const weeks = Array.from({ length: back + 1 }, (_, i) => shiftDay(thisMonday, (i - back) * 7));
+    const html = `
+      <button class="strip__nav" type="button" data-strip="-1" aria-label="Earlier week">${icon("chevron-left")}</button>
+      <div class="strip__track">${weeks
+        .map(
+          (monday) => `
+        <div class="strip__week" role="group" aria-label="${esc(`Week of ${monthDay.format(parseDay(monday))}`)}">${Array.from({ length: 7 }, (_, d) => stripDayHtml(shiftDay(monday, d), today)).join("")}</div>`
+        )
+        .join("")}</div>
+      <button class="strip__nav" type="button" data-strip="1" aria-label="Later week">${icon("chevron-right")}</button>`;
+    redraw(els.strip, html, "data-day");
+    strip.key = key;
+    strip.pages = weeks.length;
+    strip.day = null;
+  } else {
+    for (const button of $$(".strip__day", els.strip)) {
+      if (button.dataset.day === state.day) button.setAttribute("aria-current", "date");
+      else button.removeAttribute("aria-current");
+    }
+  }
   els.strip.hidden = false;
-  redraw(els.strip, html, "data-day");
+  if (strip.day !== state.day) {
+    const first = strip.day === null;
+    strip.day = state.day;
+    showStripPage(strip.pages - 1 - weeksBetween(mondayOf(state.day), thisMonday), !first);
+  }
 }
+
+/** Page the slide to week `index` (0 is the oldest), sliding unless motion is reduced. */
+function showStripPage(index, slide = true) {
+  strip.page = Math.min(strip.pages - 1, Math.max(0, index));
+  const track = stripTrack();
+  if (track?.clientWidth) {
+    track.scrollTo({ left: strip.page * track.clientWidth, behavior: slide && !reducedMotion.matches ? "smooth" : "auto" });
+  }
+  syncStripPage();
+}
+
+/** The chevrons say when there's no further week, and only the week on show is in the Tab order
+    (the chevrons reach the others). aria-disabled rather than disabled, so a chevron that runs out
+    keeps keyboard focus. */
+function syncStripPage() {
+  const [prev, next] = $$(".strip__nav", els.strip);
+  if (!prev) return;
+  prev.setAttribute("aria-disabled", String(strip.page <= 0));
+  next.setAttribute("aria-disabled", String(strip.page >= strip.pages - 1));
+  $$(".strip__week", els.strip).forEach((week, i) => {
+    for (const button of $$(".strip__day", week)) {
+      if (i === strip.page) button.removeAttribute("tabindex");
+      else button.tabIndex = -1;
+    }
+  });
+}
+
+// A swipe or a trackpad scroll settles on a page: note which one once it stops.
+els.strip.addEventListener(
+  "scroll",
+  () => {
+    clearTimeout(strip.timer);
+    strip.timer = setTimeout(() => {
+      const track = stripTrack();
+      if (!track?.clientWidth) return;
+      strip.page = Math.round(track.scrollLeft / track.clientWidth);
+      syncStripPage();
+    }, 90);
+  },
+  { capture: true, passive: true }
+);
+
+// The strip has no width on phones; when it gets one (or a new one), put the same week back on show.
+new ResizeObserver(() => {
+  const track = stripTrack();
+  if (track?.clientWidth) track.scrollTo({ left: strip.page * track.clientWidth, behavior: "auto" });
+}).observe(els.strip);
 
 function ensureDashboard() {
   if (ensureToday() || !rendered.day.startsWith(`${state.day}|`)) return loadDashboard();
@@ -1550,14 +1664,14 @@ function renderDay() {
   const previous = new Map([...snapshotBands(els.dashDay), ...snapshotBands(els.dashMicro)]);
   // Keyboard focus on a meal (the phone list or a laptop card) comes back to the same meal.
   const focusedMeal = document.activeElement?.closest?.("[data-meal]")?.dataset.meal ?? null;
-  // With preferences on, the day leads with the welcome card and carries the health score.
-  const lead = state.prefsOn ? welcomeHtml(view) : "";
+  // With preferences on, the day carries the health score. It follows the nutrient tiles, so on
+  // phones the calories and the tiles share the first screen; laptops show it above the tiles.
   if (view.meals.length) {
     const score = state.prefsOn ? scoreHtml(view) : "";
-    els.dashDay.innerHTML = lead + heroHtml(view) + score + statsHtml(view) + mealsHtml(view);
+    els.dashDay.innerHTML = heroHtml(view) + statsHtml(view) + score + mealsHtml(view);
     els.dashMicro.innerHTML = microHtml(view);
   } else {
-    els.dashDay.innerHTML = lead + emptyDayHtml(key);
+    els.dashDay.innerHTML = emptyDayHtml(key);
     els.dashMicro.innerHTML = "";
   }
   els.dashRecent.innerHTML = state.prefsOn ? recentHtml(view) : "";
@@ -2016,6 +2130,11 @@ els.dashWeek.addEventListener("focusout", hideWeekTip);
 
 els.todayView.addEventListener("click", (event) => {
   const target = event.target;
+  const pager = target.closest("[data-strip]");
+  if (pager) {
+    if (pager.getAttribute("aria-disabled") !== "true") showStripPage(strip.page + Number(pager.dataset.strip));
+    return;
+  }
   const day = target.closest("[data-day]");
   if (day) {
     const which = day.dataset.day;
@@ -3528,7 +3647,7 @@ function dishLegendHtml(fav, avoid, off) {
   const parts = [
     fav ? `<span class="legend__item">${icon("star")}favorite</span>` : "",
     avoid ? `<span class="legend__item">${icon("avoid")}has an allergen you avoid</span>` : "",
-    off ? `<span class="legend__item"><span class="legend__dim" aria-hidden="true"></span>dimmed: not in your diet</span>` : "",
+    off ? `<span class="legend__item"><span class="legend__off" aria-hidden="true"></span>not in your diet</span>` : "",
   ].filter(Boolean);
   return parts.length ? `<p class="legend">${parts.join("")}</p>` : "";
 }
@@ -3540,32 +3659,15 @@ function dishRowHtml({ name, calories, fav, avoid, off, avoided }) {
     <li class="${cls}">
       <span class="dish__marks" aria-hidden="true">${fav ? icon("star") : ""}${avoid ? icon("avoid") : ""}</span>
       <span class="dish__text">
-        <span class="dish__name">${esc(name)}</span>${fav ? '<span class="visually-hidden">, a favorite</span>' : ""}${off ? '<span class="visually-hidden">, not in your diet</span>' : ""}
+        <span class="dish__name">${esc(name)}</span>${fav ? '<span class="visually-hidden">, a favorite</span>' : ""}
         ${avoid ? `<span class="dish__warn">${SEP}Has ${esc(avoided.length ? avoided.join(", ") : "an allergen you avoid")}</span>` : ""}
+        ${off ? `<span class="dish__off">${SEP}Not in your diet</span>` : ""}
       </span>
       ${kcal ? `<span class="dish__kcal">${SEP}${esc(kcal)}</span>` : ""}
     </li>`;
 }
 
-// ---- the welcome card and the Recently uploaded column (laptops)
-
-function welcomeHtml(view) {
-  const user = state.localUser ? null : state.user;
-  const name = firstName(user);
-  const n = view.meals.length;
-  const isToday = state.day === state.todayKey;
-  const title = dayName(state.day);
-  const when = isToday ? "today" : title === "Yesterday" ? "yesterday" : `on ${title}`;
-  const sub = n ? `${mealCount(n)} logged ${when}` : isToday ? "Nothing logged yet today" : `Nothing logged ${when}`;
-  return `
-    <section class="card welcome" aria-label="Welcome">
-      <div class="welcome__text">
-        <p class="welcome__greet">${esc(greetingPart())}${name ? `, <strong>${esc(name)}</strong>` : ""}</p>
-        <p class="welcome__sub">${esc(sub)}</p>
-      </div>
-      <button class="avatar welcome__avatar${user ? "" : " avatar--gear"}" type="button" data-action="settings" aria-haspopup="dialog" aria-label="Settings">${user ? esc(initials(user)) : icon("gear")}</button>
-    </section>`;
-}
+// ---- the Recently uploaded column (laptops)
 
 function recentHtml(view) {
   const meals = [...view.meals].sort((a, b) => (a.context.taken_at < b.context.taken_at ? 1 : a.context.taken_at > b.context.taken_at ? -1 : 0));
@@ -3682,14 +3784,16 @@ function scoreHtml(view) {
       <div class="score__main">
         ${main}
       </div>
-      <p class="score__note">A rough guide, not medical advice.</p>
-      <details class="disclosure score__how"${state.scoreOpen ? " open" : ""}>
-        <summary>How it's scored</summary>
-        <div class="disclosure__body">
-          <p class="note">Up to ${nf1.format(PLUS_POINTS)} points each for ${esc(plusNames.slice(0, -1).join(", "))} and ${esc(plusNames.at(-1))} as today's likely amount reaches 100% of its Daily Value. Up to ${MINUS_POINTS} points off each for saturated fat, sodium and sugars past 100% (${ADDED_SUGARS_DV} g for sugars, the label value for added sugars).</p>
-          <ul class="score__parts">${rows}</ul>
-        </div>
-      </details>
+      <div class="score__foot">
+        <p class="score__note">A rough guide, not medical advice.</p>
+        <details class="disclosure score__how"${state.scoreOpen ? " open" : ""}>
+          <summary>How it's scored</summary>
+          <div class="disclosure__body">
+            <p class="note">Up to ${nf1.format(PLUS_POINTS)} points each for ${esc(plusNames.slice(0, -1).join(", "))} and ${esc(plusNames.at(-1))} as today's likely amount reaches 100% of its Daily Value. Up to ${MINUS_POINTS} points off each for saturated fat, sodium and sugars past 100% (${ADDED_SUGARS_DV} g for sugars, the label value for added sugars).</p>
+            <ul class="score__parts">${rows}</ul>
+          </div>
+        </details>
+      </div>
     </section>`;
 }
 
@@ -4070,7 +4174,7 @@ function dietChipsHtml(prefs) {
     <div class="form-field">
       <p class="form-field__label" id="diets-label">Diet</p>
       <ul class="chips" aria-labelledby="diets-label">${DIETS.map((d) => chip("diets", d, prefs.diets.includes(d))).join("")}</ul>
-      <p class="form-field__hint">Menu items carry these labels. Dishes without all of yours are dimmed.</p>
+      <p class="form-field__hint">Menu items carry these labels. Dishes without all of yours are marked Not in your diet.</p>
     </div>
     <div class="form-field">
       <p class="form-field__label" id="allergens-label">Allergens to avoid</p>
@@ -4613,7 +4717,7 @@ const STEP_LEDES = {
   name: "This is how the dashboard greets you.",
   goal: "Optional. With a goal, the dashboard shows what's left for the day. Without one, it shows the ranges of what you ate.",
   halls: "Pick the dining halls you eat at most. The first one is your main hall.",
-  diet: "Dishes that don't fit your diet are dimmed on menus, and allergens you avoid get a mark.",
+  diet: "Dishes that don't fit your diet are marked on menus, and allergens you avoid get a mark.",
   favorites: "We'll tell you when these are on the menu.",
   alerts: "How to hear about your favorites.",
   done: "Here's what you chose. You can change any of it in Settings.",
