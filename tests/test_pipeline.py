@@ -11,6 +11,7 @@ from mealscholar.insights import summarize_days
 from mealscholar.nutrients import NUTRIENTS
 from mealscholar.pipeline import UnknownFood, Workflow, correct, meal_name
 from mealscholar.schemas import FoodItem, MealAnalysis, MenuRef, Range
+from mealscholar.vision import MENU_NAMES
 
 WORCESTER, BERKSHIRE = "Worcester Dining Commons", "Berkshire Dining Commons"
 LUNCH_DAY = date(2026, 11, 13)
@@ -365,6 +366,63 @@ def test_late_night_after_midnight_uses_the_previous_days_menu(food_db, analysis
     campus.facts[(1, LUNCH_DAY)].pop()
     _, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=1, device_time=after_midnight)
     assert (result.menu.date, result.menu.dishes) == (date(2026, 11, 14), 0)
+
+
+def full_day():
+    """A Dining Commons day the size of a real one (Worcester, 2026-11-13: 171 dishes), more than
+    MENU_NAMES, with the campus fixture's Cheese Pizza served at dinner and a late-night dish."""
+    counts = {"breakfast": 23, "lunch": 55, "dinner": 63, "grab_n_go": 17, "late_night": 11}
+    facts = [
+        dish(f"{meal.title()} dish {n}", "4 OZ", 100 + n, meal=meal)
+        for meal, count in counts.items()
+        for n in range(count)
+    ]
+    facts.append(dish("Cheese Pizza", "1 Slice", 212, meal="dinner", protein=9, carbs=26, fat=8))
+    facts.append(dish("Mozzarella Sticks", "6 EACH", 540, meal="late_night"))
+    return FakeMenus({(1, LUNCH_DAY): facts})
+
+
+def listed_meals(prompt, menus):
+    """How many dishes of each meal the prompt lists."""
+    by_name = {d.name: d.meal for d in menus.facts[(1, LUNCH_DAY)]}
+    names = [line[2:].split(" (serving:")[0] for line in prompt.splitlines() if line.startswith("- ")]
+    assert len(names) == MENU_NAMES
+    counts = {meal: sum(1 for name in names if by_name[name] == meal) for meal in set(by_name.values())}
+    return {meal: count for meal, count in counts.items() if count}
+
+
+def test_the_meal_on_now_is_listed_whole_when_the_day_outgrows_the_prompt(food_db, meal_photo):
+    """16:45 is slot 'snack' but dinner by the dining hours; 21:30 is slot 'dinner' but late night."""
+    menus = full_day()
+    pizza = item(
+        "pizza slice",
+        "Pizza, cheese, from restaurant or fast food, thin crust",
+        100,
+        120,
+        150,
+        menu_item="Cheese Pizza",
+        servings=(1, 1.5, 2),
+    )
+    at = datetime(2026, 11, 13, 16, 45)
+    workflow, result = analyze(food_db, one(pizza), meal_photo, menus=menus, location_id=1, device_time=at)
+    assert result.context.meal_slot == "snack"
+    assert listed_meals(workflow.vision.context, menus) == {"dinner": 64, "grab_n_go": 17, "lunch": 19}
+    assert workflow.vision.context.splitlines()[2] == "- Dinner dish 0 (serving: 4 OZ)"
+    assert (result.items[0].source, result.items[0].dish.meal, result.menu.dishes) == ("campus", "dinner", 171)
+
+    sticks = item(
+        "mozzarella sticks", "Cheese, mozzarella", 100, 120, 150, menu_item="Mozzarella Sticks", servings=(1, 1, 1)
+    )
+    at = datetime(2026, 11, 13, 21, 30)
+    workflow, result = analyze(food_db, one(sticks), meal_photo, menus=menus, location_id=1, device_time=at)
+    assert result.context.meal_slot == "dinner"
+    assert listed_meals(workflow.vision.context, menus) == {"late_night": 12, "grab_n_go": 17, "dinner": 64, "lunch": 7}
+    assert workflow.vision.context.splitlines()[2] == "- Late_Night dish 0 (serving: 4 OZ)"
+    assert result.items[0].dish.meal == "late_night"
+
+    at = datetime(2026, 11, 13, 15, 30)
+    workflow, _ = analyze(food_db, one(pizza), meal_photo, menus=menus, location_id=1, device_time=at)
+    assert listed_meals(workflow.vision.context, menus) == {"lunch": 55, "grab_n_go": 17, "dinner": 28}
 
 
 def test_prompt_lists_the_meals_dishes_first_and_the_date(food_db, analysis, meal_photo, campus):

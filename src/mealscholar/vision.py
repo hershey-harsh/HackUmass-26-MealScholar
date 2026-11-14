@@ -18,7 +18,8 @@ if TYPE_CHECKING:
 
 MAX_IMAGE_SIDE = 1536
 MENU_NAMES = 100
-"""Menu dishes listed in the prompt at most: the photo's meal first (campus.candidates)."""
+"""Menu dishes listed in the prompt at most: the meal on at the photo's time first, whole
+(campus.candidates), so the cap only ever cuts other meals."""
 
 SYSTEM_PROMPT = """\
 You estimate food portions from meal photos for a nutrition logger.

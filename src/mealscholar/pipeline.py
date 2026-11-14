@@ -73,7 +73,7 @@ class _Menu:
 
     ref: MenuRef | None = None
     facts: Sequence[DishFacts] = ()
-    """campus.candidates order: the photo's meal first."""
+    """campus.candidates order: the meal on at the photo's time first."""
     notes: tuple[str, ...] = ()
 
 
@@ -131,7 +131,7 @@ class Workflow:
         except DiningUnavailable:
             return _Menu(notes=(UNAVAILABLE,))
         ref = MenuRef(location_id=location_id, location_name=name, date=day, dishes=len(facts))
-        return _Menu(ref, candidates(facts, context.meal_slot), (_menu_note(ref),))
+        return _Menu(ref, candidates(facts, context.taken_at.time()), (_menu_note(ref),))
 
     def _menu_day(self, location_id: int, taken_at: datetime) -> tuple[date, Sequence[DishFacts]]:
         """The menu day for the photo: its date, except before LATE_NIGHT_ENDS the previous day
@@ -156,7 +156,7 @@ class Workflow:
             facts = self.menus.dishes_on(ref.location_id, ref.date)
         except DiningUnavailable:
             return _Menu(ref, notes=(UNAVAILABLE,))
-        return _Menu(ref, candidates(facts, result.context.meal_slot), (_menu_note(ref),))
+        return _Menu(ref, candidates(facts, result.context.taken_at.time()), (_menu_note(ref),))
 
     def _result(self, context: MealContext, analysis: MealAnalysis, menu: _Menu | None = None) -> MealResult:
         menu = menu or _Menu()

@@ -1,19 +1,21 @@
 """Campus menu facts, pure: serving sizes, which dishes to match and the one the model named, a
 serving count as a range, the label scaled to the plate, and whether it fits what USDA says."""
 
+from datetime import time
+
 import pytest
 
 from mealscholar.campus import (
-    ALL_DAY,
-    MEALS_FOR_SLOT,
     candidates,
     dish_nutrients,
     find_dish,
     label_fits,
+    meal_order,
+    minutes_away,
     serving_grams,
     servings_range,
 )
-from mealscholar.dining import MEALS, DishFacts
+from mealscholar.dining import MEAL_HOURS, MEALS, DishFacts
 from mealscholar.schemas import Range
 
 
@@ -59,6 +61,39 @@ def test_serving_grams_table(text, grams):
     assert serving_grams(text) == grams
 
 
+@pytest.mark.parametrize(
+    ("at", "first", "then"),
+    [
+        (time(12, 30), "lunch", ("breakfast", "dinner", "late_night")),  # breakfast ended 2 h ago, dinner in 4 h
+        (time(15, 30), "lunch", ("dinner", "breakfast", "late_night")),  # slot 'snack', but lunch is on until 16:00
+        (time(16, 5), "lunch", ("dinner", "late_night", "breakfast")),  # 5 min after lunch, 25 before dinner
+        (time(16, 15), "lunch", ("dinner", "late_night", "breakfast")),  # a tie goes to the earlier meal
+        (time(16, 45), "dinner", ("lunch", "late_night", "breakfast")),  # slot 'snack' until 17:00, dinner since 16:30
+        (time(21, 30), "late_night", ("dinner", "lunch", "breakfast")),  # slot 'dinner' until 22:00
+        (time(0, 30), "late_night", ("dinner", "breakfast", "lunch")),  # 31 min after the 23:59 close
+        (time(5, 0), "breakfast", ("late_night", "lunch", "dinner")),
+    ],
+)
+def test_meal_order_follows_the_clock_not_the_slot(at, first, then):
+    assert meal_order(at) == (first, "grab_n_go", "daily_offerings", *then)
+
+
+def test_meal_order_names_every_meal():
+    for hour in range(24):
+        order = meal_order(time(hour))
+        assert sorted(order) == sorted(MEALS)
+        assert order[0] in MEAL_HOURS  # a timed meal first, never Grab 'n Go
+
+
+def test_minutes_away_is_zero_inside_the_hours_and_wraps_at_midnight():
+    assert minutes_away(time(16, 30), time(16, 30), time(21)) == 0
+    assert minutes_away(time(21), time(16, 30), time(21)) == 0
+    assert minutes_away(time(16, 5), time(11), time(16)) == 5
+    assert minutes_away(time(16, 5), time(16, 30), time(21)) == 25
+    assert minutes_away(time(0, 30), time(21), time(23, 59)) == 31
+    assert minutes_away(time(23, 0), time(7), time(10, 30)) == 8 * 60
+
+
 def test_candidates_order():
     facts = [
         dish("Pad Thai", "dinner"),
@@ -72,21 +107,21 @@ def test_candidates_order():
         dish("Garden Salad", "daily_offerings"),
         dish("Mystery Stew", "brunch"),  # not a MEALS key: last
     ]
-    assert [(d.name, d.meal) for d in candidates(facts, "dinner")] == [
+    assert [(d.name, d.meal) for d in candidates(facts, time(18))] == [
         ("Pad Thai", "dinner"),
         ("Chicken Tikka Masala", "dinner"),
         ("Garden Salad", "daily_offerings"),
-        ("Belgian Waffle", "breakfast"),
-        ("Scrambled Eggs", "breakfast"),
         ("Vegan Chili", "lunch"),
         ("Cheese Pizza", "lunch"),  # served at two meals, listed once
+        ("Belgian Waffle", "breakfast"),
+        ("Scrambled Eggs", "breakfast"),
         ("Mystery Stew", "brunch"),
     ]
-    assert [(d.name, d.meal) for d in candidates(facts, "snack")][:2] == [
+    assert [(d.name, d.meal) for d in candidates(facts, time(21, 30))][:2] == [
         ("Cheese Pizza", "late_night"),
         ("Garden Salad", "daily_offerings"),
     ]
-    assert [d.meal for d in candidates(facts, "breakfast")] == [
+    assert [d.meal for d in candidates(facts, time(8))] == [
         "breakfast",
         "breakfast",
         "daily_offerings",
@@ -96,17 +131,7 @@ def test_candidates_order():
         "dinner",
         "brunch",
     ]
-    assert candidates([], "lunch") == []
-    # Every meal the menus have is searched, in dining.MEALS order.
-    assert [*MEALS_FOR_SLOT["breakfast"], *ALL_DAY, "lunch", "dinner", "late_night"] == [
-        "breakfast",
-        "grab_n_go",
-        "daily_offerings",
-        "lunch",
-        "dinner",
-        "late_night",
-    ]
-    assert {meal for meals in MEALS_FOR_SLOT.values() for meal in meals} | set(ALL_DAY) == set(MEALS)
+    assert candidates([], time(12)) == []
 
 
 def test_find_dish_exact_key_then_ratio_then_none():

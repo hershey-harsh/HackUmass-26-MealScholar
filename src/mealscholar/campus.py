@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from datetime import time
 from difflib import SequenceMatcher
 from typing import TYPE_CHECKING
 
 from .prefs import dish_key
-from .schemas import MealSlot, Range
+from .schemas import Range
 
 if TYPE_CHECKING:
     from .dining import DishFacts  # dining.py imports this module, so only the type is taken
@@ -53,25 +54,36 @@ def _quantity(text: str) -> float:
 
 # --- which dishes to match against ----------------------------------------------
 
-MEALS_FOR_SLOT: dict[MealSlot, tuple[str, ...]] = {
-    "breakfast": ("breakfast",),
-    "lunch": ("lunch",),
-    "dinner": ("dinner",),
-    "snack": ("late_night",),
-}
-"""The menu meals (dining.MEALS keys) searched first for a photo's meal slot."""
-ALL_DAY = ("grab_n_go", "daily_offerings")
-"""Meals without set hours, searched right after the slot's own. The other meals follow in MEALS
-order; together these tables name every meal in dining.MEALS."""
+MINUTES_A_DAY = 24 * 60
 
 
-def candidates(facts: Sequence[DishFacts], slot: MealSlot) -> list[DishFacts]:
-    """The dishes to match a photo against: the slot's meals first, then ALL_DAY, then the other
-    meals in dining.MEALS order, each in menu order. A dish served at several meals is listed
-    once, at the first of them."""
-    first = MEALS_FOR_SLOT.get(slot, ())
-    others = [meal for meals in MEALS_FOR_SLOT.values() for meal in meals if meal not in first]
-    rank = {meal: n for n, meal in enumerate((*first, *ALL_DAY, *others))}
+def meal_order(at: time) -> tuple[str, ...]:
+    """Every meal in dining.MEALS, in the order their dishes are listed for a photo taken at
+    `at`: the meal on by dining.MEAL_HOURS, or the nearest one when none is (16:05 is still
+    lunch, 00:30 is late night), then the meals without set hours, which are as likely at any
+    time, then the other timed meals, nearest first. The clock decides, not the photo's meal
+    slot: dinner starts at 16:30 while the slot stays 'snack' until 17:00, and late night at
+    21:00 while the slot stays 'dinner' until 22:00."""
+    from .dining import ALL_DAY_MEALS, MEAL_HOURS  # dining imports this module, so not at the top
+
+    timed = sorted(MEAL_HOURS, key=lambda meal: minutes_away(at, *MEAL_HOURS[meal]))  # ties: MEALS order
+    return (timed[0], *ALL_DAY_MEALS, *timed[1:])
+
+
+def minutes_away(at: time, start: time, end: time) -> int:
+    """Minutes from `at` to the nearer end of the hours `start`..`end`, 0 inside them, going
+    round midnight when that is shorter (00:30 is 31 minutes after a 23:59 close)."""
+    now, opens, closes = (t.hour * 60 + t.minute for t in (at, start, end))
+    if opens <= now <= closes:
+        return 0
+    return min((opens - now) % MINUTES_A_DAY, (now - closes) % MINUTES_A_DAY)
+
+
+def candidates(facts: Sequence[DishFacts], at: time) -> list[DishFacts]:
+    """The dishes to match a photo taken at `at` against, meal by meal in meal_order(at), each
+    in menu order. A dish served at several meals is listed once, at the first of them. The
+    prompt shows only the first vision.MENU_NAMES, so the meal on now is always listed whole."""
+    rank = {meal: n for n, meal in enumerate(meal_order(at))}
     chosen: dict[str, DishFacts] = {}
     for dish in sorted(facts, key=lambda dish: rank.get(dish.meal, len(rank))):  # stable: menu order within a meal
         chosen.setdefault(dish_key(dish.name), dish)
