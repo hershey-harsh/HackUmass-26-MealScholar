@@ -1,0 +1,871 @@
+{
+  "id": null,
+  "context": {
+    "taken_at": "2026-11-13T23:51:25-05:00",
+    "time_source": "exif",
+    "meal_slot": "snack",
+    "place": null,
+    "notes": [
+      "No location used."
+    ]
+  },
+  "items": [
+    {
+      "item": {
+        "name": "hard-boiled eggs",
+        "fdc_query": "Egg, whole, boiled",
+        "cooking_method": "boiled",
+        "grams_low": 135,
+        "grams_likely": 150,
+        "grams_high": 165,
+        "box_2d": [
+          315,
+          253,
+          593,
+          801
+        ],
+        "hidden_fat_likely": false
+      },
+      "match": {
+        "fdc_id": 173424,
+        "description": "Egg, whole, cooked, hard-boiled",
+        "data_type": "SR Legacy"
+      },
+      "alternatives": [
+        {
+          "fdc_id": 2707154,
+          "description": "Egg, whole, boiled or poached",
+          "data_type": "Survey (FNDDS)"
+        },
+        {
+          "fdc_id": 2707153,
+          "description": "Egg, whole, cooked, NS as to cooking method",
+          "data_type": "Survey (FNDDS)"
+        },
+        {
+          "fdc_id": 173423,
+          "description": "Egg, whole, cooked, fried",
+          "data_type": "SR Legacy"
+        },
+        {
+          "fdc_id": 172185,
+          "description": "Egg, whole, cooked, omelet",
+          "data_type": "SR Legacy"
+        }
+      ],
+      "nutrients": {
+        "energy_kcal": {
+          "low": 209.25,
+          "likely": 232.5,
+          "high": 255.75
+        },
+        "protein_g": {
+          "low": 17.01,
+          "likely": 18.9,
+          "high": 20.79
+        },
+        "carbs_g": {
+          "low": 1.5120000000000002,
+          "likely": 1.6800000000000004,
+          "high": 1.848
+        },
+        "fat_g": {
+          "low": 14.31,
+          "likely": 15.9,
+          "high": 17.49
+        },
+        "sat_fat_g": {
+          "low": 4.4145,
+          "likely": 4.905,
+          "high": 5.395499999999999
+        },
+        "fiber_g": {
+          "low": 0.0,
+          "likely": 0.0,
+          "high": 0.0
+        },
+        "sugars_g": {
+          "low": 1.5120000000000002,
+          "likely": 1.6800000000000004,
+          "high": 1.848
+        },
+        "sodium_mg": {
+          "low": 167.4,
+          "likely": 186.0,
+          "high": 204.6
+        },
+        "cholesterol_mg": {
+          "low": 503.55,
+          "likely": 559.5,
+          "high": 615.45
+        },
+        "calcium_mg": {
+          "low": 67.5,
+          "likely": 75.0,
+          "high": 82.5
+        },
+        "iron_mg": {
+          "low": 1.6065,
+          "likely": 1.785,
+          "high": 1.9635
+        },
+        "potassium_mg": {
+          "low": 170.1,
+          "likely": 189.0,
+          "high": 207.9
+        },
+        "magnesium_mg": {
+          "low": 13.5,
+          "likely": 15.0,
+          "high": 16.5
+        },
+        "zinc_mg": {
+          "low": 1.4175,
+          "likely": 1.575,
+          "high": 1.7325
+        },
+        "vitamin_a_ug": {
+          "low": 201.15,
+          "likely": 223.5,
+          "high": 245.85
+        },
+        "vitamin_c_mg": {
+          "low": 0.0,
+          "likely": 0.0,
+          "high": 0.0
+        },
+        "vitamin_d_ug": {
+          "low": 2.97,
+          "likely": 3.3,
+          "high": 3.630000000000001
+        },
+        "vitamin_b12_ug": {
+          "low": 1.4985000000000002,
+          "likely": 1.6650000000000003,
+          "high": 1.8315000000000001
+        },
+        "folate_dfe_ug": {
+          "low": 59.4,
+          "likely": 66.0,
+          "high": 72.6
+        }
+      }
+    },
+    {
+      "item": {
+        "name": "arugula and mixed greens",
+        "fdc_query": "Arugula, raw",
+        "cooking_method": "raw",
+        "grams_low": 35,
+        "grams_likely": 50,
+        "grams_high": 70,
+        "box_2d": [
+          391,
+          100,
+          814,
+          738
+        ],
+        "hidden_fat_likely": false
+      },
+      "match": {
+        "fdc_id": 169387,
+        "description": "Arugula, raw",
+        "data_type": "SR Legacy"
+      },
+      "alternatives": [
+        {
+          "fdc_id": 2710822,
+          "description": "Arugula, baby, raw",
+          "data_type": "Foundation"
+        },
+        {
+          "fdc_id": 2709791,
+          "description": "Lettuce, arugula, raw",
+          "data_type": "Survey (FNDDS)"
+        }
+      ],
+      "nutrients": {
+        "energy_kcal": {
+          "low": 8.75,
+          "likely": 12.5,
+          "high": 17.5
+        },
+        "protein_g": {
+          "low": 0.903,
+          "likely": 1.29,
+          "high": 1.806
+        },
+        "carbs_g": {
+          "low": 1.2775,
+          "likely": 1.825,
+          "high": 2.555
+        },
+        "fat_g": {
+          "low": 0.231,
+          "likely": 0.33,
+          "high": 0.462
+        },
+        "sat_fat_g": {
+          "low": 0.0301,
+          "likely": 0.043,
+          "high": 0.0602
+        },
+        "fiber_g": {
+          "low": 0.56,
+          "likely": 0.8,
+          "high": 1.12
+        },
+        "sugars_g": {
+          "low": 0.7175,
+          "likely": 1.025,
+          "high": 1.435
+        },
+        "sodium_mg": {
+          "low": 9.45,
+          "likely": 13.5,
+          "high": 18.9
+        },
+        "cholesterol_mg": {
+          "low": 0.0,
+          "likely": 0.0,
+          "high": 0.0
+        },
+        "calcium_mg": {
+          "low": 56.0,
+          "likely": 80.0,
+          "high": 112.0
+        },
+        "iron_mg": {
+          "low": 0.511,
+          "likely": 0.73,
+          "high": 1.022
+        },
+        "potassium_mg": {
+          "low": 129.15,
+          "likely": 184.5,
+          "high": 258.3
+        },
+        "magnesium_mg": {
+          "low": 16.45,
+          "likely": 23.5,
+          "high": 32.9
+        },
+        "zinc_mg": {
+          "low": 0.16449999999999998,
+          "likely": 0.235,
+          "high": 0.32899999999999996
+        },
+        "vitamin_a_ug": {
+          "low": 41.65,
+          "likely": 59.5,
+          "high": 83.3
+        },
+        "vitamin_c_mg": {
+          "low": 5.25,
+          "likely": 7.5,
+          "high": 10.5
+        },
+        "vitamin_d_ug": {
+          "low": 0.0,
+          "likely": 0.0,
+          "high": 0.0
+        },
+        "vitamin_b12_ug": {
+          "low": 0.0,
+          "likely": 0.0,
+          "high": 0.0
+        },
+        "folate_dfe_ug": {
+          "low": 33.95,
+          "likely": 48.5,
+          "high": 67.9
+        }
+      }
+    },
+    {
+      "item": {
+        "name": "red onion slices",
+        "fdc_query": "Onions, red, raw",
+        "cooking_method": "raw",
+        "grams_low": 20,
+        "grams_likely": 30,
+        "grams_high": 45,
+        "box_2d": [
+          425,
+          146,
+          822,
+          643
+        ],
+        "hidden_fat_likely": false
+      },
+      "match": {
+        "fdc_id": 790577,
+        "description": "Onions, red, raw",
+        "data_type": "Foundation"
+      },
+      "alternatives": [
+        {
+          "fdc_id": 2709795,
+          "description": "Onions, raw",
+          "data_type": "Survey (FNDDS)"
+        },
+        {
+          "fdc_id": 170000,
+          "description": "Onions, raw",
+          "data_type": "SR Legacy"
+        },
+        {
+          "fdc_id": 2709794,
+          "description": "Onions, green, raw",
+          "data_type": "Survey (FNDDS)"
+        },
+        {
+          "fdc_id": 1104962,
+          "description": "Onions, white, raw",
+          "data_type": "Foundation"
+        }
+      ],
+      "nutrients": {
+        "energy_kcal": {
+          "low": 8.8,
+          "likely": 13.2,
+          "high": 19.8
+        },
+        "protein_g": {
+          "low": 0.18799999999999997,
+          "likely": 0.282,
+          "high": 0.423
+        },
+        "carbs_g": {
+          "low": 1.986,
+          "likely": 2.9789999999999996,
+          "high": 4.4685
+        },
+        "fat_g": {
+          "low": 0.02,
+          "likely": 0.03,
+          "high": 0.045
+        },
+        "fiber_g": {
+          "low": 0.44,
+          "likely": 0.66,
+          "high": 0.9900000000000001
+        },
+        "sodium_mg": {
+          "low": 0.2,
+          "likely": 0.3,
+          "high": 0.45
+        },
+        "calcium_mg": {
+          "low": 3.4,
+          "likely": 5.1,
+          "high": 7.65
+        },
+        "iron_mg": {
+          "low": 0.048,
+          "likely": 0.072,
+          "high": 0.10799999999999998
+        },
+        "potassium_mg": {
+          "low": 39.4,
+          "likely": 59.1,
+          "high": 88.65
+        },
+        "magnesium_mg": {
+          "low": 2.28,
+          "likely": 3.42,
+          "high": 5.13
+        },
+        "zinc_mg": {
+          "low": 0.034,
+          "likely": 0.051000000000000004,
+          "high": 0.0765
+        },
+        "vitamin_c_mg": {
+          "low": 1.62,
+          "likely": 2.43,
+          "high": 3.645
+        }
+      }
+    },
+    {
+      "item": {
+        "name": "shredded cheddar cheese",
+        "fdc_query": "Cheese, cheddar, shredded",
+        "cooking_method": "raw",
+        "grams_low": 15,
+        "grams_likely": 20,
+        "grams_high": 30,
+        "box_2d": [
+          368,
+          256,
+          581,
+          616
+        ],
+        "hidden_fat_likely": false
+      },
+      "match": {
+        "fdc_id": 2705709,
+        "description": "Cheese, Cheddar",
+        "data_type": "Survey (FNDDS)"
+      },
+      "alternatives": [
+        {
+          "fdc_id": 328637,
+          "description": "Cheese, cheddar",
+          "data_type": "Foundation"
+        },
+        {
+          "fdc_id": 173431,
+          "description": "Cheese, parmesan, shredded",
+          "data_type": "SR Legacy"
+        },
+        {
+          "fdc_id": 2705704,
+          "description": "Cheese, NFS",
+          "data_type": "Survey (FNDDS)"
+        },
+        {
+          "fdc_id": 170899,
+          "description": "Cheese, cheddar, sharp, sliced",
+          "data_type": "SR Legacy"
+        }
+      ],
+      "nutrients": {
+        "energy_kcal": {
+          "low": 61.35,
+          "likely": 81.8,
+          "high": 122.7
+        },
+        "protein_g": {
+          "low": 3.495,
+          "likely": 4.66,
+          "high": 6.99
+        },
+        "carbs_g": {
+          "low": 0.366,
+          "likely": 0.488,
+          "high": 0.732
+        },
+        "fat_g": {
+          "low": 5.1,
+          "likely": 6.8,
+          "high": 10.2
+        },
+        "sat_fat_g": {
+          "low": 2.88,
+          "likely": 3.84,
+          "high": 5.76
+        },
+        "fiber_g": {
+          "low": 0.0,
+          "likely": 0.0,
+          "high": 0.0
+        },
+        "sugars_g": {
+          "low": 0.0495,
+          "likely": 0.066,
+          "high": 0.099
+        },
+        "sodium_mg": {
+          "low": 98.1,
+          "likely": 130.8,
+          "high": 196.2
+        },
+        "cholesterol_mg": {
+          "low": 15.0,
+          "likely": 20.0,
+          "high": 30.0
+        },
+        "calcium_mg": {
+          "low": 106.05,
+          "likely": 141.4,
+          "high": 212.1
+        },
+        "iron_mg": {
+          "low": 0.024,
+          "likely": 0.032,
+          "high": 0.048
+        },
+        "potassium_mg": {
+          "low": 11.55,
+          "likely": 15.4,
+          "high": 23.1
+        },
+        "magnesium_mg": {
+          "low": 4.05,
+          "likely": 5.4,
+          "high": 8.1
+        },
+        "zinc_mg": {
+          "low": 0.5505,
+          "likely": 0.7340000000000001,
+          "high": 1.101
+        },
+        "vitamin_a_ug": {
+          "low": 47.4,
+          "likely": 63.2,
+          "high": 94.8
+        },
+        "vitamin_c_mg": {
+          "low": 0.0,
+          "likely": 0.0,
+          "high": 0.0
+        },
+        "vitamin_d_ug": {
+          "low": 0.09,
+          "likely": 0.12,
+          "high": 0.18
+        },
+        "vitamin_b12_ug": {
+          "low": 0.159,
+          "likely": 0.21200000000000002,
+          "high": 0.318
+        },
+        "folate_dfe_ug": {
+          "low": 3.15,
+          "likely": 4.2,
+          "high": 6.3
+        }
+      }
+    },
+    {
+      "item": {
+        "name": "honey mustard dressing",
+        "fdc_query": "Salad dressing, honey mustard",
+        "cooking_method": "unknown",
+        "grams_low": 25,
+        "grams_likely": 40,
+        "grams_high": 55,
+        "box_2d": [
+          380,
+          217,
+          661,
+          780
+        ],
+        "hidden_fat_likely": false
+      },
+      "match": {
+        "fdc_id": 171043,
+        "description": "Salad dressing, honey mustard, regular",
+        "data_type": "SR Legacy"
+      },
+      "alternatives": [
+        {
+          "fdc_id": 171034,
+          "description": "Salad dressing, honey mustard dressing, reduced calorie",
+          "data_type": "SR Legacy"
+        },
+        {
+          "fdc_id": 2710195,
+          "description": "Salad dressing, NFS, for salads",
+          "data_type": "Survey (FNDDS)"
+        },
+        {
+          "fdc_id": 2710196,
+          "description": "Salad dressing, NFS, for sandwiches",
+          "data_type": "Survey (FNDDS)"
+        },
+        {
+          "fdc_id": 171005,
+          "description": "Salad dressing, russian dressing",
+          "data_type": "SR Legacy"
+        }
+      ],
+      "nutrients": {
+        "energy_kcal": {
+          "low": 116.0,
+          "likely": 185.6,
+          "high": 255.2
+        },
+        "protein_g": {
+          "low": 0.2175,
+          "likely": 0.348,
+          "high": 0.47850000000000004
+        },
+        "carbs_g": {
+          "low": 5.825,
+          "likely": 9.32,
+          "high": 12.815
+        },
+        "fat_g": {
+          "low": 10.2,
+          "likely": 16.32,
+          "high": 22.44
+        },
+        "sat_fat_g": {
+          "low": 1.25,
+          "likely": 2.0,
+          "high": 2.75
+        },
+        "fiber_g": {
+          "low": 0.1,
+          "likely": 0.16,
+          "high": 0.22
+        },
+        "sugars_g": {
+          "low": 3.95,
+          "likely": 6.32,
+          "high": 8.69
+        },
+        "sodium_mg": {
+          "low": 128.0,
+          "likely": 204.8,
+          "high": 281.6
+        },
+        "cholesterol_mg": {
+          "low": 7.25,
+          "likely": 11.6,
+          "high": 15.95
+        },
+        "calcium_mg": {
+          "low": 3.0,
+          "likely": 4.8,
+          "high": 6.6
+        },
+        "iron_mg": {
+          "low": 0.0725,
+          "likely": 0.11599999999999999,
+          "high": 0.1595
+        },
+        "potassium_mg": {
+          "low": 5.0,
+          "likely": 8.0,
+          "high": 11.0
+        },
+        "magnesium_mg": {
+          "low": 1.25,
+          "likely": 2.0,
+          "high": 2.75
+        },
+        "zinc_mg": {
+          "low": 0.035,
+          "likely": 0.05600000000000001,
+          "high": 0.07700000000000001
+        },
+        "vitamin_a_ug": {
+          "low": 3.0,
+          "likely": 4.8,
+          "high": 6.6
+        },
+        "vitamin_c_mg": {
+          "low": 0.05,
+          "likely": 0.08,
+          "high": 0.11
+        },
+        "vitamin_d_ug": {
+          "low": 0.025,
+          "likely": 0.04,
+          "high": 0.055
+        },
+        "vitamin_b12_ug": {
+          "low": 0.0125,
+          "likely": 0.02,
+          "high": 0.0275
+        },
+        "folate_dfe_ug": {
+          "low": 1.25,
+          "likely": 2.0,
+          "high": 2.75
+        }
+      }
+    }
+  ],
+  "scale_reference": "dinner plate",
+  "question": "What kind of dressing is on the salad?",
+  "answer": null,
+  "totals": {
+    "energy_kcal": {
+      "low": 433.34776967465774,
+      "likely": 525.6,
+      "high": 632.0248631664613
+    },
+    "protein_g": {
+      "low": 22.722022688635747,
+      "likely": 25.479999999999997,
+      "high": 29.22638945519549
+    },
+    "carbs_g": {
+      "low": 12.050650939854162,
+      "likely": 16.292,
+      "high": 20.960855036301727
+    },
+    "fat_g": {
+      "low": 31.816859845275907,
+      "likely": 39.38,
+      "high": 47.98860726250187
+    },
+    "sat_fat_g": {
+      "low": 9.151802722774542,
+      "likely": 10.788,
+      "high": 13.272387942733582
+    },
+    "fiber_g": {
+      "low": 1.222709174533315,
+      "likely": 1.6199999999999999,
+      "high": 2.169235832771315
+    },
+    "sugars_g": {
+      "low": 6.546342861994962,
+      "likely": 9.091000000000001,
+      "high": 11.686366525175202
+    },
+    "sodium_mg": {
+      "low": 433.5277736573899,
+      "likely": 535.4000000000001,
+      "high": 660.6480598652131
+    },
+    "cholesterol_mg": {
+      "low": 531.9286006587643,
+      "likely": 591.1,
+      "high": 652.3956319814064
+    },
+    "calcium_mg": {
+      "low": 253.32511444089755,
+      "likely": 306.3,
+      "high": 396.84528425047876
+    },
+    "iron_mg": {
+      "low": 2.381775496319975,
+      "likely": 2.735,
+      "high": 3.159860153462289
+    },
+    "potassium_mg": {
+      "low": 380.29588188215916,
+      "likely": 456.0,
+      "high": 556.1214787146095
+    },
+    "magnesium_mg": {
+      "low": 40.33962138882775,
+      "likely": 49.32,
+      "high": 61.499807059227166
+    },
+    "zinc_mg": {
+      "low": 2.3261304877339213,
+      "likely": 2.6510000000000002,
+      "high": 3.1522616582185394
+    },
+    "vitamin_a_ug": {
+      "low": 309.14346526526595,
+      "likely": 351.0,
+      "high": 408.84370752294495
+    },
+    "vitamin_c_mg": {
+      "low": 7.389297804022746,
+      "likely": 10.01,
+      "high": 13.579312959100111
+    },
+    "vitamin_d_ug": {
+      "low": 3.1147392289877116,
+      "likely": 3.46,
+      "high": 3.8179315577034254
+    },
+    "vitamin_b12_ug": {
+      "low": 1.7049845058335136,
+      "likely": 1.8970000000000002,
+      "high": 2.122455427967481
+    },
+    "folate_dfe_ug": {
+      "low": 102.31903158155154,
+      "likely": 120.7,
+      "high": 144.09062846526362
+    }
+  },
+  "daily_value_pct": {
+    "protein_g": {
+      "low": 45.44404537727149,
+      "likely": 50.959999999999994,
+      "high": 58.45277891039098
+    },
+    "carbs_g": {
+      "low": 4.382054887219695,
+      "likely": 5.924363636363637,
+      "high": 7.622129104109719
+    },
+    "fat_g": {
+      "low": 40.790845955481934,
+      "likely": 50.487179487179496,
+      "high": 61.52385546474599
+    },
+    "sat_fat_g": {
+      "low": 45.75901361387271,
+      "likely": 53.94,
+      "high": 66.36193971366791
+    },
+    "fiber_g": {
+      "low": 4.366818480476125,
+      "likely": 5.785714285714286,
+      "high": 7.747270831326126
+    },
+    "sodium_mg": {
+      "low": 18.849033637277824,
+      "likely": 23.27826086956522,
+      "high": 28.723828689791876
+    },
+    "cholesterol_mg": {
+      "low": 177.3095335529214,
+      "likely": 197.03333333333333,
+      "high": 217.4652106604688
+    },
+    "calcium_mg": {
+      "low": 19.48654726468443,
+      "likely": 23.56153846153846,
+      "high": 30.526560326959903
+    },
+    "iron_mg": {
+      "low": 13.23208609066653,
+      "likely": 15.194444444444445,
+      "high": 17.55477863034605
+    },
+    "potassium_mg": {
+      "low": 8.091401742173598,
+      "likely": 9.702127659574469,
+      "high": 11.832371887544882
+    },
+    "magnesium_mg": {
+      "low": 9.604671759244702,
+      "likely": 11.742857142857142,
+      "high": 14.642811204577898
+    },
+    "zinc_mg": {
+      "low": 21.146640797581103,
+      "likely": 24.1,
+      "high": 28.656924165623085
+    },
+    "vitamin_a_ug": {
+      "low": 34.34927391836288,
+      "likely": 39.0,
+      "high": 45.427078613660555
+    },
+    "vitamin_c_mg": {
+      "low": 8.210330893358607,
+      "likely": 11.122222222222222,
+      "high": 15.088125510111235
+    },
+    "vitamin_d_ug": {
+      "low": 15.573696144938557,
+      "likely": 17.3,
+      "high": 19.089657788517126
+    },
+    "vitamin_b12_ug": {
+      "low": 71.0410210763964,
+      "likely": 79.04166666666667,
+      "high": 88.43564283197838
+    },
+    "folate_dfe_ug": {
+      "low": 25.579757895387885,
+      "likely": 30.175,
+      "high": 36.022657116315905
+    }
+  },
+  "partial_nutrients": [
+    "sat_fat_g",
+    "sugars_g",
+    "cholesterol_mg",
+    "vitamin_a_ug",
+    "vitamin_d_ug",
+    "vitamin_b12_ug",
+    "folate_dfe_ug"
+  ],
+  "notes": []
+}
