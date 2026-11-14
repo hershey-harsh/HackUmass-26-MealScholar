@@ -1,5 +1,5 @@
-# Runs Ruff (rules in pyproject.toml [tool.ruff]) on every pull request and push to main.
-# Keep the version in sync with the lint command in README.md.
+# Runs Ruff lint (rules in pyproject.toml [tool.ruff]) and the Ruff formatter check on every pull
+# request and push to main. Keep the version in sync with the commands in README.md.
 name: Lint
 
 on:
@@ -21,3 +21,11 @@ jobs:
         with:
           version: "0.17.5"
           args: check --output-format github
+
+      # Runs even when the lint step fails, so one push shows both kinds of findings.
+      # Fix locally with `uvx ruff@0.17.5 format`.
+      - uses: astral-sh/ruff-action@v4.1.0
+        if: success() || failure()
+        with:
+          version: "0.17.5"
+          args: format --check --diff

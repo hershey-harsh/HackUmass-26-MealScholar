@@ -13,8 +13,7 @@ def food(fdc_id, description, nutrients, *, category=None, wweia=None):
         "fdcId": fdc_id,
         "description": description,
         "foodNutrients": [
-            {"nutrient": {"number": number, "unitName": unit}, "amount": amount}
-            for number, unit, amount in nutrients
+            {"nutrient": {"number": number, "unitName": unit}, "amount": amount} for number, unit, amount in nutrients
         ],
     }
     if wweia:

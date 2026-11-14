@@ -74,9 +74,7 @@ class FoodItem(BaseModel):
     grams_low: int = Field(description="Low estimate of edible weight in grams.")
     grams_likely: int = Field(description="Most likely edible weight in grams.")
     grams_high: int = Field(description="High estimate of edible weight in grams.")
-    box_2d: list[int] | None = Field(
-        description="Bounding box [ymin, xmin, ymax, xmax] normalized to 0-1000."
-    )
+    box_2d: list[int] | None = Field(description="Bounding box [ymin, xmin, ymax, xmax] normalized to 0-1000.")
     hidden_fat_likely: bool = Field(
         description="True when oil, butter, dressing or sauce is probably present but not visible."
     )
