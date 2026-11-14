@@ -8225,3 +8225,91 @@ body .recent .recent-card {
     transition: none;
   }
 }
+
+/* ---- What a dish is: a small icon per kind (meat, pescatarian, vegetarian, plant based, halal,
+   local), each its own shape and colour, named in the legend and in the dish sheet. */
+
+:root {
+  --kind-meat: #9a3b2a;
+  --kind-fish: #2c6996;
+  --kind-veg: #2f7a4d;
+  --kind-plant: #3f7a20;
+  --kind-halal: #6a4b99;
+  --kind-local: #86611a;
+}
+
+:root[data-theme="dark"] {
+  --kind-meat: #ec937f;
+  --kind-fish: #88bae4;
+  --kind-veg: #71c394;
+  --kind-plant: #9bd177;
+  --kind-halal: #bda5e6;
+  --kind-local: #dfb96f;
+}
+
+.kind {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--kind-c, var(--ink-2));
+}
+
+.kind .icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.9;
+}
+
+.kind--meat { --kind-c: var(--kind-meat); }
+.kind--fish { --kind-c: var(--kind-fish); }
+.kind--veg { --kind-c: var(--kind-veg); }
+.kind--plant { --kind-c: var(--kind-plant); }
+.kind--halal { --kind-c: var(--kind-halal); }
+.kind--local { --kind-c: var(--kind-local); }
+
+.dish__kinds {
+  display: inline-flex;
+  gap: 5px;
+  margin-left: 8px;
+  vertical-align: -2px;
+  white-space: nowrap;
+}
+
+.legend .kind .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.tag--kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Station names (Grill Station, Entrees, Pizza...): a real heading with a hairline out to the edge. */
+.menu-cat .dishes__cat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 4px 8px;
+  font: 600 1.0625rem / 1.3 var(--font-sans);
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.menu-cat .dishes__cat::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--hair, var(--line));
+}
+
+.menu-cat:first-child .dishes__cat {
+  padding-top: 10px;
+}
+
+.dishes__group > .dishes__cat {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
