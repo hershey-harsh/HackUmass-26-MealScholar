@@ -1,41 +1,36 @@
 # MealScholar TODO
 
-As of Sat Nov 14, 7:45 AM EST. Owners follow the table in `AGENTS.md`. Deadlines come from `TIMELINE.md`.
+As of Sat Nov 14, 8:25 AM EST. Owners follow the table in `AGENTS.md`. Deadlines come from `TIMELINE.md`.
 Tick a box when it's done. When a contract changes, post on the board.
 
-## 1. Unblock the merge chain (now)
+## 1. Merge chain and cleanup
 
-PR #7 is the only blocker. Its one conflict is in `AGENTS.md`. Three finished PRs are stacked on it.
+The chain is merged: #7 at 8:10 AM, then #11, #13 and #15 at 8:18–8:19 AM. The deploy of the tip of `main` (`ac951d2`) is green.
 
-- [ ] **Joseph**: rebase #7 on `main` and fix the `AGENTS.md` conflict. Run `uv run pytest` and `uvx ruff@0.17.5 check`, then merge. Delete the branch on merge so GitHub moves #11 to `main`.
-- [ ] **Joseph**: review #11 (login). It changes `web.py`, `diary.py`, `config.py`, `cli.py` and adds pymongo.
-- [ ] Merge #11, #13 and #15 back to back, in that order.
-  - Every push to `main` redeploys mealscholar.mannava.org. If #7 sits on `main` alone, it puts the old UI back.
-  - If #11 lands without #13, the app has no working sign-in (meals return 401). That's because `FOODSMART_AUTH_REQUIRED` defaults to 1.
-  - The deploy skips any commit that isn't the tip of `main`, so a fast sequence deploys only the last one.
-- [ ] **Harsh**: after the chain lands, smoke test the live app. Sign up, onboarding, photo, answer the question, log it, then check Today.
-- [ ] **Joseph**: send the dark mode patches (#16) to Harsh. Base the `web/` patch on `main` and the app patch on `12-app-ui` at 5aec3a8. Don't push them.
+- [x] **Joseph**: rebase #7 on `main` and fix the `AGENTS.md` conflict. Run `uv run pytest` and `uvx ruff@0.17.5 check`, then merge. Delete the branch on merge so GitHub moves #11 to `main`.
+- [ ] **Joseph**: review #11 (login) after the fact. It merged without a GitHub review. It changes `web.py`, `diary.py`, `config.py`, `cli.py` and adds pymongo.
+- [x] Merge #11, #13 and #15 back to back, in that order.
+- [ ] **Harsh**: the chain has landed, so smoke test the live app now. Sign up, onboarding, photo, answer the question, log it, then check Today.
+- [x] **Joseph**: send the dark mode patches (#16) to Harsh. He has both and will apply them after his landing page rework and app update land.
 - [ ] **Joseph**: add `test_pictures/` to `.gitignore`. The photos carry GPS EXIF (see `BENCHMARK.md`).
 
 ## 2. Make the app do what the landing page says (before the Sat 2 PM checkpoint)
 
-The landing page says "Campus menu first" in the hero, feature 03, step 04 and the nutrients section. No branch does this yet. `pipeline.py`, `nutrition.py`, `vision.py`, `compute.py` and `schemas.py` never read the dining data. Judges will try it.
+The landing page says "Campus menu first" in the hero, feature 03, step 04 and the nutrients section. The read side is live since #15 (`/api/dining/*`, including `/api/dining/dishes`), but the nutrient path doesn't use it yet: `pipeline.py`, `nutrition.py`, `vision.py`, `compute.py` and `schemas.py` never read the dining data. Judges will try it, and our judging category is Best UMass Hack (section 4).
 
-- [ ] **Joseph + Harsh**: campus menu matching in the pipeline.
-  - [ ] Pick the dining hall and meal from location and time. Use `dining.py` (`/nearest`, `/next`) from #15.
+- [ ] **Joseph**: campus menu matching in the pipeline. The hook in the nutrient path is Joseph's (Harsh, on the board).
+  - [ ] Pick the dining hall and meal from location and time. Use `dining.py` (`/nearest`, `/next`).
   - [ ] Give Gemini that meal's dish names as candidates. In the structured output it either picks a dish id or returns none.
   - [ ] Use the dish's own nutrition facts when it matches, and USDA otherwise. `serving_size` is free text ("1 slice", "4 oz"), so decide how grams map to servings. Options: parse the serving size, or have Gemini estimate servings for menu dishes.
   - [ ] Add a `source` field (`campus_menu` or `usda`) to the result schema. The app shows it: "Not on today's campus menu · USDA match".
   - [ ] Tests: menu hit, menu miss falling back to USDA, and off campus or no location.
   - [ ] Rerun the benchmark. All 5 test photos are from a dining hall, so this is a direct before/after.
 - [ ] **Harsh**: fallback if it can't land before feature freeze: tone down the landing copy so it doesn't promise menu matching.
-- [ ] **Harsh**: the landing page says the menus are "refreshed every hour". No refresh job is in the repo, so confirm one runs, or drop the claim.
+- [x] **Harsh**: the landing page says the menus are "refreshed every hour". Harsh confirmed on the board (7:53 AM) that the hourly refresh runs.
 - [ ] **Harsh**: the menu item count doesn't match. The landing page says 24,191; the board post said 25,613. Pick one source.
-- [ ] **Whoever ships calorie goals (#15)**: four places still say "no calorie targets". Update them in the same PR:
-  - `README.md` (Rules)
-  - `AGENTS.md` section 5
-  - the `insights.py` docstring
-  - the app footer in `site/index.html`
+- [ ] Calorie goals shipped in #15, but four places still say "no calorie targets" (`AGENTS.md` section 5 is fixed in `ac951d2`):
+  - **Joseph**: `README.md` (Rules) and the `insights.py` docstring
+  - **Harsh**: the app footer in `site/index.html` and the header comment in `site/app.js`
 - [ ] **Harsh + Gabby**: the landing page shows three "Coming soon" screen recordings. Record them once the chain is merged, or hide that section before judging.
 
 ## 3. Accuracy (Joseph)
@@ -59,20 +54,21 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
 |---|---|---|
 | Sat 2:00 PM | MVP works end to end on mealscholar.mannava.org | All |
 | Sat 6:00 PM | Cut anything that can't be demoed by midnight | Harsh |
-| Sat 11:00 PM | Submission draft: name, description, repo link, prize tracks | Harsh + Gabby |
+| Sat 11:00 PM | Submission draft: done early in `submissions/devpost.md` (#28). Review it before pasting it into Devpost | Harsh + Gabby |
 | Sun 12:00 AM | **Initial submission** | Harsh |
 | Sun 2:00 AM | Feature freeze, then bug fixes only | All |
 | Sun 7:00 AM | Record the demo video (script in `video/`), take screenshots, finish the README | Gabby |
 | Sun 8:30 AM | **Final submission** (30 min buffer) | Harsh |
 | Sun 12:30 PM | **Judging** | All |
 
-- [ ] Prize tracks:
-  - Best UMass Hack (campus menus)
-  - Best Use of Gemini API (talking points in `BENCHMARK.md`)
-  - Best Use of MongoDB Atlas
-  - Best UI/UX
-  - Most Impactful AI Hack
-  - Best Pitch
+- [x] Prize tracks, decided in `submissions/devpost.md` (Harsh can still change them). Devpost allows only one [HACKUMASS] category, and every project is considered for the grand prizes automatically.
+  - [HACKUMASS] category: **Best UMass Hack**. Best UI/UX, Most Impactful AI Hack and Best Pitch are [HACKUMASS] categories too, so we can't also enter them.
+  - Sponsor opt-ins, which don't count toward that limit: **[MLH] Best Use of Gemini API** (talking points in `BENCHMARK.md`) and **Best Use of MongoDB Atlas**.
+- [ ] **Harsh**: make the repo public before submitting, or drop the code link. Judges get a 404 on a private repo. Harsh's Claude says nothing secret is in the repo.
+- [ ] **Joseph or Harsh**: put the numeric Gemini project number in `submissions/devpost.md`. We only have the project ID (`gen-lang-client-…`). The draft explains where to find the number.
+- [ ] **Harsh**: if campus menu matching (section 2) isn't live when you submit, submit the story as written. If it is, make the two swaps in `submissions/devpost.md`.
+- [ ] **Gabby**: add the video link (YouTube, Vimeo or Youku) and the gallery images to the Devpost form.
+- [ ] The final deadline is 9:00 AM on hackumass.com but 10:00 AM on Devpost. Go by 9:00 AM.
 - [ ] A demo account with a few days already logged, so Today and This week aren't empty.
 - [ ] Set `FOODSMART_DEMO_VERIFY_LINK` on the demo server, so sign-up works without a real email service.
 - [ ] Fallbacks: a recorded video, and the faster model (`FOODSMART_MODEL=gemini-3.6-flash FOODSMART_THINKING=minimal`) if Gemini is slow on venue Wi-Fi.
