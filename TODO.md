@@ -14,6 +14,7 @@ The chain is merged: #7 at 8:10 AM, then #11, #13 and #15 at 8:18–8:19 AM. Sin
 - [x] **Joseph**: the rest of Harsh's #7 review. Coordinates are kept out of the access log and meal notes (#30). Photos that won't decode get 413/415 instead of 500, and error replies no longer show server paths or Gemini's raw errors (#32).
 - [ ] **Joseph**: regenerate the landing dark mode patch (#16) against `9b60fe7`. Harsh's landing rework rewrote `styles.css`, so only 9 of the 59 color-to-token swaps still match. The token block and the `index.html` meta changes still apply. Hold the app patch until Harsh pings after his next app UI update.
 - [ ] **Joseph**: add `test_pictures/` to `.gitignore`. The photos carry GPS EXIF (see `BENCHMARK.md`).
+- [ ] **Harsh, then Joseph**: land the rename to `mealscholar` (#41). It's ready: tests, Ruff and the lookup check pass, and the Mac's `.env` copies and launchd switch script are in place. Waiting on Harsh himself to approve the changed `deploy-site.yml` on the deploy runner. Then Joseph merges, and Harsh runs the launchd switch once the deploy finishes (the app is down under a minute). Not during the 7:00–8:30 PM recording freeze. Until then, keep #41 up to date with `main`.
 
 ## 2. Make the app do what the landing page says (before the Sat 2 PM checkpoint)
 
