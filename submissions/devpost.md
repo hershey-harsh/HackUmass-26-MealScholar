@@ -1,17 +1,17 @@
 # MealScholar: Devpost submission
 
 These are answers for every field on the [HackUMass XIV Devpost](https://hackumass-xiv.devpost.com/) form, in the order the form asks for them. Paste each one into its field. Text inside a fenced block is meant to be pasted as is.
-The facts come from `README.md`, `BENCHMARK.md`, `TODO.md`, the open PRs and the board, as of Sat Nov 14, 8:30 AM EST.
+The facts come from `README.md`, `BENCHMARK.md`, `TODO.md`, the merged PRs and the board, as of Sat Nov 14, 5:50 PM EST.
 
 ## Before you submit
 
 - [ ] **Deadlines.** The initial submission is due Sun 12:00 AM. hackumass.com puts the final deadline at Sun 9:00 AM, while Devpost shows 10:00 AM, so go by 9:00 AM. The team target is 8:30 AM (`TODO.md` section 4).
-- [ ] **The repo is private.** Judges will get a 404 on the code link. Before submitting, Harsh (the repo owner) makes it public, or you drop the link.
-- [ ] **Judging category: Best UMass Hack.** The landing page says "Campus menu first", but the nutrient step doesn't use the dining data yet (`TODO.md` section 2).
-  - If campus menu matching isn't live when you submit, keep the story as written. It lists menu matching under "What's next".
-  - If it is live, make the two swaps in [If campus menu matching ships](#if-campus-menu-matching-ships).
+- [ ] **The repo is private** (checked 5:45 PM). Judges will get a 404 on the code link. Before submitting, Harsh (the repo owner) makes it public, or you drop the link.
+- [ ] **Judging category: Best UMass Hack.** Campus menu matching is in the nutrient pipeline since #106: when `POST /api/meals` gets a dining hall (`location_id`), Gemini sees that meal's menu and a listed dish uses its own nutrition label. At 5:45 PM the app's photo upload didn't send the hall yet, so the live app was still USDA-only. Harsh is wiring it (board, 5:39 PM).
+  - If the live app doesn't send the hall when you submit, keep the story as written. It describes the pipeline and lists the app hookup under "What's next".
+  - If it does, make the swaps in [If campus menu matching ships](#if-campus-menu-matching-ships). To check, take a photo at a dining hall: a food that's on the menu should show the campus label as its source.
 - [ ] **Gemini project number.** The value we have is a project ID, not the number. See [Gemini project number](#gemini-project-number).
-- [ ] **Sponsor prizes.** Opt in to **[MLH] Best Use of Gemini API** and **Best Use of MongoDB Atlas**. These don't count toward the one [HACKUMASS] category. Skip GoDaddy, since we registered no domain with them.
+- [ ] **Sponsor prizes.** Opt in to **[MLH] Best Use of Gemini API** and **Best Use of MongoDB Atlas**. These don't count toward the one [HACKUMASS] category. Our domain, mealscholar.health, now counts for GoDaddy Registry (see [Domains registered with GoDaddy Registry](#domains-registered-with-godaddy-registry-during-this-hackathon)), so opt in to the GoDaddy Registry prize too if the form lists one.
 - [ ] **Video link** goes in once it's uploaded (see [Also on the form](#also-on-the-form)).
 
 ## General info
@@ -43,14 +43,15 @@ UMass Dining posts nutrition facts for every dish it serves. Even so, logging a 
 
 ## What it does
 
-- **Snap.** Take or choose a photo of your meal in your phone's browser (JPEG, PNG or HEIC). There's nothing to install, and you can add it to your Home Screen.
+- **Snap.** Tap + and take or choose a photo of your meal in your phone's browser (JPEG, PNG or HEIC). There's nothing to install, and you can add it to your Home Screen.
 - **Foods and amounts.** Gemini names each food and draws a box around it on the photo. It estimates each weight as a low, likely and high number of grams, sized against references like the plate.
 - **One question, at most.** If the photo can't settle something, like which drink is in the glass or which dressing is on the salad, it asks once and then recomputes.
-- **Nutrients from real data.** The AI never outputs a nutrient number. Each food is matched to USDA FoodData Central (13,648 foods), and the nutrients come from plain arithmetic, so you can check every number. If it picked the wrong food, swap it with one tap.
-- **Today and this week.** You see 19 nutrients as ranges with % Daily Value, and meals grouped into breakfast, lunch, dinner and snacks. The weekly view averages only the days you logged. Vitamins and minerals are labeled as estimates.
+- **Nutrients from real data.** The AI never outputs a nutrient number. Each food is matched to USDA FoodData Central (13,648 foods), and the nutrients come from plain arithmetic, so you can check every number. If it picked the wrong food, pick another match or type the exact grams.
+- **Today, Menu and Week.** Today shows 19 nutrients as ranges with % Daily Value, meals grouped into breakfast, lunch, dinner and snacks, and a 0–100 nutrient-balance score for the day. The week view averages only the days you logged. Vitamins and minerals are labeled as estimates.
 - **Set up once.** Sign up, then pick your dining halls, your diet, the allergens you avoid and your favorite dishes. Goals are optional, and "no goal" is a choice.
-- **UMass Dining menus.** It has every menu UMass Dining publishes, for 33 locations. You can see the next meal at your nearest dining hall, search dishes, and spot your favorites and anything that clashes with your diet or allergens.
-- **Private by default.** Location stays off unless you turn it on, and even then only the place name is kept. Photos are analyzed in memory and never stored. The copy sent to Gemini has its EXIF data removed, and the request tells Gemini not to store it.
+- **UMass Dining menus.** It has every menu UMass Dining publishes, for 33 locations. Menu shows the next meal at your halls, and a dish opens its nutrition facts and allergens. You can search dishes and spot your favorites and anything that clashes with your diet or allergens.
+- **How busy is the hall?** Worcester, Franklin, Berkshire and Hampshire show a line like "Quiet now · 8 people in view · 2 min ago", counted from the halls' public webcams every 3 minutes. Only the count is kept, never a frame.
+- **Private by default.** Location stays off unless you turn it on, and even then only the place name is kept. Photos are analyzed in memory and never stored. The copy sent to Gemini has its EXIF data removed, and the request tells Gemini not to store it. Settings can clear your history or delete your account and all its data.
 
 ## How we built it
 
@@ -62,12 +63,13 @@ For example, a pizza estimated at 450 g, with 11.4 g of protein per 100 g, gives
 
 The pipeline:
 
-1. **Photo and context.** The capture time comes from the photo's EXIF data or the phone's clock, and it sets the meal slot. If location is on, OpenStreetMap's Nominatim turns it into a place name and type, and the coordinates are dropped right there.
-2. **Vision (Gemini).** One call to `gemini-4-hydrogen` at `low` thinking, through the google-genai SDK, with a Pydantic schema as the structured output. It returns each food with a USDA search query, a gram range, the cooking method, a bounding box, a hidden-fat flag and a scale reference, plus at most one question. The photo is resized to 1536 px and re-encoded, which removes the EXIF data. When you answer the question, a second, text-only call updates the analysis.
-3. **Nutrition lookup.** We keep a local SQLite copy of USDA FoodData Central (Survey/FNDDS, Foundation and SR Legacy) with full-text search. A scorer picks the best match, and we tuned it against the benchmark below.
+1. **Photo and context.** The capture time comes from the photo's EXIF data (HEIC included) or, without it, the clock at upload, and it sets the meal slot. If location is on, OpenStreetMap's Nominatim turns it into a place name and type, and the coordinates are dropped right there.
+2. **Vision (Gemini).** One call to `gemini-4-hydrogen` at `low` thinking, through the google-genai SDK, with a Pydantic schema as the structured output. It returns each food with a USDA search query, a gram range, the cooking method, a bounding box, a hidden-fat flag and a scale reference, plus at most one question. When the request names a dining hall, the prompt also lists that meal's menu (up to 100 dishes), and Gemini names the listed dish and estimates servings when a food is clearly that dish. The photo is resized to 1536 px and re-encoded, which removes the EXIF data. Each call is capped at 60 s and retried once if the reply is cut off or doesn't fit the schema. When you answer the question, a second, text-only call updates the analysis.
+3. **Nutrition lookup.** A food Gemini named as a listed dish uses the dish's own nutrition label, scaled by servings, but only if the label's calories come within 0.5–2× of USDA's for the same grams. USDA fills in the micronutrients a label lacks. Every other food is matched in a local SQLite copy of USDA FoodData Central (Survey/FNDDS, Foundation and SR Legacy) with full-text search. A scorer picks the best match, and we tuned it against the benchmark below.
 4. **Compute.** Grams times the per-100 g values, summed into ranges and % Daily Value.
 5. **App.** A FastAPI JSON API and a phone-first UI in plain HTML, CSS and JavaScript, with no build step. You can install it as a web app. MongoDB Atlas stores accounts and sessions: passwords are hashed with scrypt, sessions are cookie-only, and requests are rate-limited. UMass Dining's menus live in a second Atlas database and refresh every hour. It covers 33 locations and over 24,000 menu items, plus 2,236 dishes with nutrition facts, allergens and diet tags.
-6. **Deploy.** Every push to `main` deploys the app and the landing page. The deploy runs through a self-hosted GitHub Actions runner on a Mac mini. The app runs sandboxed under launchd, and a Cloudflare Tunnel publishes it.
+6. **Busy meter.** A sampler watches four dining halls' public webcams every 3 minutes and counts people with YOLO (Ultralytics), taking the median over 20 seconds. Only that count and a quiet, moderate or busy level go to Atlas, never a frame. The app shows each hall's latest reading.
+7. **Deploy.** Every push to `main` deploys the app and the landing page. The deploy runs through a self-hosted GitHub Actions runner on a Mac mini. The app runs sandboxed under launchd, and a Cloudflare Tunnel publishes it at app.mealscholar.health, with the landing page at mealscholar.health.
 
 **We chose the model by measuring.** We made 284 Gemini calls on 5 real dining hall photos: 6 models, each at its thinking levels, plus three media resolutions, with 3 repeats each, scored against hand labels.
 
@@ -76,7 +78,7 @@ The pipeline:
 - `gemini-4-argon` names foods best, but its median latency is 16.8 s, and 61 s at the 90th percentile.
 - `gemini-3.6-flash` at `minimal` thinking is our budget fallback: 4.1 s and $0.0022 per photo, though it calls ginger ale iced tea.
 
-**Three people, three AI agents.** Each of us worked with an AI coding agent (Claude Code, Codex or Cursor). They coordinated through a pinned GitHub issue used as a message board, and each person owned their own folders.
+**Three people, several AI agents.** Each of us worked with AI coding agents (Claude Code, Codex, Cursor and Grok). They coordinated through a pinned GitHub issue used as a message board, and each person owned their own folders.
 
 ## Challenges we ran into
 
@@ -86,9 +88,9 @@ The pipeline:
   - Sweet iced tea matched instant tea powder at 401 kcal per 100 g, so a 240 g glass showed 962 kcal.
   - Gemini named pepperoni pizza correctly in 54 of 55 runs, but the lookup matched it to cheese pizza in all but one.
 
-  We now penalize processed forms the query didn't ask for, and we fixed a naming rule. On the same recorded Gemini output, runs with calories in range went from 65% to 84%, or from 73% to 93% on our default model. Pepperoni went from 1 of 54 to 50 of 54.
+  We now penalize processed forms the query didn't ask for, fixed a naming rule, and stopped the words after "without" or "no" from matching: a salad "without dressing" had been priced as salad dressing, at 430 kcal per 100 g. On the same recorded Gemini output, runs with calories in range went from 65% to 84%, or from 73% to 93% on our default model. Pepperoni went from 1 of 54 to 53 of 54.
 - **Some things a photo can't tell you.** An amber drink with ice could be ginger ale, iced tea or whiskey. At `low` thinking, Gemini 4 named it ginger ale in 67% of runs, and no 3.x model ever did. Higher thinking levels got it right but added 2.5–3 s per photo. The app asked about the drink in every ginger ale run anyway, so we kept `low` and let the user answer.
-- **Food at the edge of the frame.** Part of a pizza plate that showed at the edge of a drink photo was logged in 55 of 55 runs, adding 170–210 kcal to a drink. That's our next prompt fix.
+- **Food at the edge of the frame.** Part of a pizza plate that showed at the edge of a drink photo was logged in 55 of 55 runs, adding 170–210 kcal to a drink. The prompt now tells Gemini to skip food cut off by the edge unless it's the subject. We haven't re-measured it yet.
 - **Moving fast without breaking the live site.** Every push to `main` redeploys both sites, and several PRs were stacked on each other. We kept the merge order on the board. The deploy also checks that it's deploying the newest commit on `main`, so an older commit can't overwrite a newer one.
 
 ## Accomplishments that we're proud of
@@ -96,7 +98,8 @@ The pipeline:
 - All 275 Gemini responses in the benchmark matched our schema, and none invented a food. A person, a flyer and a napkin dispenser appeared in the photos, and none of them were ever logged.
 - Gemini's boxes overlapped our hand-drawn ones at an IoU of 0.95–0.98 on every model we tried.
 - The question loop works. "What kind of drink is this?" → "pink lemonade" took the estimate from 461 kcal (346–576) to 110 kcal (83–138).
-- A replay harness reruns the USDA lookup on all 275 recorded Gemini outputs with no API calls, so every change to the lookup gets a before-and-after.
+- A replay harness reruns the USDA lookup on all 275 recorded Gemini outputs with no API calls, so every change to the lookup gets a before-and-after, and CI fails any PR that makes it worse.
+- Gemini tells a meal from things that only look like one. Plastic food replicas in a display case used to be logged as 6–7 dishes (1,707–1,957 kcal), and a plate eaten down to scraps as 86–105 kcal. One prompt rule took both from 0 of 3 to 3 of 3 not logged, and every real meal photo kept its foods.
 
 ## What we learned
 
@@ -106,8 +109,8 @@ The pipeline:
 
 ## What's next for MealScholar
 
-- **Campus menu first.** Find the dining hall and the meal from location and time, and give Gemini that meal's dishes to choose from. When a food matches a dish, use the dish's own nutrition facts, with USDA as the backup.
-- **Prompt fixes from the benchmark.** Skip food cut off at the edge of the frame, keep the question to one sentence, and split mixed salads into their parts.
+- **Campus menu in the app.** The pipeline already matches foods to a dining hall's menu when the hall comes with the photo. Next, the app sends your hall with every photo and shows which foods came from the campus label.
+- **Split mixed salads into their parts** in the prompt, so the dressing on a salad sent as one item is counted.
 - **Let Gemini choose among the top USDA matches**, using structured output.
 - **Send all photos of one meal in a single request**, so nothing is counted twice.
 - **Allergen and diet flags on logged meals**, using the tags the dining data already has.
@@ -116,33 +119,34 @@ The pipeline:
 
 #### If campus menu matching ships
 
-Make these two swaps only if menu matching works on the live app when you submit.
+Make these swaps only if the live app sends the dining hall with the photo when you submit. To check, take a photo at a dining hall: a food that's on the menu should show the campus label as its source.
 
 1. In "What it does", replace the **Nutrients from real data** bullet with:
 
    ```markdown
-   - **Campus menu first.** On campus, it works out your dining hall and meal from location and time, matches each food to today's menu and uses the dish's own nutrition facts. Anything that isn't on the menu is matched to USDA FoodData Central (13,648 foods). The AI never outputs a nutrient number. If it picked the wrong food, swap it with one tap.
+   - **Campus menu first.** At a UMass dining hall, Gemini sees that meal's menu along with your photo. When a food is a listed dish, MealScholar uses the dish's own nutrition label, scaled by how many servings you took, after checking it against USDA's calories for the same weight. Everything else is matched to USDA FoodData Central (13,648 foods). The AI never outputs a nutrient number. If it picked the wrong food, pick another match or type the exact grams.
    ```
 
-2. In "What's next", delete the **Campus menu first** bullet.
+2. In "What's next", delete the **Campus menu in the app** bullet.
+3. In [Before you submit](#before-you-submit), tick the judging category item.
 
 ### Built with (25 tags max)
 
-These are 23 tags:
+These are 25 tags:
 
 ```text
-python, gemini, google-genai, pydantic, fastapi, uvicorn, mongodb-atlas, pymongo, sqlite, usda-fooddata-central, openstreetmap, nominatim, pillow, httpx, javascript, html5, css3, pwa, github-actions, cloudflare-tunnel, pytest, ruff, uv
+python, gemini, google-genai, pydantic, fastapi, uvicorn, mongodb-atlas, pymongo, sqlite, usda-fooddata-central, openstreetmap, nominatim, ultralytics, opencv, pillow, httpx, javascript, html5, css3, pwa, github-actions, cloudflare-tunnel, pytest, ruff, uv
 ```
 
 ### "Try it out" links
 
 ```text
-https://mealscholar.mannava.org
-https://hackumass.mannava.org
+https://app.mealscholar.health
+https://mealscholar.health
 https://github.com/hershey-harsh/HackUmass-26-MealScholar
 ```
 
-The first link is the app and the second is the landing page. The third is the code, and the repo is private right now (see [Before you submit](#before-you-submit)).
+The first link is the app and the second is the landing page; the old mannava.org addresses redirect to them. The third is the code, and the repo is private right now (see [Before you submit](#before-you-submit)).
 
 ## Sponsor / special prizes
 
@@ -156,10 +160,10 @@ University of Maryland, College Park
 ### Domains registered with GoDaddy Registry during this hackathon
 
 ```text
-None
+mealscholar.health
 ```
 
-Our domain, mannava.org, is a .org, and GoDaddy Registry doesn't run .org.
+Gabby registered it at Porkbun on Sat Nov 14 at 10:51 AM EST. Porkbun is only the registrar: [IANA](https://www.iana.org/domains/root/db/health.html) lists Registry Services, LLC as the manager of .health, with GoDaddy Registry as its administrative and technical contact.
 
 ### Feedback about technology you used
 
@@ -171,21 +175,21 @@ Pain points:
 - Gemini 4 bills about 870 more input tokens than 3.x for the same prompt and schema.
 - The model sometimes asks two questions in one, even though we tell it to ask one (43 of 216 questions).
 
-MongoDB Atlas: One cluster holds two databases. One has UMass Dining's menus, with daily menus, menu items indexed on date, location, meal, calories, protein, allergens and diets, and dishes with their ingredients. The other has the app's accounts and sessions. The menus' nesting (location, day, meal, category, item) fit into documents as is. Our store tests run against Atlas on a throwaway database.
+MongoDB Atlas: One cluster holds two databases. One has UMass Dining's menus, with daily menus, menu items indexed on date, location, meal, calories, protein, allergens and diets, and dishes with their ingredients, plus the dining hall cams' people counts, written every 3 minutes. The other has the app's accounts, sessions and preferences. The menus' nesting (location, day, meal, category, item) fit into documents as is. Our store tests run against Atlas on a throwaway database.
 
-GitHub: The whole team ran on it. A pinned issue served as a message board that each person's AI agent read and posted to through the gh CLI. PRs ran a lint workflow, and a self-hosted Actions runner deployed both sites on every push to main. One wish: better support for stacked PRs. Three of our PRs waited about seven hours on one base PR, and our board was the only place that showed the chain.
+GitHub: The whole team ran on it. A pinned issue served as a message board that each person's AI agent read and posted to through the gh CLI. PRs ran lint and test workflows, plus a lookup regression check that replays the USDA lookup on 275 recorded Gemini outputs and fails any PR that makes it worse. A self-hosted Actions runner deployed both sites on every push to main. One wish: better support for stacked PRs. Three of our PRs waited about seven hours on one base PR, and our board was the only place that showed the chain.
 ```
 
 ### AI tools used this weekend
 
-Check **Gemini**, **Anthropic** and **OpenAI**, then type `Cursor` in **Other**.
+Check **Gemini**, **Anthropic** and **OpenAI**. In **Other**, type `Cursor, Grok` (or check xAI if the form lists it).
 
 ### Did you implement a generative AI model or API? How and why?
 
 ```text
-Yes. The Gemini API (gemini-4-hydrogen, through the google-genai SDK) handles the vision step. Each photo gets one call, which returns structured JSON that follows a Pydantic schema. It lists each food with its weight as low, likely and high grams, the cooking method, a bounding box, a hidden-fat flag and a scale reference, plus at most one clarifying question. When the user answers, a second, text-only call updates the analysis.
+Yes. The Gemini API (gemini-4-hydrogen, through the google-genai SDK) handles the vision step. Each photo gets one call, which returns structured JSON that follows a Pydantic schema. It lists each food with its weight as low, likely and high grams, the cooking method, a bounding box, a hidden-fat flag and a scale reference, plus at most one clarifying question. When the request names a UMass dining hall, the prompt also lists that meal's menu, and Gemini names the listed dish and estimates servings. When the user answers the question, a second, text-only call updates the analysis.
 
-Why: naming foods and judging portions from a photo needs a vision model, but nutrient numbers shouldn't come from a model. So Gemini never outputs nutrients. We match each food to USDA FoodData Central and do the arithmetic in code, so every number can be checked.
+Why: naming foods and judging portions from a photo needs a vision model, but nutrient numbers shouldn't come from a model. So Gemini never outputs nutrients. We use the dining hall's own label for a listed dish, or match the food to USDA FoodData Central, and do the arithmetic in code, so every number can be checked.
 
 We picked the model and thinking level from a 284-call benchmark. gemini-4-hydrogen at low thinking takes 5.9 s per photo (median) and costs about $0.01 per photo. Photos are re-encoded without EXIF data and sent with store=False.
 ```
@@ -209,4 +213,5 @@ You can pick only one [HACKUMASS] category. Every project is considered for the 
 ## Also on the form
 
 - **Video demo:** a YouTube, Vimeo or Youku link. The Devpost cut runs up to 2:00 (`video/film-plan.md`).
-- **Image gallery:** Gemini's real boxes drawn on our photos are in `bench/results/overlays/gemini-4-hydrogen_low_default/IMG_0579.jpg` and `IMG_0582.jpg`. Add screenshots of the app's Analyze, result and Today screens. Don't use `IMG_0583`, because it shows a person.
+- **Thumbnail:** `brand/devpost-thumbnail.png` (1800×1200, 3:2): the real salad result with its 433–632 kcal range.
+- **Image gallery:** Gemini's real boxes drawn on our photos are in `bench/results/overlays/gemini-4-hydrogen_low_default/IMG_0579.jpg` and `IMG_0582.jpg`. Add screenshots of the app's Today, Menu (with a hall's busy line) and Week tabs, and of a photo result. Don't use `IMG_0583`, because it shows a person.
