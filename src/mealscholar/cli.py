@@ -20,6 +20,7 @@ from .insights import LOW_DV_PCT, period_report, summarize_days
 from .mailer import make_sender
 from .nutrients import BY_KEY, NUTRIENTS
 from .nutrition import FoodDatabase, FoodDatabaseMissing, build_database
+from .photos import PhotoStore
 from .pipeline import UnknownFood, Workflow, correct
 from .schemas import MealResult, Range
 from .vision import GeminiVision, VisionError
@@ -187,6 +188,7 @@ def cmd_fix(args: argparse.Namespace, settings: Settings) -> None:
 def cmd_delete(args: argparse.Namespace, settings: Settings) -> None:
     if not Diary(settings.diary_db).delete(args.meal_id):
         raise ValueError(f"No meal #{args.meal_id}.")
+    PhotoStore(settings.photos).delete(None, args.meal_id)  # kept when the web app logged it
     print(f"Deleted meal #{args.meal_id}.")
 
 

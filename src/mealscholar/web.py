@@ -1,6 +1,7 @@
 """Web front end: a JSON API over the workflow, plus the static site in `site/`.
 
-Photos arrive as the raw request body and stay in memory; they are never written to disk.
+Photos arrive as the raw request body and are read in memory. A logged meal keeps a re-encoded copy
+of its photo without metadata (photos.py), deleted with the meal; the upload itself is never saved.
 """
 
 from __future__ import annotations
@@ -11,11 +12,11 @@ from collections.abc import Iterator
 from contextlib import closing, contextmanager
 from datetime import date, datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel, Field
@@ -32,6 +33,7 @@ from .insights import HealthScore, health_score, summarize_days
 from .metadata import MAX_PHOTO_PIXELS
 from .nutrients import NUTRIENTS
 from .nutrition import FoodDatabase, FoodDatabaseMissing
+from .photos import PhotoStore
 from .pipeline import BadCorrection, UnknownFood, Workflow, correct
 from .prefs import LOCAL_USER, MAX_LOCATION_ID, PrefsStore, install_prefs, open_prefs_store
 from .schemas import MealResult, Range
@@ -39,6 +41,8 @@ from .vision import GeminiVision, VisionError, VisionModel
 
 SITE = Path(__file__).parent / "site"
 MAX_PHOTO_BYTES = 25 * 1024 * 1024
+PHOTO_CACHE = "private, max-age=86400"
+JPEG_REPLY: dict[int | str, dict] = {200: {"content": {"image/jpeg": {}}, "description": "The photo."}}
 
 log = logging.getLogger(__name__)
 
@@ -144,6 +148,7 @@ def create_app(
     prefs = prefs or open_prefs_store(auth.store)
     install_prefs(app, prefs, dining)
     app.add_middleware(_ResponseSecurity)
+    photos = PhotoStore(settings.photos)
 
     # SQLite connections are opened per request: FastAPI runs sync handlers on a thread pool.
     # `owner` is the signed-in user's id, or None for the local diary (see auth.diary_owner).
@@ -253,29 +258,53 @@ def create_app(
             # in-memory photo raises OSError: Gemini, place and database failures have their own types.
             except OSError as exc:
                 raise HTTPException(415, "Couldn't read that image. Use a JPEG, PNG or HEIC photo.") from exc
-            return diary.save(result) if result.items else result
+            if not result.items:
+                return result
+            result = diary.save(result)
+            # The photo is kept only for a logged meal, and storing it can't fail the analysis.
+            if (version := photos.save(owner, result.id, photo)) is not None:
+                url = f"/api/meals/{result.id}/photo?v={version}"
+                result = diary.save(result.model_copy(update={"photo_url": url}))
+            return result
 
     @app.get("/api/meals/{meal_id}")
     def show(meal_id: int, owner: DiaryOwner) -> MealResult:
         with closing(Diary(settings.diary_db, owner)) as diary:
             return logged(diary, meal_id)
 
+    @app.get("/api/meals/{meal_id}/photo", response_class=FileResponse, responses=JPEG_REPLY)
+    def meal_photo(meal_id: int, owner: DiaryOwner, size: Literal["full", "thumb"] = "full") -> FileResponse:
+        """The meal's stored photo as a JPEG: 1280 px on the long edge, or 320 px for `thumb`. Link
+        to it through the meal's `photo_url`, whose version changes with the photo (meal ids can be
+        reused), so a cached copy never shows the wrong one. 404 unless the meal is yours."""
+        with closing(Diary(settings.diary_db, owner)) as diary:
+            result = logged(diary, meal_id)
+        path = photos.path(owner, meal_id, thumb=size == "thumb")
+        if result.photo_url is None or not path.is_file():
+            raise HTTPException(404, f"Meal #{meal_id} has no photo.")
+        return FileResponse(path, media_type="image/jpeg", headers={"Cache-Control": PHOTO_CACHE})
+
     @app.delete("/api/meals/{meal_id}", status_code=204)
     def delete(meal_id: int, owner: DiaryOwner) -> None:
-        """Remove a meal from the diary, such as one logged from the wrong photo. 404 unless it's yours."""
+        """Remove a meal and its photo from the diary, such as one logged from the wrong photo. 404
+        unless it's yours."""
         with closing(Diary(settings.diary_db, owner)) as diary:
-            if not diary.delete(meal_id):
-                raise HTTPException(404, f"No meal #{meal_id}.")
+            logged(diary, meal_id)
+            photos.delete(owner, meal_id)  # first, so a failure leaves the meal to delete again
+            diary.delete(meal_id)
 
     @app.delete("/api/meals")
     def clear_history(owner: DiaryOwner) -> Erased:
-        """Delete every meal in the diary and the portions learned from corrections; goals and
-        settings stay. With nobody signed in, that is the local diary."""
+        """Delete every meal in the diary with its photo, and the portions learned from corrections;
+        goals and settings stay. With nobody signed in, that is the local diary."""
+        photos.clear(owner)
         with closing(Diary(settings.diary_db, owner)) as diary:
             return Erased(meals=diary.clear())
 
     def erase(owner: str | None) -> int:
-        """Delete the meals, learned portions and preferences kept for `owner` (None: the local user)."""
+        """Delete the meals and their photos, learned portions and preferences kept for `owner`
+        (None: the local user)."""
+        photos.clear(owner)
         with closing(Diary(settings.diary_db, owner)) as diary:
             meals = diary.clear()
         prefs.delete(owner or LOCAL_USER)
@@ -286,8 +315,9 @@ def create_app(
 
     @app.delete("/api/me")
     def erase_me(owner: DiaryOwner) -> Erased:
-        """Delete everything kept for whoever asks: meals, learned portions, goals and settings, so
-        the app starts over. A signed-in account stays; POST /api/auth/delete-account removes it too."""
+        """Delete everything kept for whoever asks: meals and their photos, learned portions, goals and
+        settings, so the app starts over. A signed-in account stays; POST /api/auth/delete-account
+        removes it too."""
         return Erased(meals=erase(owner))
 
     @app.post("/api/meals/{meal_id}/answer")

@@ -192,6 +192,9 @@ class MealResult(BaseModel):
     partial_nutrients: list[str] = []
     """Nutrient keys some matched food has no data for, so the total undercounts."""
     notes: list[str] = []
+    photo_url: str | None = None
+    """Where the app loads the meal's stored photo (GET /api/meals/{id}/photo, with a version that
+    changes with the photo); None when no photo is kept, as for a meal that isn't logged."""
 
     def analysis(self) -> MealAnalysis:
         return MealAnalysis(

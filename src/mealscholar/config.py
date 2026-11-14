@@ -68,6 +68,11 @@ class Settings:
     def downloads(self) -> Path:
         return self.home / "downloads"
 
+    @property
+    def photos(self) -> Path:
+        """Logged meals' photos (photos.py)."""
+        return self.home / "photos"
+
 
 def load_settings(env: Mapping[str, str] = os.environ) -> Settings:
     email_provider = _email_provider(env.get("MEALSCHOLAR_EMAIL_PROVIDER") or "outbox")

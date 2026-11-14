@@ -1,4 +1,5 @@
-"""Step 7: meal log and the user's usual portions. Photos and coordinates are never stored.
+"""Step 7: meal log and the user's usual portions. Coordinates are never stored; a meal's photo is
+kept beside the diary (photos.py) and deleted with the meal.
 
 Every row belongs to one user: an account id from the web app, or '' for the local user
 (the CLI, or the web app with sign-in turned off). A Diary only sees its own user's rows.
