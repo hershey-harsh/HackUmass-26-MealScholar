@@ -5468,15 +5468,16 @@ function markAsked() {
   } catch {}
 }
 
-function dismissLocateAsk() {
+function dismissLocateAsk(hadFocus = els.locateAsk.contains(document.activeElement)) {
   markAsked();
-  const hadFocus = els.locateAsk.contains(document.activeElement);
   hideLocateAsk();
   if (hadFocus) els.todayTitle.focus({ preventScroll: true });
 }
 
 async function allowLocation(button) {
   markAsked();
+  // The busy button gives up focus while the browser asks; remember it to land on Today's heading.
+  const hadFocus = els.locateAsk.contains(document.activeElement);
   await withBusy(button, async () => {
     try {
       await devicePosition(); // the browser's own prompt
@@ -5488,7 +5489,7 @@ async function allowLocation(button) {
       toast(`${err.message} You can switch it on later from a photo's options.`);
     }
   });
-  dismissLocateAsk();
+  dismissLocateAsk(hadFocus);
 }
 
 // The laptop dashboard's round "+" button: straight to the photo picker, like the phone's.
