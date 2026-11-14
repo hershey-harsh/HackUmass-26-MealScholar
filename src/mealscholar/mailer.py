@@ -95,7 +95,8 @@ class SmtpSender:
         try:
             self._deliver(email)
         except (smtplib.SMTPException, OSError) as exc:  # OSError covers socket.timeout and ssl.SSLError
-            log.warning("Couldn't send the %s email to %s: %s", email.purpose, masked, exc)
+            # Only the error's name and SMTP code: a relay's reply text repeats the address and the login user.
+            log.warning("Couldn't send the %s email to %s: %s", email.purpose, masked, _describe(exc))
         else:
             log.info("Sent the %s email to %s", email.purpose, masked)
 
@@ -115,6 +116,17 @@ class SmtpSender:
             if s.user:
                 smtp.login(s.user, s.password or "")
             smtp.send_message(msg)
+
+
+def _describe(exc: BaseException) -> str:
+    """'SMTPRecipientsRefused (550)': the type and reply code, never the relay's text."""
+    codes: list[int] = []
+    if isinstance(exc, smtplib.SMTPResponseException):
+        codes = [exc.smtp_code]
+    elif isinstance(exc, smtplib.SMTPRecipientsRefused):
+        codes = sorted({code for code, _ in exc.recipients.values()})
+    name = type(exc).__name__
+    return f"{name} ({', '.join(str(c) for c in codes)})" if codes else name
 
 
 def _mask(address: str) -> str:

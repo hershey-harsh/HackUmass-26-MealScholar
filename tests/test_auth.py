@@ -794,16 +794,34 @@ def test_smtp_sending_does_not_delay_sign_up_or_forgot_password(make_app, fake_s
     ]
 
 
-@pytest.mark.parametrize("error", [smtplib.SMTPServerDisconnected("Connection unexpectedly closed"), TimeoutError()])
-def test_smtp_failure_does_not_block_sign_up(make_app, fake_smtp, caplog, error):
+@pytest.mark.parametrize(
+    ("error", "logged"),
+    [
+        (smtplib.SMTPServerDisconnected("Connection unexpectedly closed"), "SMTPServerDisconnected"),
+        (TimeoutError(), "TimeoutError"),
+        # A bounce: the exception text carries the raw address, which must not reach the log.
+        (
+            smtplib.SMTPRecipientsRefused({"sam@example.com": (550, b"5.1.1 user unknown")}),
+            "SMTPRecipientsRefused (550)",
+        ),
+        # A Gmail-style refusal echoes the login user in the reply text.
+        (
+            smtplib.SMTPAuthenticationError(535, b"5.7.8 not accepted for user harsh@gmail.com"),
+            "SMTPAuthenticationError (535)",
+        ),
+    ],
+)
+def test_smtp_failure_does_not_block_sign_up(make_app, fake_smtp, caplog, error, logged):
     fake_smtp.on_send = error
     app = make_app(**SMTP_ENV)
     client = browser(app)
     with caplog.at_level(logging.WARNING, logger="mealscholar.mailer"):
         assert register(client).status_code == 201
         app.state.auth.sender.drain(5)
-    assert "Couldn't send the verify_email email to s***@example.com" in caplog.text
+    assert f"Couldn't send the verify_email email to s***@example.com: {logged}" in caplog.text
     assert "sam@example.com" not in caplog.text
+    assert "user unknown" not in caplog.text
+    assert "harsh@gmail.com" not in caplog.text
     assert fake_smtp.messages == []
     assert app.state.auth.store.recent_emails(20) == []
 
