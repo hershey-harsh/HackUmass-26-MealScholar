@@ -15,7 +15,9 @@ from dotenv import find_dotenv, load_dotenv
 from .config import USER_AGENT, Settings, load_settings
 from .context import NominatimPlaces
 from .diary import Diary
+from .dining import MAX_ALERT_DAYS, open_digest, send_favorites_digests
 from .insights import LOW_DV_PCT, period_report, summarize_days
+from .mailer import make_sender
 from .nutrients import BY_KEY, NUTRIENTS
 from .nutrition import FoodDatabase, FoodDatabaseMissing, build_database
 from .pipeline import UnknownFood, Workflow, correct
@@ -86,6 +88,10 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="127.0.0.1", help="0.0.0.0 to reach it from a phone on the same network")
     p.add_argument("--port", type=int, default=8000)
     p.set_defaults(run=cmd_serve)
+
+    p = sub.add_parser("alerts-digest", help="queue a favorites email for every user with email alerts on")
+    p.add_argument("--days", type=int, default=1, help=f"days ahead, 1-{MAX_ALERT_DAYS} (default: today and tomorrow)")
+    p.set_defaults(run=cmd_alerts_digest)
     return parser
 
 
@@ -201,6 +207,17 @@ def cmd_week(args: argparse.Namespace, settings: Settings) -> None:
 
 def cmd_serve(args: argparse.Namespace, settings: Settings) -> None:
     uvicorn.run(create_app(settings), host=args.host, port=args.port)
+
+
+def cmd_alerts_digest(args: argparse.Namespace, settings: Settings) -> None:
+    """Queues the emails in the outbox; nothing runs this on a schedule yet."""
+    if not 1 <= args.days <= MAX_ALERT_DAYS:
+        raise ValueError(f"--days must be from 1 to {MAX_ALERT_DAYS}.")
+    users, prefs, dining = open_digest(settings)
+    sender = make_sender(settings.email_provider, users)
+    report = send_favorites_digests(users, prefs, dining, sender, settings.public_url, days=args.days)
+    failed = f"; {report.failed} failed" if report.failed else ""
+    print(f"Queued {report.queued} favorites email(s) for {report.users} user(s) with email alerts on{failed}.")
 
 
 # --- formatting ---------------------------------------------------------------

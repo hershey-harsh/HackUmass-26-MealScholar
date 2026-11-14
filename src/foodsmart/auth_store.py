@@ -24,6 +24,7 @@ from .config import Settings
 log = logging.getLogger(__name__)
 
 TokenPurpose = Literal["verify_email", "reset_password"]
+EmailPurpose = Literal[TokenPurpose, "favorites_digest"]
 
 
 def utc_now() -> datetime:
@@ -74,7 +75,7 @@ class OutboxEmail:
     to: str
     subject: str
     text: str
-    purpose: TokenPurpose
+    purpose: EmailPurpose
     created_at: datetime
     expires_at: datetime
     status: str = "queued"

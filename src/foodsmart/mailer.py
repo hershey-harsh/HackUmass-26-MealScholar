@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Protocol
 
-from .auth_store import AuthStore, OutboxEmail, TokenPurpose, utc_now
+from .auth_store import AuthStore, EmailPurpose, OutboxEmail, utc_now
 
 OUTBOX_TTL = timedelta(days=7)
 
@@ -22,7 +22,7 @@ class Email:
     to: str
     subject: str
     text: str
-    purpose: TokenPurpose
+    purpose: EmailPurpose
 
 
 class EmailSender(Protocol):

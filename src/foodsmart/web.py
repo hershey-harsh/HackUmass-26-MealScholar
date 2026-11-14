@@ -22,10 +22,12 @@ from .auth import AuthService, DiaryOwner, install_auth
 from .config import USER_AGENT, Settings
 from .context import NominatimPlaces, PlaceLookup
 from .diary import Diary
+from .dining import Dining, install_dining, open_dining
 from .insights import summarize_days
 from .nutrients import NUTRIENTS
 from .nutrition import FoodDatabase, FoodDatabaseMissing
 from .pipeline import UnknownFood, Workflow, correct
+from .prefs import PrefsStore, install_prefs, open_prefs_store
 from .schemas import MealResult, Range
 from .vision import GeminiVision, VisionError, VisionModel
 
@@ -83,16 +85,23 @@ def create_app(
     vision: VisionModel | None = None,
     places: PlaceLookup | None = None,
     auth: AuthService | None = None,
+    prefs: PrefsStore | None = None,
+    dining: Dining | None = None,
 ) -> FastAPI:
     """`vision` and `places` default to Gemini (when a key is set) and OpenStreetMap Nominatim;
-    `auth` to accounts stored as `settings` say (MongoDB, or memory)."""
+    `auth` to accounts stored as `settings` say (MongoDB, or memory); `prefs` to the accounts'
+    database; `dining` to the UMass Dining menus when MONGODB_URI is set (else they answer 503)."""
     if vision is None and settings.gemini_api_key:
         vision = GeminiVision(settings.gemini_api_key, settings.gemini_model, settings.thinking_level)
     if places is None:
         places = NominatimPlaces(settings.nominatim_url, USER_AGENT)
 
     app = FastAPI(title="FoodSmart", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
-    install_auth(app, auth or AuthService.from_settings(settings))
+    auth = auth or AuthService.from_settings(settings)
+    install_auth(app, auth)
+    dining = dining or open_dining(settings)
+    install_dining(app, dining)
+    install_prefs(app, prefs or open_prefs_store(auth.store), dining)
 
     # SQLite connections are opened per request: FastAPI runs sync handlers on a thread pool.
     # `owner` is the signed-in user's id, or None for the local diary (see auth.diary_owner).

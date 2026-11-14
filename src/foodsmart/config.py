@@ -25,6 +25,8 @@ class Settings:
     mongodb_uri: str | None = None
     """Accounts live in MongoDB when set; otherwise in memory and vanish on restart."""
     mongodb_db: str = "mealscholar"
+    dining_db: str = "umass_dining"
+    """UMass Dining menus, read through MONGODB_URI (dining.py); without the URI there are none."""
     auth_required: bool = True
     """Meal and diary routes need a signed-in user. Off: local single-user use."""
     public_url: str = DEFAULT_PUBLIC_URL
@@ -57,6 +59,7 @@ def load_settings(env: Mapping[str, str] = os.environ) -> Settings:
         nominatim_url=env.get("FOODSMART_NOMINATIM_URL", DEFAULT_NOMINATIM_URL),
         mongodb_uri=env.get("MONGODB_URI") or None,
         mongodb_db=env.get("FOODSMART_MONGODB_DB") or "mealscholar",
+        dining_db=env.get("FOODSMART_DINING_DB") or "umass_dining",
         auth_required=_flag(env, "FOODSMART_AUTH_REQUIRED", True),
         public_url=_public_url(env.get("FOODSMART_PUBLIC_URL") or DEFAULT_PUBLIC_URL),
         cookie_secure=_flag(env, "FOODSMART_COOKIE_SECURE", True),
