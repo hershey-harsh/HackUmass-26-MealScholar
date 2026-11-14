@@ -1,1 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MealScholar"><mask id="ms-gap" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><path d="M0 0h512v512H0z" fill="#fff"/><polygon points="256,74 436,146 256,218 76,146" stroke="#000" stroke-width="34" stroke-linejoin="round"/><path d="M404 158.8V238.8" stroke="#000" stroke-width="42" stroke-linecap="round"/><circle cx="404" cy="248.8" r="31"/></mask><g mask="url(#ms-gap)"><circle cx="256" cy="300" r="144" fill="#1C1C1C"/></g><polygon points="256,74 436,146 256,218 76,146" fill="#1C1C1C" stroke="#1C1C1C" stroke-width="12" stroke-linejoin="round"/><path d="M404 158.8V238.8" stroke="#1C1C1C" stroke-width="20" stroke-linecap="round"/><circle cx="404" cy="248.8" r="20" fill="#1C1C1C"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MealScholar">
+  <defs>
+    <mask id="ms-glyph-plate" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <path d="M0 0h512v512H0Z" fill="#fff"/>
+      <path d="M176 182v52q80 44 160 0v-52Z" fill="#000" stroke="#000" stroke-width="20" stroke-linejoin="round"/>
+      <path d="M256 88 420 154 256 220 92 154Z" fill="#000" stroke="#000" stroke-width="20" stroke-linejoin="round"/>
+      <path d="M208 270v34c0 10 7 17 17 17s17-7 17-17v-34m-17 0v112" transform="translate(0 16)" fill="none" stroke="#000" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M292 266c18 10 28 32 28 57 0 5-4 9-9 9h-7v44a8 8 0 0 1-16 0V270q0-6 4-4Z" transform="translate(0 16)" fill="#000"/>
+      <path d="M404 156v120" fill="none" stroke="#000" stroke-width="30" stroke-linecap="round"/>
+      <circle cx="256" cy="300" r="116" fill="none" stroke="#000" stroke-width="8" opacity="0.18"/>
+    </mask>
+    <mask id="ms-glyph-band" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <path d="M0 0h512v512H0Z" fill="#fff"/>
+      <path d="M256 88 420 154 256 220 92 154Z" fill="#000" stroke="#000" stroke-width="16" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <g fill="#1C1C1C">
+    <circle cx="256" cy="300" r="140" mask="url(#ms-glyph-plate)"/>
+    <path d="M176 182v52q80 44 160 0v-52Z" mask="url(#ms-glyph-band)"/>
+    <path d="M256 88 420 154 256 220 92 154Z" stroke="#1C1C1C" stroke-width="6" stroke-linejoin="round"/>
+  </g>
+  <path d="M404 156v112" fill="none" stroke="#1C1C1C" stroke-width="12" stroke-linecap="round"/>
+  <path d="M404 262v14" fill="none" stroke="#1C1C1C" stroke-width="20" stroke-linecap="round"/>
+</svg>
