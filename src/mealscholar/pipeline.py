@@ -233,7 +233,9 @@ def correct(
         food = foods.get(current.match.fdc_id) if current.match else None
         alternatives = current.alternatives
     if servings is not None and dish is not None:
-        item = item.model_copy(update={"servings_low": servings, "servings_likely": servings, "servings_high": servings})
+        item = item.model_copy(
+            update={"servings_low": servings, "servings_likely": servings, "servings_high": servings}
+        )
         if dish.serving_grams is not None:
             grams = round(servings * dish.serving_grams)
     if grams is not None:
