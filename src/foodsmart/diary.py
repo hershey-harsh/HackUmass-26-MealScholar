@@ -10,6 +10,7 @@ import sqlite3
 from datetime import date
 from pathlib import Path
 
+from .compute import summarize
 from .schemas import MealResult
 
 _MEALS = """
@@ -68,14 +69,14 @@ class Diary:
         row = self._con.execute(
             "SELECT result FROM meals WHERE id = ? AND user_id = ?", (meal_id, self._user)
         ).fetchone()
-        return MealResult.model_validate_json(row[0]) if row else None
+        return _meal(row[0]) if row else None
 
     def meals_between(self, first: date, last: date) -> list[MealResult]:
         rows = self._con.execute(
             "SELECT result FROM meals WHERE user_id = ? AND local_date BETWEEN ? AND ? ORDER BY local_date, taken_at",
             (self._user, first.isoformat(), last.isoformat()),
         ).fetchall()
-        return [MealResult.model_validate_json(r[0]) for r in rows]
+        return [_meal(r[0]) for r in rows]
 
     def remember_portion(self, name: str, grams: int) -> None:
         with self._con:
@@ -99,6 +100,12 @@ class Diary:
             (self._user, limit),
         ).fetchall()
         return {name: round(grams) for name, grams in rows}
+
+
+def _meal(stored: str) -> MealResult:
+    """Totals are recomputed from the items, so meals logged before a change to `compute` show
+    the same totals as new ones."""
+    return summarize(MealResult.model_validate_json(stored))
 
 
 def _portion_key(name: str) -> str:

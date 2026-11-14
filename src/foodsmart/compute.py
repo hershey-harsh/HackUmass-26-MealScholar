@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Mapping
 
 from .nutrients import NUTRIENTS
@@ -19,15 +20,37 @@ def item_nutrients(per_100g: Mapping[str, float], item: FoodItem) -> dict[str, R
     }
 
 
-def add_ranges(ranges: Iterable[Mapping[str, Range]]) -> dict[str, Range]:
-    totals: dict[str, list[float]] = {}
+SHARED_ERROR = 0.3
+"""Correlation assumed between the errors of two estimates that are added up: two foods on one
+plate, or two meals in one day. Part of the error is shared, such as a misjudged plate size or a
+model that serves everything too big. At 0 the errors would be independent. At 1 every estimate
+is off in the same direction at once, which adds up all the lows and all the highs. On the
+benchmark's photos with several foods, 0.3 keeps as many reference amounts inside the range as
+1 does for the production model, and 0 doesn't (BENCHMARK.md, "Range width"). Revisit once
+meals are weighed."""
+
+
+def add_ranges(ranges: Iterable[Mapping[str, Range]], correlation: float = SHARED_ERROR) -> dict[str, Range]:
+    """Likely values add up. The distances from likely down to low and up to high add up as
+    partly correlated errors, sqrt((1 - c)·Σw² + c·(Σw)²): that's Σw at c = 1 and sqrt(Σw²) at c = 0."""
+    sums: dict[str, list[float]] = {}
     for nutrients in ranges:
         for key, r in nutrients.items():
-            acc = totals.setdefault(key, [0.0, 0.0, 0.0])
-            acc[0] += r.low
-            acc[1] += r.likely
-            acc[2] += r.high
-    return {key: Range(low=lo, likely=mid, high=hi) for key, (lo, mid, hi) in totals.items()}
+            below, above = r.likely - r.low, r.high - r.likely
+            s = sums.setdefault(key, [0.0, 0.0, 0.0, 0.0, 0.0])
+            s[0] += r.likely
+            s[1] += below
+            s[2] += below * below
+            s[3] += above
+            s[4] += above * above
+
+    def spread(total: float, squares: float) -> float:
+        return math.sqrt((1 - correlation) * squares + correlation * total * total)
+
+    return {
+        key: Range(low=likely - spread(b, b2), likely=likely, high=likely + spread(a, a2))
+        for key, (likely, b, b2, a, a2) in sums.items()
+    }
 
 
 def daily_value_pct(totals: Mapping[str, Range]) -> dict[str, Range]:
