@@ -19,6 +19,8 @@
 }
 
 :root {
+  color-scheme: light;
+
   /* Brand palette, shared with the landing page. */
   --bg: #EEF0F2;
   --surface: #FAFAFF;
@@ -34,7 +36,15 @@
        placeholder  t 0.32  #656565   5.6 / 5.1 / 4.9         placeholders (opacity forced to 1)
        line-strong  t 0.40  #777777   4.3 / 3.9 / 3.8 / 3.3   edges of fields, switches and chart bars (3:1)
        line-hover   t 0.72  #bfbfbf   hover edges, decoration only
-     ink-hover and range are the ink itself at 84% and 36% opacity. */
+     ink-hover and range are the ink itself at 84% and 36% opacity.
+     Dark mode, on surface #1C1C1C / page #111112 / warm #2A2823 / line #2E2F2E:
+       ink          #EEF0F2   14.9 / 16.5 / 12.9 / 11.8
+       ink-2        #C4C6C7    9.9 / 11.0 /  8.6 /  7.8
+       label        #AFB0B2    7.9 /  8.7 /  6.8 /  6.2
+       placeholder  #A2A4A5    6.8 /  7.5 /  5.9
+       line-strong  #818283    4.4 /  4.9 /  3.8 /  3.5
+       danger       #F08A8A    7.1 /  7.8 /  6.1 /  5.6
+       line-hover   #4A4B4B   decoration only */
   --ink-2: #494949;
   --label: #595959;
   --placeholder: #656565;
@@ -50,6 +60,26 @@
   --track: var(--line);
   --range: rgba(28, 28, 28, 0.36);
   --tick: var(--ink);
+
+  /* The calorie panels and photo frames: near-black in both schemes, lifted a step in dark mode.
+     Text on them is ghost white (14.5:1 on the dark-mode panel) or ghost white at 74% (8.6:1). */
+  --panel: #1C1C1C;
+  --on-panel: #FAFAFF;
+  --on-panel-2: rgba(250, 250, 255, 0.74);
+
+  /* Frosted bars, presses and the viewfinder, so each can follow the scheme. */
+  --bar-glass: rgba(238, 240, 242, 0.86);
+  --dock-glass: rgba(250, 250, 255, 0.9);
+  --snap-ring: rgba(250, 250, 255, 0.7);
+  --pill-glass: rgba(250, 250, 255, 0.95);
+  --wash: rgba(28, 28, 28, 0.06);
+  --glow: rgba(250, 250, 255, 0.92);
+  --corner: rgba(28, 28, 28, 0.32);
+  --grab: rgba(28, 28, 28, 0.2);
+  --knob-ring: rgba(28, 28, 28, 0.12);
+  --scrim: rgba(28, 28, 28, 0.4);
+  --install-scrim: rgba(28, 28, 28, .42);
+  --install-ink-2: #4A4A48;
 
   --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -79,6 +109,51 @@
   --dur-3: 560ms;
 
   --icon-alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 7.5v5.25M12 16.25v.01'/%3E%3C/svg%3E");
+}
+
+/* Dark mode: the same roles with light ink on near-black. The inline script in index.html sets
+   data-theme from the Appearance choice, or from the system setting when that is System. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #111112;
+  --surface: #1C1C1C;
+  --surface-2: #111112;
+  --warm: #2A2823;
+  --line: #2E2F2E;
+  --ink: #EEF0F2;
+  --ink-2: #C4C6C7;
+  --label: #AFB0B2;
+  --placeholder: #A2A4A5;
+  --line-strong: #818283;
+  --line-hover: #4A4B4B;
+  --ink-hover: rgba(238, 240, 242, 0.84);
+  --on-ink: #1C1C1C;
+  --on-ink-2: rgba(28, 28, 28, 0.74);
+  --danger: #F08A8A;
+  --range: rgba(238, 240, 242, 0.36);
+  --panel: #262627;
+  --bar-glass: rgba(17, 17, 18, 0.86);
+  --dock-glass: rgba(28, 28, 28, 0.9);
+  --snap-ring: rgba(17, 17, 18, 0.7);
+  --pill-glass: rgba(28, 28, 28, 0.95);
+  --wash: rgba(238, 240, 242, 0.08);
+  --glow: rgba(238, 240, 242, 0.05);
+  --corner: rgba(238, 240, 242, 0.32);
+  --grab: rgba(238, 240, 242, 0.24);
+  --knob-ring: rgba(238, 240, 242, 0.5);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --install-scrim: rgba(0, 0, 0, 0.6);
+  --install-ink-2: #C4C6C7;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.32);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.5), 0 18px 44px rgba(0, 0, 0, 0.6);
+}
+
+/* Changing the theme repaints at once instead of fading each button between the palettes. */
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition: none !important;
 }
 
 *,
@@ -273,7 +348,7 @@ main:focus,
   top: 0;
   z-index: 40;
   padding-top: var(--safe-top);
-  background: rgba(238, 240, 242, 0.86);
+  background: var(--bar-glass);
   -webkit-backdrop-filter: saturate(1.4) blur(18px);
   backdrop-filter: saturate(1.4) blur(18px);
   transition: box-shadow var(--dur-2) linear;
@@ -434,7 +509,7 @@ main:focus,
   padding: 5px;
   border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(250, 250, 255, 0.9);
+  background: var(--dock-glass);
   -webkit-backdrop-filter: saturate(1.4) blur(18px);
   backdrop-filter: saturate(1.4) blur(18px);
   box-shadow: 0 1px 2px rgba(28, 28, 28, 0.06), 0 14px 36px rgba(28, 28, 28, 0.14);
@@ -505,7 +580,7 @@ main:focus,
   width: var(--dock-h);
   height: var(--dock-h);
   border-radius: 50%;
-  box-shadow: 0 0 0 4px rgba(250, 250, 255, 0.7), 0 2px 6px rgba(28, 28, 28, 0.16), 0 14px 32px rgba(28, 28, 28, 0.26);
+  box-shadow: 0 0 0 4px var(--snap-ring), 0 2px 6px rgba(28, 28, 28, 0.16), 0 14px 32px rgba(28, 28, 28, 0.26);
 }
 
 .snap--dock .icon {
@@ -643,6 +718,70 @@ body[data-screen="auth"] .footer {
   padding-bottom: calc(32px + var(--safe-bottom));
 }
 
+/* Appearance: System, Light or Dark as native radios drawn like the tab bar, the choice in ink. */
+.appearance {
+  min-width: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.appearance__label {
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.seg {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  width: min(100%, 22rem);
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.seg__opt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 44px;
+  padding-inline: 6px;
+  border-radius: 999px;
+  color: var(--ink-2);
+  font: 500 0.875rem / 1 var(--font-sans);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background-color var(--dur-1) linear, color var(--dur-1) linear;
+}
+
+.seg__opt .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.seg__input:checked + .seg__opt {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.seg__input:focus-visible + .seg__opt {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .seg__input:not(:checked) + .seg__opt:hover {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+}
+
 .loading {
   padding: 8px 4px;
   color: var(--ink-2);
@@ -740,7 +879,7 @@ body[data-screen="auth"] .footer {
   }
 
   .btn--ghost:hover:not(:disabled) {
-    background: rgba(28, 28, 28, 0.06);
+    background: var(--wash);
   }
 }
 
@@ -896,7 +1035,7 @@ body[data-screen="auth"] .footer {
 }
 
 .back:active {
-  background: rgba(28, 28, 28, 0.06);
+  background: var(--wash);
 }
 
 /* A text button for small actions inside sentences and forms. */
@@ -1069,11 +1208,11 @@ body[data-screen="auth"] .footer {
 .band--dark {
   --track: rgba(250, 250, 255, 0.18);
   --range: rgba(250, 250, 255, 0.5);
-  --tick: var(--on-ink);
+  --tick: var(--on-panel);
 }
 
 .band--dark .band__tick::after {
-  box-shadow: 0 0 0 1px var(--ink);
+  box-shadow: 0 0 0 1px var(--panel);
 }
 
 /* ------------------------------------------------------------------ capture */
@@ -1090,8 +1229,8 @@ body[data-screen="auth"] .footer {
   min-height: 352px;
   border-radius: var(--radius);
   background:
-    radial-gradient(90% 58% at 50% 30%, rgba(250, 250, 255, 0.92) 0%, rgba(250, 250, 255, 0) 72%),
-    linear-gradient(165deg, #ECEBE4 0%, #ECEBE4 38%, #EEF0F2 100%);
+    radial-gradient(90% 58% at 50% 30%, var(--glow) 0%, rgba(250, 250, 255, 0) 72%),
+    linear-gradient(165deg, var(--warm) 0%, var(--warm) 38%, var(--bg) 100%);
   box-shadow: inset 0 0 0 1px var(--line);
   overflow: hidden;
   isolation: isolate;
@@ -1103,7 +1242,7 @@ body[data-screen="auth"] .footer {
   z-index: 2;
   width: 26px;
   height: 26px;
-  border: 0 solid rgba(28, 28, 28, 0.32);
+  border: 0 solid var(--corner);
   pointer-events: none;
   transition: transform var(--dur-2) var(--ease-out), border-color var(--dur-2) linear;
 }
@@ -1214,7 +1353,7 @@ body[data-screen="auth"] .footer {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: var(--ink);
+  background: var(--panel);
 }
 
 .viewfinder__preview img {
@@ -1246,7 +1385,7 @@ body[data-screen="auth"] .footer {
   inset-inline: 0;
   top: 0;
   height: 2px;
-  background: var(--on-ink);
+  background: var(--on-panel);
   box-shadow: 0 0 22px 6px rgba(250, 250, 255, 0.55);
 }
 
@@ -1263,7 +1402,7 @@ body[data-screen="auth"] .footer {
   max-width: calc(100% - 32px);
   padding: 11px 16px;
   border-radius: 20px;
-  background: rgba(250, 250, 255, 0.95);
+  background: var(--pill-glass);
   color: var(--ink);
   font: 500 0.875rem / 1.3 var(--font-sans);
   text-wrap: balance;
@@ -1351,7 +1490,7 @@ body[data-screen="auth"] .footer {
   height: 26px;
   border-radius: 50%;
   background: var(--surface);
-  box-shadow: 0 0 0 1px rgba(28, 28, 28, 0.12), 0 1px 3px rgba(28, 28, 28, 0.28);
+  box-shadow: 0 0 0 1px var(--knob-ring), 0 1px 3px rgba(28, 28, 28, 0.28);
   transition: transform var(--dur-2) var(--ease-out);
 }
 
@@ -1532,7 +1671,7 @@ body[data-screen="auth"] .footer {
   display: grid;
   place-items: center;
   border-radius: var(--radius-inner);
-  background: var(--ink);
+  background: var(--panel);
   overflow: hidden;
 }
 
@@ -1557,7 +1696,7 @@ body[data-screen="auth"] .footer {
 
 .box {
   position: absolute;
-  border: 2px solid var(--on-ink);
+  border: 2px solid var(--on-panel);
   border-radius: 8px;
   box-shadow: 0 0 0 1px rgba(28, 28, 28, 0.35), inset 0 0 0 1px rgba(28, 28, 28, 0.2);
   opacity: 0;
@@ -1589,7 +1728,7 @@ body[data-screen="auth"] .footer {
 }
 
 .box.is-active {
-  box-shadow: 0 0 0 2px var(--ink), inset 0 0 0 1px rgba(28, 28, 28, 0.2);
+  box-shadow: 0 0 0 2px var(--panel), inset 0 0 0 1px rgba(28, 28, 28, 0.2);
 }
 
 .meal-card__body {
@@ -1638,12 +1777,12 @@ body[data-screen="auth"] .footer {
   margin-top: 14px;
   padding: 16px 16px 18px;
   border-radius: var(--radius-inner);
-  background: var(--ink);
-  color: var(--on-ink);
+  background: var(--panel);
+  color: var(--on-panel);
 }
 
 .total .eyebrow {
-  color: var(--on-ink-2);
+  color: var(--on-panel-2);
 }
 
 .total__value {
@@ -1662,7 +1801,7 @@ body[data-screen="auth"] .footer {
 
 .total__unit {
   margin-left: 6px;
-  color: var(--on-ink-2);
+  color: var(--on-panel-2);
   font: 500 1.0625rem / 1 var(--font-sans);
   letter-spacing: 0;
 }
@@ -1678,7 +1817,7 @@ body[data-screen="auth"] .footer {
 }
 
 .total__likely strong {
-  color: var(--on-ink);
+  color: var(--on-panel);
   font-weight: 600;
 }
 
@@ -2215,8 +2354,8 @@ body[data-screen="auth"] .footer {
   gap: 8px;
   min-width: 0;
   padding: 20px 20px 18px;
-  background: var(--ink);
-  color: var(--on-ink);
+  background: var(--panel);
+  color: var(--on-panel);
 }
 
 .hero__top {
@@ -2227,7 +2366,7 @@ body[data-screen="auth"] .footer {
 }
 
 .hero .eyebrow {
-  color: var(--on-ink-2);
+  color: var(--on-panel-2);
 }
 
 .hero__value {
@@ -2244,25 +2383,25 @@ body[data-screen="auth"] .footer {
 .hero__unit {
   font: 500 1.125rem / 1 var(--font-sans);
   letter-spacing: 0;
-  color: var(--on-ink-2);
+  color: var(--on-panel-2);
 }
 
 .hero__range {
   font-size: 1rem;
   line-height: 1.4;
-  color: var(--on-ink-2);
+  color: var(--on-panel-2);
   text-wrap: pretty;
 }
 
 .hero__range strong {
-  color: var(--on-ink);
+  color: var(--on-panel);
   font-weight: 500;
   white-space: nowrap;
 }
 
 .hero__none {
   font-size: 1.0625rem;
-  color: var(--on-ink);
+  color: var(--on-panel);
   text-wrap: pretty;
 }
 
@@ -2288,7 +2427,7 @@ body[data-screen="auth"] .footer {
   gap: 8px;
   font-size: 0.875rem;
   line-height: 1.45;
-  color: var(--on-ink-2);
+  color: var(--on-panel-2);
 }
 
 .hero__note .icon {
@@ -3541,7 +3680,7 @@ body[data-screen="auth"] .footer {
 }
 
 .sheet::backdrop {
-  background: rgba(28, 28, 28, 0.4);
+  background: var(--scrim);
   animation: fade-in var(--dur-2) linear;
 }
 
@@ -3570,7 +3709,7 @@ body[data-screen="auth"] .footer {
   width: 40px;
   height: 5px;
   border-radius: 999px;
-  background: rgba(28, 28, 28, 0.2);
+  background: var(--grab);
 }
 
 .sheet__head {
@@ -4361,13 +4500,13 @@ html.install-open {
 }
 
 .link-btn--light {
-  color: var(--on-ink);
+  color: var(--on-panel);
   text-decoration-color: rgba(250, 250, 255, 0.55);
 }
 
 @media (hover: hover) {
   .link-btn--light:hover {
-    text-decoration-color: var(--on-ink);
+    text-decoration-color: var(--on-panel);
   }
 }
 
@@ -4384,7 +4523,7 @@ html.install-open {
 
 .hero__left-range {
   font: 400 0.8125rem / 1.4 var(--font-mono);
-  color: var(--on-ink-2);
+  color: var(--on-panel-2);
 }
 
 .stat__left {

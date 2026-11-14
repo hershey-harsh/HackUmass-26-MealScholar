@@ -17,6 +17,38 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
   <link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
+  <script>
+    // Theme: "light" or "dark" on <html> before first paint, from the choice saved by the footer's
+    // Appearance control, else the system setting, which System keeps following.
+    (function () {
+      var d = document, root = d.documentElement, key = "mealscholar-theme", choice = "";
+      var system = matchMedia("(prefers-color-scheme: dark)");
+      try { choice = localStorage.getItem(key) || ""; } catch (e) {}
+      if (choice !== "light" && choice !== "dark") choice = "";
+      function apply() {
+        var theme = choice || (system.matches ? "dark" : "light");
+        if (root.dataset.theme === theme) return;
+        // A switch repaints at once: no button fades between the palettes for the next two frames.
+        root.classList.add("theme-switching");
+        root.dataset.theme = theme;
+        d.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#111112" : "#EEF0F2";
+        d.querySelector('meta[name="color-scheme"]').content = theme;
+        requestAnimationFrame(function () { requestAnimationFrame(function () { root.classList.remove("theme-switching"); }); });
+      }
+      apply();
+      system.addEventListener("change", apply);
+      d.addEventListener("change", function (e) {
+        if (e.target.name !== "theme") return;
+        choice = e.target.value === "system" ? "" : e.target.value;
+        try { if (choice) localStorage.setItem(key, choice); else localStorage.removeItem(key); } catch (err) {}
+        apply();
+      });
+      d.addEventListener("DOMContentLoaded", function () {
+        var input = d.getElementById("theme-" + (choice || "system"));
+        if (input) input.checked = true;
+      });
+    })();
+  </script>
   <link rel="stylesheet" href="/styles.css?v=__COMMIT__">
   <script>
     // The landing page opens the app with ?install=1 to show the Home Screen sheet.
@@ -48,6 +80,9 @@
     <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3.75" y="5.75" width="16.5" height="12.5" rx="2.75"/><path d="M4.5 7.5l7.5 5.5 7.5-5.5"/></symbol>
     <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8.25" cy="15.75" r="3.75"/><path d="M11 13l8.25-8.25M16.25 7.75l2 2M14 10l1.75 1.75"/></symbol>
     <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 19.25H6.75A1.75 1.75 0 0 1 5 17.5v-11a1.75 1.75 0 0 1 1.75-1.75H10M14.5 16.25L18.75 12 14.5 7.75M18.5 12H9.75"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3.75" y="4.75" width="16.5" height="11.5" rx="2.5"/><path d="M9 20h6M12 16.25V20"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.75"/><path d="M12 3.25v1.5M12 19.25v1.5M3.25 12h1.5M19.25 12h1.5M5.8 5.8l1.06 1.06M17.14 17.14l1.06 1.06M5.8 18.2l1.06-1.06M17.14 6.86l1.06-1.06"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.25 14.75A7.75 7.75 0 0 1 9.25 4.75a7.75 7.75 0 1 0 10 10z"/></symbol>
     <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6.25 16.75h11.5l-1.5-2.3V10.5a4.25 4.25 0 0 0-8.5 0v3.95zM10 19.25a2 2 0 0 0 4 0"/></symbol>
     <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 4.25l2.35 4.95 5.4.7-3.95 3.75.95 5.4L12 16.45l-4.75 2.6.95-5.4L4.25 9.9l5.4-.7z"/></symbol>
     <symbol id="i-avoid" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.25"/><path d="M6.2 6.2l11.6 11.6"/></symbol>
@@ -191,6 +226,17 @@
   <footer class="footer">
     <p>Nutrient data: U.S. Department of Agriculture, Agricultural Research Service, <a href="https://fdc.nal.usda.gov/">FoodData Central</a> (CC0). Places &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL).</p>
     <p id="footer-note">Information, not medical advice. Any goal is one you set yourself; no insulin or carb dosing advice.</p>
+    <fieldset class="appearance">
+      <legend class="eyebrow appearance__label">Appearance</legend>
+      <div class="seg">
+        <input id="theme-system" class="seg__input visually-hidden" type="radio" name="theme" value="system" checked>
+        <label class="seg__opt" for="theme-system"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-monitor"/></svg>System</label>
+        <input id="theme-light" class="seg__input visually-hidden" type="radio" name="theme" value="light">
+        <label class="seg__opt" for="theme-light"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-sun"/></svg>Light</label>
+        <input id="theme-dark" class="seg__input visually-hidden" type="radio" name="theme" value="dark">
+        <label class="seg__opt" for="theme-dark"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-moon"/></svg>Dark</label>
+      </div>
+    </fieldset>
   </footer>
 
   <button id="plus-button" class="plus" type="button" aria-label="Analyze a meal" title="Analyze a meal" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg></button>
