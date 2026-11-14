@@ -1,0 +1,57 @@
+# Replays the 275 recorded Gemini outputs in bench/results/runs.jsonl through the current USDA
+# lookup (no Gemini calls, no API key, no cost) and fails if lookup quality drops below
+# REMATCH_LIMITS in bench/report.py. Runs only when code the replay depends on changes.
+# Local equivalent: uv run python bench/report.py --rematch --check
+name: Lookup regression
+
+on:
+  pull_request:
+    paths:
+      - "src/foodsmart/nutrition.py"
+      - "src/foodsmart/nutrients.py"
+      - "src/foodsmart/compute.py"
+      - "src/foodsmart/pipeline.py"
+      - "src/foodsmart/schemas.py"
+      - "bench/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/lookup-regression.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/foodsmart/nutrition.py"
+      - "src/foodsmart/nutrients.py"
+      - "src/foodsmart/compute.py"
+      - "src/foodsmart/pipeline.py"
+      - "src/foodsmart/schemas.py"
+      - "bench/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/lookup-regression.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  rematch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.3.3
+
+      # Only the USDA downloads (~17 MB) are cached. The database is rebuilt from them on every
+      # run so it always matches the current import code. A dataset rename in nutrition.py
+      # changes the key; the old zips are restored and only the new file is downloaded.
+      - uses: actions/cache@v6
+        with:
+          path: ~/.foodsmart/downloads
+          key: fdc-downloads-${{ hashFiles('src/foodsmart/nutrition.py') }}
+          restore-keys: fdc-downloads-
+
+      - run: uv sync --locked
+
+      - run: uv run foodsmart fdc-import
+
+      - run: uv run python bench/report.py --rematch --check

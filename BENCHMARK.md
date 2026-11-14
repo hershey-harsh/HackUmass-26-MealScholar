@@ -231,7 +231,10 @@ uv run --env-file .env python bench/run.py --phase a --phase b   # sweep (resuma
 uv run --env-file .env python bench/run.py --phase c --config 'gemini-4-hydrogen|low|default' --reps 1
 uv run python bench/report.py              # recorded results -> bench/results/summary.md
 uv run python bench/report.py --rematch    # redo the USDA lookup with current code -> summary-rematched.md
+uv run python bench/report.py --rematch --check   # same, exit 1 if worse than REMATCH_LIMITS (what CI runs)
 uv run python bench/report.py --overlays 'gemini-4-hydrogen|low|default'
 ```
 
 The photos are not committed because they carry GPS EXIF. Copy them into `test_pictures/` to call Gemini again or draw overlays; `--rematch` needs only the recorded results and the USDA database. To rerun from scratch, delete `bench/results/runs.jsonl`.
+
+The **Lookup regression** workflow (`.github/workflows/lookup-regression.yml`) runs `--rematch --check` on pull requests that touch the lookup (`nutrition.py`, `nutrients.py`, `compute.py`, `pipeline.py`, `schemas.py`), `bench/`, or dependencies. Limits as of 2026-11-14: kcal in band ≥ 230/275, powder/concentrate matches ≤ 4, pepperoni ≥ 50/54. When a lookup change beats them, raise `REMATCH_LIMITS` in `bench/report.py` in the same PR so the gain is kept.
