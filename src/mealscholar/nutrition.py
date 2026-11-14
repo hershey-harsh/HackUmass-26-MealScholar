@@ -150,9 +150,7 @@ _STOPWORDS = frozenset(
 # one the query did not ask for is penalized beyond an ordinary extra word.
 _NEGATIONS = frozenset(
     {
-        "no",
         "non",
-        "without",
         "meatless",
         "diet",
         "free",
@@ -164,6 +162,16 @@ _NEGATIONS = frozenset(
         "low",
     }
 )
+# "..., no dressing", "grilled without sauce", "excluding tomatoes and carrots": the words after one
+# of these, up to the next comma, name what the food leaves out, so "without dressing" must not
+# match "Salad dressing". "with or without" leaves nothing out.
+_LEAVE_OUT = frozenset({"no", "without", "excluding"})
+# Gemini writes "un-sweetened"; FNDDS writes "unsweetened", and "un" alone means nothing.
+_UN_HYPHEN = re.compile(r"\bun-(?=[a-z])")
+# FNDDS files a plain green salad under lettuce ("Lettuce, salad with assorted vegetables ...") or
+# as "Mixed salad greens"; Gemini calls it "Salad, ...". Without this, every candidate for "Salad"
+# is another food that starts or ends with the word (salad dressing, carrot salad, tuna salad).
+_HEAD_ALIASES = {"salad": ("lettuce salad", "mixed salad greens")}
 # Forms nobody eats as-is: a plate never holds lemonade concentrate or dry instant tea, but they
 # often share the query's words ("Lemonade, pink" -> "Lemonade, frozen concentrate, pink",
 # 192 kcal/100 g vs 25-46 for the drink). Penalized harder than a negation, unless the query asks
@@ -191,12 +199,32 @@ _SOURCE_PENALTY = {"Survey (FNDDS)": 0.0, "Foundation": 0.3, "SR Legacy": 0.6}
 _CANDIDATE_POOL = 100
 
 
+def _parse(text: str) -> tuple[list[str], list[list[str]]]:
+    """The terms of an FNDDS-style name, and the phrases it leaves out (_LEAVE_OUT). Only a
+    descriptor leaves something out, never the main food: "Salad, tossed, without dressing" has
+    the terms salad and tossed and leaves out [dressing]."""
+    terms: list[str] = []
+    left_out: list[list[str]] = []
+    for index, segment in enumerate(_UN_HYPHEN.sub("un", text.lower()).split(",")):
+        phrase: list[str] | None = None
+        previous = ""
+        for word in re.findall(r"[a-z0-9]+", segment):
+            if word in _LEAVE_OUT and index > 0:
+                if previous != "or":
+                    phrase = []
+                    left_out.append(phrase)
+            elif word in _STOPWORDS:
+                pass
+            elif phrase is not None:
+                phrase.append(word)
+            elif word not in terms:
+                terms.append(word)
+            previous = word
+    return terms, left_out
+
+
 def _terms(text: str) -> list[str]:
-    seen: list[str] = []
-    for word in re.findall(r"[a-z0-9]+", text.lower()):
-        if word not in _STOPWORDS and word not in seen:
-            seen.append(word)
-    return seen
+    return _parse(text)[0]
 
 
 def _stem(word: str) -> str:
@@ -210,8 +238,10 @@ def _stem(word: str) -> str:
         word = word[:-2]
     elif len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
         word = word[:-1]
-    elif len(word) > 4 and word.endswith("ed"):
-        word = word[:-2]
+    elif len(word) > 6 and word.endswith("ened"):  # "sweetened" is "sweet", as in sweet tea
+        word = word[:-4]
+    elif len(word) > 3 and word.endswith("ed") and not word.endswith("eed"):
+        word = word[:-2] if len(word) > 4 else word[:-1]  # "iced" is "ice", not "ic"
     if len(word) > 3 and word.endswith("e"):
         word = word[:-1]
     return word
@@ -234,46 +264,67 @@ class _Scorer:
     """
 
     weights: dict[str, float]
+    left_out: frozenset[str]
+    """Stems the query leaves out: "Salad, tossed, without dressing" -> {"dressing"}."""
     head_prefix: str
     joined_prefix: str | None
     """The main food and the first descriptor without the comma: "Egg, omelet, ..." -> "egg omelet"."""
+    aliases: tuple[str, ...]
+    """Other names FNDDS gives the main food (_HEAD_ALIASES)."""
 
     @classmethod
     def for_query(cls, query: str, hints: tuple[str, ...]) -> _Scorer:
         head_text, *descriptors = query.split(",", 2)
-        weights = {_stem(t): 1.0 for t in _terms(" ".join((query, *hints)))}
+        terms, left_out = _parse(", ".join((query, *hints)))
+        weights = {_stem(t): 1.0 for t in terms}
         weights.update({_stem(t): 2.0 for t in _terms(head_text)})
         first = descriptors[0].strip() if descriptors else ""
         joined = f"{head_text.strip()} {first}".lower() if first else None
-        return cls(weights, head_text.strip().lower(), joined)
+        head = head_text.strip().lower()
+        left_out_stems = frozenset(_stem(w) for phrase in left_out for w in phrase)
+        return cls(weights, left_out_stems, head, joined, _HEAD_ALIASES.get(head, ()))
 
     def key(self, row: tuple) -> tuple[bool, bool, float, float, int]:
         _, description, data_type, _, category, bm25 = row
-        words = _terms(description)
+        words, left_out = _parse(description)
         stems = {_stem(w) for w in words}
         matched = sum(w for t, w in self.weights.items() if t in stems)
         extras = stems - self.weights.keys()
         negations = sum(1 for w in words if w in _NEGATIONS and _stem(w) not in self.weights)
+        # Leaving out what the query also leaves out agrees with it ("no dressing" for "without
+        # dressing"); leaving out anything else is a qualifier the query didn't ask for. Having
+        # what the query leaves out contradicts it ("Salad dressing" for "without dressing").
+        phrases = [{_stem(w) for w in phrase} for phrase in left_out]
+        agreed = sum(len(phrase & self.left_out) for phrase in phrases)
+        negations += sum(1 for phrase in phrases if not phrase <= self.left_out)
+        contradicted = len(stems & self.left_out)
         processed = (
             0 if "prepared" in words else sum(1 for w in words if w in _PROCESSED and _stem(w) not in self.weights)
         )
         score = (
-            3 * matched
+            3 * (matched + agreed)
             - len(extras)
             - 2 * negations
+            - 3 * contradicted
             - _PROCESSED_PENALTY * processed
             - _SOURCE_PENALTY.get(data_type, 0.6)
         )
         if _GENERIC_MARKER.search(description):
             score += 0.5
+        lead, *descriptors = description.lower().split(",", 2)
+        # A query descriptor that the description puts in the food's own name counts more:
+        # "Pizza with pepperoni, ..." names the pepperoni, "Pizza, extra cheese, ..." only
+        # describes the cheese. Head words (weight 2) are in every candidate's name; they don't count.
+        score += sum(1 for w in _terms(lead) if self.weights.get(_stem(w)) == 1.0)
         # FNDDS names "X with Y" foods X first ("Pizza with pepperoni"), and sometimes joins the
         # main food and its first descriptor ("Egg omelet or scrambled egg" for "Egg, omelet").
         # Any other word after the main food makes another food ("Salad dressing", "Onion dip").
-        lead = description.lower().split(",", 1)[0]
+        named = f"{lead} {descriptors[0].strip()}" if descriptors else lead
         head_first = (
             lead == self.head_prefix
             or lead.startswith(self.head_prefix + " with ")
             or (self.joined_prefix is not None and (lead + " ").startswith(self.joined_prefix + " "))
+            or any((named + " ").startswith(alias + " ") for alias in self.aliases)
         )
         niche = bool(_NICHE_CATEGORY.match(category))
         return niche, not head_first, -score, bm25, len(description)
@@ -304,7 +355,7 @@ class FoodDatabase:
         """
         head = _terms(query.split(",", 1)[0])
         if head:
-            any_term = " OR ".join(_quoted(_terms(" ".join((query, *hints)))))
+            any_term = " OR ".join(_quoted(_terms(", ".join((query, *hints)))))
             rows = self._candidates(f"({' AND '.join(_quoted(head))}) AND ({any_term})")
             if rows:
                 return Matches(_ranked(rows, _Scorer.for_query(query, hints), limit), exact=True)
