@@ -20,6 +20,7 @@ from PIL import Image
 from pydantic import BaseModel, Field
 
 from .auth import AuthService, DiaryOwner, install_auth
+from .busy import Busy, install_busy, open_busy
 from .config import USER_AGENT, Settings
 from .context import NominatimPlaces, PlaceLookup
 from .diary import Diary
@@ -94,6 +95,7 @@ def create_app(
     auth: AuthService | None = None,
     prefs: PrefsStore | None = None,
     dining: Dining | None = None,
+    busy: Busy | None = None,
 ) -> FastAPI:
     """`vision` and `places` default to Gemini (when a key is set) and OpenStreetMap Nominatim;
     `auth` to accounts stored as `settings` say (MongoDB, or memory); `prefs` to the accounts'
@@ -108,6 +110,7 @@ def create_app(
     install_auth(app, auth)
     dining = dining or open_dining(settings)
     install_dining(app, dining)
+    install_busy(app, busy or open_busy(settings))
     prefs = prefs or open_prefs_store(auth.store)
     install_prefs(app, prefs, dining)
 
