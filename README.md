@@ -208,8 +208,9 @@ configured and implemented before relying on password-reset emails.
 ## Rules the code enforces
 
 - **Data, not guesses:** the model estimates foods and grams; USDA data supplies the nutrients.
-- **Ranges stay visible:** photo-based amounts have low/likely/high estimates. Exact-weight
-  corrections through the CLI or API can collapse a range.
+- **Ranges stay visible:** photo-based amounts have low/likely/high estimates. A meal's or a day's
+  range adds its foods' errors as partly correlated (`compute.SHARED_ERROR`), not every low and
+  every high at once. Exact-weight corrections through the CLI or API can collapse a range.
 - **Private by default:** location is opt-in; coordinates and photos are not stored in the diary.
   Images sent to Gemini are re-encoded without EXIF, using `store=False`.
 - **Estimates, not diagnosis:** micronutrients are labelled as estimates; weekly averages count
