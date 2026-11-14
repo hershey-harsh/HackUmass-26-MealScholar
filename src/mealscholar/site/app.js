@@ -4002,10 +4002,11 @@ els.menuHalls.addEventListener("keydown", (event) => {
 // ---- a dish's sheet: its facts as the dining hall lists them, and Add to favorites
 
 const notListed = '<span class="facts__none">Not listed</span>';
+const nfFact = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
 
 function factValue(value, unit) {
   if (typeof value !== "number" || !Number.isFinite(value)) return notListed;
-  return `${esc(unit === "kcal" ? nf0.format(value) : amount(value, unit))}<span class="facts__unit"> ${unit}</span>`;
+  return `${esc(unit === "kcal" ? nf0.format(value) : nfFact.format(value))}<span class="facts__unit"> ${unit}</span>`;
 }
 
 function dishSheetHtml({ item, meal }) {
@@ -4272,8 +4273,11 @@ els.panel.addEventListener("close", () => {
   if (!els.sheet.open && !els.account.open) document.documentElement.classList.remove("has-sheet");
   els.panelBody.innerHTML = "";
   delete els.panel.dataset.kind;
+  const dishRef = els.panel.dataset.dish;
   delete els.panel.dataset.dish;
-  const back = panelOpener;
+  // A dish row redrawn while its sheet was open (a favorite added): focus goes to the new row.
+  let back = panelOpener;
+  if (dishRef && !back?.isConnected) back = visibleOne(`[data-dish="${CSS.escape(dishRef)}"]`);
   panelOpener = null;
   if (panelRestore && back?.isConnected && !back.hidden && back.getClientRects().length) back.focus({ preventScroll: true });
   panelRestore = true;

@@ -6359,3 +6359,804 @@ body[data-screen="onboard"] .toast {
     background: color-mix(in srgb, var(--danger) 8%, var(--surface));
   }
 }
+
+/* ======================================================================================
+   Tabs, sidebar, Menu and Week. Phones: Today, Menu and Week in the dock's pill, the + beside it
+   opening the photo picker. Laptops: a sidebar with the same tabs, and Alerts and Settings at its
+   foot. A photo has no tab: the capture screen opens once one is chosen.
+   ====================================================================================== */
+
+/* ---- the dock: three tabs, icon over label, so every phone width fits them */
+.dock .tab {
+  flex-direction: column;
+  gap: 3px;
+  min-height: 52px;
+  padding: 6px 4px 5px;
+  font: 500 0.75rem / 1.1 var(--font-sans);
+  letter-spacing: 0.01em;
+}
+
+.dock .tab .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.snap--dock .icon {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2.2;
+}
+
+/* No campus menus, no Menu tab. */
+body:not([data-dining="on"]) .tab[data-view="menu"] {
+  display: none;
+}
+
+.rail {
+  display: none;
+}
+
+/* ---- page heads for Menu and Week, and the capture screen's */
+.page-head,
+.capture__head {
+  display: grid;
+  gap: 2px;
+  padding: 0 4px;
+}
+
+.page-head .view-title,
+.capture__head .view-title {
+  font-size: 1.75rem;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.page-head__sub {
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+.page-head__sub:empty {
+  display: none;
+}
+
+/* ---- Today on phones: the day, then the recent scans; the upcoming meal lives on Menu */
+@media (max-width: 63.99em) {
+  #dash-side {
+    display: none;
+  }
+
+  body[data-prefs="on"] .meals-block {
+    display: none;
+  }
+
+  body[data-prefs="on"] .recent-block {
+    display: grid;
+    gap: 10px;
+  }
+
+  body[data-prefs="on"] .recent {
+    gap: 10px;
+  }
+
+  body[data-prefs="on"] .recent-card {
+    gap: 12px;
+    padding: 10px 12px 10px 10px;
+  }
+}
+
+/* ---- the first-time location question */
+.locate-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px 14px;
+  padding: 16px;
+  animation: rise-in var(--dur-3) var(--ease-out);
+}
+
+.locate-card__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--warm);
+  color: var(--ink);
+}
+
+.locate-card__icon .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.locate-card__title {
+  font: 500 1rem / 1.3 var(--font-sans);
+}
+
+.locate-card__text p {
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.locate-card__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+.locate-card__actions .btn {
+  flex: 1 1 0;
+}
+
+@media (min-width: 40em) {
+  .locate-card {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .locate-card__actions {
+    grid-column: auto;
+  }
+
+  .locate-card__actions .btn {
+    flex: none;
+  }
+}
+
+/* ---- the capture screen and the photo options */
+.capture__work {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.capture .viewfinder {
+  min-height: min(56svh, 30rem);
+}
+
+.snap-tools {
+  display: grid;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.snap-tools__picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px;
+}
+
+.pill-btn {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 0.9375rem / 1.15 var(--font-sans);
+  cursor: pointer;
+  transition: background-color var(--dur-1) linear, transform var(--dur-1) var(--ease-out);
+}
+
+.pill-btn .icon {
+  width: 19px;
+  height: 19px;
+}
+
+.pill-btn:first-child {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.pill-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.pill-btn:disabled {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--label);
+  cursor: not-allowed;
+}
+
+@media (hover: hover) {
+  .pill-btn:hover:not(:disabled) {
+    background: var(--surface-2);
+  }
+
+  .pill-btn:first-child:hover:not(:disabled) {
+    background: var(--ink-hover);
+  }
+}
+
+.snap-tools__loc {
+  min-height: 56px;
+  margin-inline: 10px;
+  padding-block: 10px;
+  border-top: 1px solid var(--line);
+  gap: 12px;
+}
+
+.snap-tools__loc .switch-row__icon {
+  width: 36px;
+  height: 36px;
+}
+
+.snap-tools__loc .switch-row__title {
+  font-size: 0.9375rem;
+}
+
+.snap-tools__loc .switch-row__hint {
+  margin-top: 1px;
+  font-size: 0.8125rem;
+}
+
+.snap-tools .setting__status {
+  margin: 0 10px 10px;
+}
+
+/* ---- dish rows that open their sheet */
+.dish.has-btn {
+  display: block;
+  padding: 0;
+}
+
+.dish__btn {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 2px 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 8px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-1) linear;
+}
+
+.dish__btn:focus-visible {
+  outline-offset: -2px;
+}
+
+.dish__btn:active {
+  background: var(--wash);
+}
+
+@media (hover: hover) {
+  .dish__btn:hover {
+    background: var(--wash);
+  }
+}
+
+/* ---- the Menu tab */
+.menu-view {
+  gap: 14px;
+}
+
+.halls-bar {
+  min-width: 0;
+  margin-inline: calc(-1 * var(--pad-l)) calc(-1 * var(--pad-r));
+}
+
+.halls-bar__track {
+  display: flex;
+  gap: 8px;
+  padding: 2px var(--pad-r) 4px var(--pad-l);
+  overflow-x: auto;
+  scroll-padding-inline: var(--pad-l);
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.halls-bar__track::-webkit-scrollbar {
+  display: none;
+}
+
+.hall-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 0.9375rem / 1 var(--font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: background-color var(--dur-1) linear, color var(--dur-1) linear, border-color var(--dur-1) linear, transform var(--dur-1) var(--ease-out);
+}
+
+.hall-chip:active {
+  transform: scale(0.97);
+}
+
+.hall-chip[aria-pressed="true"] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.hall-chip .icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.1;
+}
+
+.hall-chip__near {
+  display: inline-flex;
+}
+
+.hall-chip--edit {
+  border-style: dashed;
+  background: transparent;
+  color: var(--ink-2);
+}
+
+@media (hover: hover) {
+  .hall-chip:hover:not([aria-pressed="true"]) {
+    background: var(--surface-2);
+  }
+}
+
+.menu-body {
+  display: grid;
+  min-width: 0;
+}
+
+.menu-body.is-entering {
+  animation: view-in var(--dur-2) var(--ease-out);
+}
+
+.menu-card {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px 16px 16px;
+}
+
+.menu-card.is-skeleton {
+  gap: 12px;
+  min-height: 420px;
+}
+
+.menu-card--error {
+  justify-items: start;
+}
+
+.menu-card__head {
+  display: grid;
+  gap: 6px;
+  padding-inline: 4px;
+}
+
+.menu-card__meal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  font: 300 2rem / 1.1 var(--font-sans);
+  letter-spacing: -0.025em;
+}
+
+.menu-card__meal strong {
+  font-weight: 400;
+}
+
+.menu-card__when {
+  color: var(--ink-2);
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.menu-card__hint {
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+}
+
+.menu-card__head .legend {
+  margin-top: 4px;
+}
+
+.menu-cats {
+  column-gap: 32px;
+}
+
+.menu-cat {
+  break-inside: avoid;
+  padding-bottom: 6px;
+}
+
+.menu-cat .dishes__cat {
+  position: static;
+  padding: 12px 8px 6px;
+  background: none;
+}
+
+.menu-card__foot {
+  padding-inline: 4px;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+@media (min-width: 40em) {
+  .menu-card {
+    padding: 24px 22px 20px;
+  }
+
+  .menu-cats {
+    columns: 2 17rem;
+  }
+}
+
+/* ---- a dish's sheet */
+.dish-sheet__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font: 500 0.8125rem / 1.3 var(--font-sans);
+}
+
+.tag .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.tag--avoid {
+  background: var(--surface-2);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.tag--off {
+  background: var(--off-tag);
+  color: var(--off-ink);
+}
+
+.dish-sheet__fav {
+  display: grid;
+  gap: 8px;
+}
+
+.dish-sheet__fav .btn[aria-pressed="true"] .icon {
+  fill: currentColor;
+}
+
+.dish-sheet__facts {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.dish-sheet__facts .section-head {
+  align-items: center;
+}
+
+.facts {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.facts__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.facts__row dt {
+  flex: none;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+}
+
+.facts__row dd {
+  margin: 0;
+  min-width: 0;
+  font: 500 1rem / 1.3 var(--font-mono);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.facts__row--lead dd {
+  font: 300 1.75rem / 1 var(--font-sans);
+  letter-spacing: -0.02em;
+}
+
+.facts__row--chips {
+  align-items: center;
+}
+
+.facts__row--chips dd {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  font-family: var(--font-sans);
+}
+
+.facts__unit {
+  color: var(--ink-2);
+  font: 400 0.8125rem / 1 var(--font-sans);
+}
+
+.facts__none {
+  color: var(--label);
+  font: 400 0.9375rem / 1.3 var(--font-sans);
+}
+
+/* ---- the Week tab */
+.week-view {
+  gap: 14px;
+}
+
+.week-grid {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+
+.week-view .week-block {
+  grid-column: auto;
+}
+
+.micro-card__titles {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.micro-card__day {
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.micro-card--empty {
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px;
+}
+
+/* ---- a photo dragged over the app */
+body[data-drop="on"]::after {
+  content: "Drop the photo to analyze it";
+  position: fixed;
+  inset: 12px;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--ink);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  color: var(--ink);
+  font: 300 2rem / 1.2 var(--font-sans);
+  letter-spacing: -0.02em;
+  pointer-events: none;
+  animation: fade-in var(--dur-1) linear;
+}
+
+/* ---- laptops: the sidebar */
+@media (min-width: 64em) {
+  :root {
+    --rail-w: 96px;
+    --bar-h: 64px;
+  }
+
+  body[data-screen="app"] {
+    padding-left: calc(var(--rail-w) + var(--safe-left));
+  }
+
+  body[data-screen="app"] .rail {
+    position: fixed;
+    z-index: 46;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    width: calc(var(--rail-w) + var(--safe-left));
+    padding: calc(var(--safe-top) + 12px) 12px 20px calc(12px + var(--safe-left));
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  body[data-screen="app"] .topbar .brand {
+    display: none;
+  }
+
+  .rail__brand {
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .rail__mark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .rail__name {
+    display: none;
+  }
+
+  .rail__nav,
+  .rail__foot {
+    display: grid;
+    gap: 6px;
+  }
+
+  .rail__foot {
+    margin-top: auto;
+  }
+
+  .rail .tab {
+    position: relative;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 62px;
+    padding: 8px 4px;
+    border: 0;
+    border-radius: 18px;
+    background: none;
+    color: var(--ink-2);
+    font: 500 0.75rem / 1.1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .rail .tab .icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .rail .tab[aria-current="page"] {
+    background: var(--ink);
+    color: var(--on-ink);
+  }
+
+  .rail__dot {
+    top: 9px;
+    right: calc(50% - 15px);
+    box-shadow: 0 0 0 2px var(--surface);
+  }
+
+  .capture {
+    width: 100%;
+    max-width: 56rem;
+    margin-inline: auto;
+  }
+
+  .page-head {
+    gap: 4px;
+    padding-top: 12px;
+  }
+
+  .page-head .view-title,
+  .capture__head .view-title {
+    font-size: 3rem;
+    line-height: 1.05;
+  }
+
+  .page-head__sub {
+    font-size: 1.0625rem;
+  }
+
+  .menu-view,
+  .week-view {
+    gap: 20px;
+    padding-bottom: 72px; /* clear of the + */
+  }
+
+  .halls-bar {
+    margin-inline: 0;
+  }
+
+  .halls-bar__track {
+    flex-wrap: wrap;
+    padding: 2px;
+    overflow: visible;
+  }
+
+  .menu-card {
+    gap: 18px;
+    padding: 28px 32px 24px;
+  }
+
+  .menu-card__meal {
+    font-size: 2.75rem;
+  }
+
+  .week-grid {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 28px;
+  }
+}
+
+@media (hover: hover) and (min-width: 64em) {
+  .rail .tab:hover:not([aria-current="page"]) {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+}
+
+@media (min-width: 80em) {
+  :root {
+    --rail-w: 224px;
+  }
+
+  body[data-screen="app"] .rail {
+    padding-inline: calc(16px + var(--safe-left)) 16px;
+  }
+
+  .rail__brand {
+    justify-content: flex-start;
+    gap: 10px;
+    padding-inline: 10px;
+  }
+
+  .rail__name {
+    display: inline;
+  }
+
+  .rail .tab {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: 48px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-size: 0.9375rem;
+  }
+
+  .rail .tab .icon {
+    width: 21px;
+    height: 21px;
+  }
+
+  .rail__dot {
+    top: 13px;
+    right: auto;
+    left: 31px;
+  }
+
+  .menu-cats {
+    columns: 3 17rem;
+  }
+}
