@@ -69,10 +69,11 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true")
     p.set_defaults(run=cmd_show)
 
-    p = sub.add_parser("fix", help="correct an item's grams or USDA match")
+    p = sub.add_parser("fix", help="correct an item's grams, serving count or USDA match")
     p.add_argument("meal_id", type=int)
     p.add_argument("item", type=int, help="item number as shown by `show`")
     p.add_argument("--grams", type=int)
+    p.add_argument("--servings", type=float, help="how many of the dish's listed serving, for campus dishes")
     p.add_argument("--food", type=int, metavar="FDC_ID", help="switch to another USDA food")
     p.add_argument("--json", action="store_true")
     p.set_defaults(run=cmd_fix)
@@ -159,15 +160,24 @@ def cmd_show(args: argparse.Namespace, settings: Settings) -> None:
 
 
 def cmd_fix(args: argparse.Namespace, settings: Settings) -> None:
-    if args.grams is None and args.food is None:
-        raise ValueError("Pass --grams and/or --food.")
+    if args.grams is None and args.servings is None and args.food is None:
+        raise ValueError("Pass --grams, --servings and/or --food.")
     if args.grams is not None and args.grams <= 0:
         raise ValueError("--grams must be positive.")
+    if args.servings is not None and args.servings <= 0:
+        raise ValueError("--servings must be positive.")
     diary = Diary(settings.diary_db)
     result = _logged_meal(diary, args.meal_id)
     if not 1 <= args.item <= len(result.items):
         raise ValueError(f"Meal #{args.meal_id} has items 1-{len(result.items)}.")
-    corrected = correct(result, args.item - 1, FoodDatabase(settings.food_db), grams=args.grams, fdc_id=args.food)
+    corrected = correct(
+        result,
+        args.item - 1,
+        FoodDatabase(settings.food_db),
+        grams=args.grams,
+        servings=args.servings,
+        fdc_id=args.food,
+    )
     result = diary.save(corrected)
     if args.grams is not None:
         diary.remember_portion(result.items[args.item - 1].item.name, args.grams)

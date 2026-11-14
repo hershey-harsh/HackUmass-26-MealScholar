@@ -156,8 +156,8 @@ def dish_nutrients(
     if dish.serving_grams is not None:
         low, likely, high = (g / dish.serving_grams for g in sorted(grams))
     else:
-        counts = servings_range(servings, grams if widen else (1, 1, 1))
-        if counts is None:
+        counts = servings_range(servings, grams) if widen else servings
+        if counts is None or counts[1] <= 0:
             return None
         low, likely, high = counts
     return {key: Range(low=v * low, likely=v * likely, high=v * high) for key, v in dish.per_serving.items()}

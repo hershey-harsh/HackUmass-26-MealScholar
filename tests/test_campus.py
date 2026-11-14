@@ -186,6 +186,11 @@ def test_dish_nutrients_weight_and_count_paths():
     assert bounds(found["carbs_g"]) == pytest.approx((66.86, 78, 89.14), abs=0.01)
     assert bounds(dish_nutrients(counted, (100, 120, 150), (-1, 1, 1))["energy_kcal"]) == (0, 212, 212)
     assert dish_nutrients(counted, (100, 120, 150), (2, 1, 3))["energy_kcal"] == Range(low=212, likely=424, high=636)
+    # A count the user typed is exact: no widening by the model's grams.
+    assert dish_nutrients(counted, (360, 420, 480), (3, 3, 3), widen=False)["energy_kcal"] == Range(
+        low=636, likely=636, high=636
+    )
+    assert dish_nutrients(counted, (100, 120, 150), (0, 0, 0), widen=False) is None
     # No usable count: the caller falls back to USDA.
     assert dish_nutrients(counted, (100, 120, 150), None) is None
     assert dish_nutrients(counted, (100, 120, 150), (0, 0, 0)) is None

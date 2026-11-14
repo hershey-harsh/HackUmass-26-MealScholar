@@ -9,7 +9,7 @@ from mealscholar.diary import Diary
 from mealscholar.dining import DiningUnavailable, DishFacts
 from mealscholar.insights import summarize_days
 from mealscholar.nutrients import NUTRIENTS
-from mealscholar.pipeline import UnknownFood, Workflow, correct, meal_name
+from mealscholar.pipeline import BadCorrection, UnknownFood, Workflow, correct, meal_name
 from mealscholar.schemas import FoodItem, MealAnalysis, MenuRef, Range
 from mealscholar.vision import MENU_NAMES
 
@@ -453,16 +453,71 @@ def test_answer_rematches_against_the_same_menu(food_db, analysis, meal_photo, c
     assert down.items[0].source == "usda" and "Campus menu unavailable right now; USDA used." in down.notes
 
 
-def test_grams_correction_on_a_campus_item_switches_to_usda_for_now(food_db, analysis, meal_photo, campus):
+@pytest.fixture
+def campus_meal(food_db, analysis, meal_photo, campus):
+    """The analysis fixture matched to Worcester: the rice is Jasmine Rice (4 OZ), the pizza a
+    Cheese Pizza slice (1 Slice, 1-2 of them), the sauce not on the menu."""
     rice = analysis.items[0].model_copy(update={"menu_item": "Jasmine Rice"})
-    analysis = analysis.model_copy(update={"items": [rice, *analysis.items[1:]]})
-    _, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=1)
-    assert result.items[0].source == "campus"
+    pizza = analysis.items[1].model_copy(
+        update={"menu_item": "Cheese Pizza", "servings_low": 1.0, "servings_likely": 1.5, "servings_high": 2.0}
+    )
+    analysis = analysis.model_copy(update={"items": [rice, pizza, analysis.items[2]]})
+    workflow, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=1)
+    assert [r.source for r in result.items] == ["campus", "campus", "usda"]
+    return workflow, result
 
-    fixed = correct(result, 0, food_db, grams=200)
-    rice = fixed.items[0]
-    assert (rice.source, rice.dish, rice.match.fdc_id) == ("usda", None, 1)
-    assert bounds(rice.nutrients["energy_kcal"]) == pytest.approx((129 * 2, 129 * 2, 129 * 2))
+
+def test_corrections_on_campus_items(food_db, campus_meal):
+    _, result = campus_meal
+    flat = lambda r: r.low == r.likely == r.high  # noqa: E731
+
+    two_slices = correct(result, 1, food_db, servings=2).items[1]
+    assert (two_slices.source, two_slices.dish.name, two_slices.match.fdc_id) == ("campus", "Cheese Pizza", 6)
+    assert flat(two_slices.nutrients["energy_kcal"]) and two_slices.nutrients["energy_kcal"].likely == 424
+    assert (two_slices.item.servings_low, two_slices.item.servings_likely, two_slices.item.servings_high) == (2, 2, 2)
+    assert not flat(two_slices.nutrients["vitamin_d_ug"])  # micros still follow the model's gram range
+
+    weighed_rice = correct(result, 0, food_db, grams=200).items[0]
+    assert (weighed_rice.source, weighed_rice.dish.name) == ("campus", "Jasmine Rice")
+    assert flat(weighed_rice.nutrients["energy_kcal"])
+    assert weighed_rice.nutrients["energy_kcal"].likely == pytest.approx(186 / 113.4 * 200)
+
+    two_rice = correct(result, 0, food_db, servings=2).items[0]
+    assert (two_rice.source, two_rice.item.grams_low, two_rice.item.grams_high) == ("campus", 227, 227)
+    assert flat(two_rice.nutrients["energy_kcal"])
+    assert two_rice.nutrients["energy_kcal"].likely == pytest.approx(186 / 113.4 * 227)
+
+    weighed = correct(result, 1, food_db, grams=250)
+    slice_ = weighed.items[1]
+    assert (slice_.source, slice_.dish, slice_.match.fdc_id, slice_.item.menu_item) == ("usda", None, 6, None)
+    assert slice_.item.servings_likely is None
+    assert flat(slice_.nutrients["energy_kcal"]) and slice_.nutrients["energy_kcal"].likely == pytest.approx(266 * 2.5)
+    assert "'pizza slice' is weighed now, so USDA numbers are used; the menu lists Cheese Pizza per 1 Slice." in (
+        weighed.notes
+    )
+    assert weighed.totals["energy_kcal"].likely == pytest.approx(186 / 113.4 * 200 + 266 * 2.5)
+
+    old_donor = result.items[0].match
+    swapped = correct(result, 0, food_db, fdc_id=7).items[0]
+    assert (swapped.source, swapped.dish, swapped.match.fdc_id, swapped.item.menu_item) == ("usda", None, 7, None)
+    assert old_donor in swapped.alternatives
+    assert swapped.nutrients["energy_kcal"].likely == pytest.approx(230 * 2)
+
+    with pytest.raises(BadCorrection, match="not both"):
+        correct(result, 0, food_db, grams=100, servings=1)
+    with pytest.raises(BadCorrection, match="isn't a campus dish"):
+        correct(result, 2, food_db, servings=1)
+    with pytest.raises(UnknownFood):
+        correct(result, 0, food_db, fdc_id=999_999)
+
+
+def test_answer_after_a_usda_switch_does_not_rematch(food_db, campus_meal):
+    workflow, result = campus_meal
+    switched = correct(result, 0, food_db, fdc_id=7)
+
+    answered = workflow.answer(switched, "yes, oil")
+    assert (answered.items[0].source, answered.items[0].dish) == ("usda", None)
+    assert answered.items[1].source == "campus"  # the slice was never switched
 
 
 def test_summarize_counts_a_campus_item_without_a_usda_donor(food_db, meal_photo, campus):

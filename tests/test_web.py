@@ -67,8 +67,51 @@ class CampusVision:
         raise AssertionError("not used")
 
 
+class SliceVision:
+    """Gemini with the menu in the prompt: one or two slices of the listed Cheese Pizza."""
+
+    def analyze(self, jpeg, context):
+        pizza = FoodItem(
+            name="pizza slice",
+            fdc_query="Pizza, cheese, from restaurant or fast food, thin crust",
+            cooking_method="baked",
+            grams_low=100,
+            grams_likely=120,
+            grams_high=150,
+            box_2d=None,
+            hidden_fat_likely=False,
+            menu_item="Cheese Pizza",
+            servings_low=1,
+            servings_likely=1.5,
+            servings_high=2,
+        )
+        return MealAnalysis(is_food=True, items=[pizza], scale_reference=None, question=None)
+
+    def refine(self, analysis, question, answer):
+        raise AssertionError("not used")
+
+
+def menu_doc(name, dish_id, serving, kcal, nutrition, day):
+    return {
+        "location_id": 1,
+        "date": day,
+        "name": name,
+        "meal": "lunch",
+        "category": None,
+        "dish_id": dish_id,
+        "serving_size": serving,
+        "calories": kcal,
+        "nutrition": nutrition,
+        "healthfulness_score": 5,
+    }
+
+
 class MenuSource:
-    """The umass_dining collections as the pipeline needs them: one hall, Jasmine Rice every day."""
+    """The umass_dining collections as the pipeline needs them: one hall, Jasmine Rice every day
+    and, with `pizza`, a Cheese Pizza listed per slice."""
+
+    def __init__(self, *, pizza=False):
+        self.pizza = pizza
 
     def locations(self):
         return [{"_id": 1, "name": "Worcester Dining Commons", "is_dining_commons": True, "dates_available": []}]
@@ -79,21 +122,12 @@ class MenuSource:
     def menu_items(self, location_id, day):
         if location_id != 1:
             return []
-        nutrition = {"protein_g": 4, "total_carb_g": 41, "total_fat_g": 0, "sodium_mg": 5}
-        return [
-            {
-                "location_id": 1,
-                "date": day,
-                "name": "Jasmine Rice",
-                "meal": "lunch",
-                "category": "Grains",
-                "dish_id": "d1",
-                "serving_size": "4 OZ",
-                "calories": 186,
-                "nutrition": nutrition,
-                "healthfulness_score": 5,
-            }
-        ]
+        rice = {"protein_g": 4, "total_carb_g": 41, "total_fat_g": 0, "sodium_mg": 5}
+        docs = [menu_doc("Jasmine Rice", "d1", "4 OZ", 186, rice, day)]
+        if self.pizza:
+            pizza = {"protein_g": 9, "total_carb_g": 26, "total_fat_g": 8}
+            docs.append(menu_doc("Cheese Pizza", "d2", "1 Slice", 212, pizza, day))
+        return docs
 
     def dishes(self, pattern, limit):
         return []
@@ -193,6 +227,40 @@ def test_campus_match_is_in_the_api_reply(home):
     assert app.get(f"/api/meals/{meal['id']}").json() == meal
 
     assert app.post("/api/meals?location_id=0", content=jpeg()).status_code == 422
+
+
+def test_servings_and_grams_corrections_on_campus_items(home):
+    app = client(home, SliceVision(), dining=Dining(MenuSource(pizza=True)))
+    meal = app.post("/api/meals?location_id=1", content=jpeg()).json()
+    (slice_,) = meal["items"]
+    assert (slice_["source"], slice_["dish"]["serving_size"]) == ("campus", "1 Slice")
+    assert slice_["dish"]["serving_grams"] is None
+    assert meal["totals"]["energy_kcal"]["low"] < meal["totals"]["energy_kcal"]["high"]
+    url = f"/api/meals/{meal['id']}/items/0"
+
+    res = app.patch(url, json={"servings": 2})
+    assert res.status_code == 200
+    kcal = res.json()["totals"]["energy_kcal"]
+    assert kcal["low"] == kcal["likely"] == kcal["high"] == pytest.approx(424)
+    assert res.json()["items"][0]["source"] == "campus"
+    assert res.json()["items"][0]["item"]["servings_likely"] == 2
+
+    res = app.patch(url, json={"grams": 100})
+    assert res.status_code == 200
+    (slice_,) = res.json()["items"]
+    assert (slice_["source"], slice_["dish"], slice_["match"]["fdc_id"]) == ("usda", None, 6)
+    assert slice_["item"]["menu_item"] is None and slice_["item"]["servings_likely"] is None
+    assert slice_["nutrients"]["energy_kcal"]["likely"] == pytest.approx(266)
+    note = "'pizza slice' is weighed now, so USDA numbers are used; the menu lists Cheese Pizza per 1 Slice."
+    assert note in res.json()["notes"]
+    assert app.get(f"/api/meals/{meal['id']}").json() == res.json()
+
+    res = app.patch(url, json={"servings": 1})
+    assert (res.status_code, res.json()["detail"]) == (400, "This food isn't a campus dish; send grams.")
+    res = app.patch(url, json={})
+    assert (res.status_code, res.json()["detail"]) == (400, "Send grams, servings and/or fdc_id.")
+    assert app.patch(url, json={"servings": 0}).status_code == 422
+    assert app.patch(url, json={"servings": 51}).status_code == 422
 
 
 def test_without_menus_location_id_is_a_note(home):

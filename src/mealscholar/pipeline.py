@@ -13,7 +13,7 @@ from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import BinaryIO, Protocol
 
-from .campus import candidates, dish_nutrients, find_dish, label_fits, servings_range
+from .campus import candidates, dish_nutrients, find_dish, label_fits
 from .compute import item_nutrients, summarize
 from .context import PlaceLookup, build_context
 from .dining import DiningUnavailable, DishFacts
@@ -57,6 +57,10 @@ UNAVAILABLE = "Campus menu unavailable right now; USDA used."
 
 class UnknownFood(LookupError):
     pass
+
+
+class BadCorrection(ValueError):
+    """A correction that can't apply to this item; the message is for the user."""
 
 
 class Menus(Protocol):
@@ -202,25 +206,54 @@ def correct(
     foods: FoodDatabase,
     *,
     grams: int | None = None,
+    servings: float | None = None,
     fdc_id: int | None = None,
 ) -> MealResult:
-    """User correction: exact grams collapse the range; fdc_id swaps the database match. A campus
-    item goes back to USDA numbers (its match, when it has one)."""
+    """User correction: exact grams, or a count of the campus dish's listed serving, collapse the
+    amount (the user typed it); fdc_id swaps the USDA match. A campus dish keeps its label when it
+    is listed per weight, or when the user counted its servings. Grams on a dish listed per count
+    ('1 Slice'), or any fdc_id, switch the item to USDA for good: menu_item is cleared so a later
+    answer() can't match the dish again. BadCorrection for grams with servings, or servings on a
+    food that isn't a campus dish."""
+    if grams is not None and servings is not None:
+        raise BadCorrection("Send grams or servings, not both.")
     items = list(result.items)
+    notes = list(result.notes)
     current = items[item_index]
-    item = current.item
-    if grams is not None:
-        item = item.model_copy(update={"grams_low": grams, "grams_likely": grams, "grams_high": grams})
+    item, dish = current.item, current.dish
+    if servings is not None and dish is None:
+        raise BadCorrection("This food isn't a campus dish; send grams.")
     if fdc_id is not None:
         food = foods.get(fdc_id)
         if food is None:
             raise UnknownFood(f"No USDA food with FDC id {fdc_id}.")
         alternatives = [a for a in (current.match, *current.alternatives) if a and a.fdc_id != fdc_id]
+        dish = None
     else:
         food = foods.get(current.match.fdc_id) if current.match else None
         alternatives = current.alternatives
-    items[item_index] = _item_result(item, food, alternatives)
-    return summarize(result.model_copy(update={"items": items}))
+    if servings is not None and dish is not None:
+        item = item.model_copy(update={"servings_low": servings, "servings_likely": servings, "servings_high": servings})
+        if dish.serving_grams is not None:
+            grams = round(servings * dish.serving_grams)
+    if grams is not None:
+        item = item.model_copy(update={"grams_low": grams, "grams_likely": grams, "grams_high": grams})
+        if dish is not None and dish.serving_grams is None:
+            # The app's only amount control sends grams; a counted serving can't be scaled by them.
+            notes.append(
+                f"'{item.name}' is weighed now, so USDA numbers are used; "
+                f"the menu lists {dish.name} per {dish.serving_size}."
+            )
+            dish = None
+    campus = _campus_result(item, dish, food, alternatives, widen=servings is None) if dish is not None else None
+    if campus is not None:
+        items[item_index] = campus
+    else:
+        if current.dish is not None or fdc_id is not None:  # the user chose USDA; the dish stays gone
+            cleared = {"menu_item": None, "servings_low": None, "servings_likely": None, "servings_high": None}
+            item = item.model_copy(update=cleared)
+        items[item_index] = _item_result(item, food, alternatives)
+    return summarize(result.model_copy(update={"items": items, "notes": notes}))
 
 
 def meal_name(items: Sequence[FoodItem]) -> str | None:
@@ -255,42 +288,57 @@ def _campus_item(item: FoodItem, dish: DishFacts, found: Matches, ref: MenuRef, 
     when the lookup was exact. None, with a note, when the serving count is missing for a counted
     serving or the label's calories don't fit USDA's for the estimated grams; the caller then
     takes the USDA path."""
-    grams = (item.grams_low, item.grams_likely, item.grams_high)
-    servings = None
-    if item.servings_likely is not None:  # the schema sets all three together
-        servings = servings_range((item.servings_low or 0.0, item.servings_likely, item.servings_high or 0.0), grams)
-    campus = dish_nutrients(dish, grams, servings)
+    donor = found.foods[0] if found.exact else None
+    alternatives = [_match(f) for f in (found.foods[1:] if donor else found.foods)]
+    matched = DishMatch(
+        dish_id=dish.dish_id,
+        name=dish.name,
+        location_id=ref.location_id,
+        location_name=ref.location_name,
+        date=ref.date,
+        meal=dish.meal,
+        serving_size=dish.serving_size,
+        serving_grams=dish.serving_grams,
+        per_serving=dict(dish.per_serving),
+        healthfulness_score=dish.healthfulness_score,
+    )
+    campus = _campus_result(item, matched, donor, alternatives)
     listed = f"'{item.name}' is on the menu as {dish.name} ({dish.serving_size})"
     if campus is None:
         notes.append(f"{listed}, but no serving count was estimated; USDA used.")
         return None
-    donor = found.foods[0] if found.exact else None
     usda_kcal = None
     if donor is not None and (per_100g := donor.per_100g.get("energy_kcal")) is not None:
         usda_kcal = per_100g * item.grams_likely / 100
-    kcal = campus.get("energy_kcal")
+    kcal = campus.nutrients.get("energy_kcal")
     if kcal is None or not label_fits(kcal.likely, usda_kcal):
         notes.append(f"{listed}, but its label didn't fit the estimated amount; USDA used.")
+        return None
+    return campus
+
+
+def _campus_result(
+    item: FoodItem, dish: DishMatch, donor: Food | None, alternatives: list[FoodMatch], *, widen: bool = True
+) -> ItemResult | None:
+    """The item on its dish's label scaled to the plate (campus.dish_nutrients), the USDA donor
+    giving only the micronutrients. `widen=False` when the user typed the serving count. None
+    when a counted serving has no usable count. Shared by _result and correct() so the two never
+    drift."""
+    grams = (item.grams_low, item.grams_likely, item.grams_high)
+    servings = None
+    if item.servings_likely is not None:  # the schema sets all three together
+        servings = (item.servings_low or 0.0, item.servings_likely, item.servings_high or 0.0)
+    campus = dish_nutrients(dish, grams, servings, widen=widen)
+    if campus is None:
         return None
     micros = {k: r for k, r in item_nutrients(donor.per_100g, item).items() if BY_KEY[k].micro} if donor else {}
     return ItemResult(
         item=item,
         match=_match(donor) if donor else None,
-        alternatives=[_match(f) for f in (found.foods[1:] if donor else found.foods)],
+        alternatives=alternatives,
         nutrients={**micros, **campus},
         source="campus",
-        dish=DishMatch(
-            dish_id=dish.dish_id,
-            name=dish.name,
-            location_id=ref.location_id,
-            location_name=ref.location_name,
-            date=ref.date,
-            meal=dish.meal,
-            serving_size=dish.serving_size,
-            serving_grams=dish.serving_grams,
-            per_serving=dict(dish.per_serving),
-            healthfulness_score=dish.healthfulness_score,
-        ),
+        dish=dish,
     )
 
 

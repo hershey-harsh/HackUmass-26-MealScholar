@@ -28,7 +28,7 @@ from .dining import Dining, install_dining, open_dining
 from .insights import summarize_days
 from .nutrients import NUTRIENTS
 from .nutrition import FoodDatabase, FoodDatabaseMissing
-from .pipeline import UnknownFood, Workflow, correct
+from .pipeline import BadCorrection, UnknownFood, Workflow, correct
 from .prefs import MAX_LOCATION_ID, PrefsStore, install_prefs, open_prefs_store
 from .schemas import MealResult, Range
 from .vision import GeminiVision, VisionError, VisionModel
@@ -73,6 +73,8 @@ class Answer(BaseModel):
 
 class Correction(BaseModel):
     grams: int | None = Field(default=None, gt=0, le=10_000)
+    servings: float | None = Field(default=None, gt=0, le=50)
+    """How many of the campus dish's listed serving ('1 Slice'); only for an item with a `dish`."""
     fdc_id: int | None = None
 
 
@@ -141,6 +143,7 @@ def create_app(
     app.add_exception_handler(FoodDatabaseMissing, error(503, "The food database isn't set up on the server yet."))
     app.add_exception_handler(VisionError, error(502, "Couldn't analyze the photo right now. Try again in a moment."))
     app.add_exception_handler(UnknownFood, error(404))
+    app.add_exception_handler(BadCorrection, error(400))
 
     @app.get("/api/status")
     def status() -> Status:
@@ -223,14 +226,18 @@ def create_app(
 
     @app.patch("/api/meals/{meal_id}/items/{index}")
     def fix(meal_id: int, index: int, body: Correction, owner: DiaryOwner) -> MealResult:
-        """Exact grams collapse the item's range and become a usual portion; fdc_id swaps the match."""
-        if body.grams is None and body.fdc_id is None:
-            raise HTTPException(400, "Send grams and/or fdc_id.")
+        """Exact grams collapse the item's range and become a usual portion; fdc_id swaps the match.
+        `servings` counts a campus dish's listed serving and keeps its label; grams on a dish listed
+        per count ('1 Slice') switch the item to USDA, with a note. 400 for servings on a food that
+        isn't a campus dish, or grams together with servings (see pipeline.correct)."""
+        if body.grams is None and body.servings is None and body.fdc_id is None:
+            raise HTTPException(400, "Send grams, servings and/or fdc_id.")
         with stores(owner) as (foods, diary):
             result = logged(diary, meal_id)
             if not 0 <= index < len(result.items):
                 raise HTTPException(404, f"Meal #{meal_id} has no item {index}.")
-            result = diary.save(correct(result, index, foods, grams=body.grams, fdc_id=body.fdc_id))
+            corrected = correct(result, index, foods, grams=body.grams, servings=body.servings, fdc_id=body.fdc_id)
+            result = diary.save(corrected)
             if body.grams is not None:
                 diary.remember_portion(result.items[index].item.name, body.grams)
             return result
