@@ -5800,3 +5800,48 @@ body[data-screen="onboard"] .toast {
 .score__empty {
   margin: 0;
 }
+
+/* Delete a logged meal: a quiet link under the result's buttons, then a two-step check in its place. */
+.result__delete {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.link-btn--quiet {
+  gap: 6px;
+  color: var(--ink-2);
+  text-decoration-color: var(--line);
+}
+
+.link-btn--quiet .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.delete__ask {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--ink-2);
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.delete__row {
+  display: flex;
+  gap: 10px;
+}
+
+.btn--danger {
+  border-color: var(--danger);
+  background: var(--surface);
+  color: var(--danger);
+}
+
+@media (hover: hover) {
+  .btn--danger:hover {
+    background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  }
+}
