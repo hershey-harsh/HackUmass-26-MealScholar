@@ -1,141 +1,230 @@
+<div align="center">
+
 # MealScholar
 
-Snap a meal photo, get foods, grams and nutrients — as ranges, never a single fake-precise number.
-A HackUMass XIV project, piloting at UMass. The Python package and CLI are still named `foodsmart`.
+**Nutrition from a photo. Honest ranges, not fake precision.**
 
-Gemini identifies the foods and estimates grams. **It never outputs nutrient numbers**: code looks
-each food up in a local copy of USDA FoodData Central and multiplies.
+A HackUMass XIV project, piloting at UMass.
 
-## Sites
+[Open the app](https://mealscholar.mannava.org) · [Visit the website](https://hackumass.mannava.org) · [Quick start](#quick-start) · [Workflow](#workflow) · [Benchmarks](BENCHMARK.md)
 
-| Site | URL | Source | Deploys |
-|---|---|---|---|
-| Landing page | https://hackumass.mannava.org | `web/`: static HTML/CSS/JS, no build step | Every push to `main` |
-| App | https://mealscholar.mannava.org | `foodsmart serve`: JSON API in `src/foodsmart/web.py`, UI in `src/foodsmart/site/` | Live now from [#7] and [#13], which aren't merged yet. Once `web.py` is on `main`, every push to `main` redeploys it |
+<sub>Python 3.12+ · FastAPI · Gemini · MongoDB Atlas</sub>
 
-Both deploy through `.github/workflows/deploy-site.yml` on Harsh's Mac mini; ask on the team board
-before changing it (see [AGENTS.md](AGENTS.md)).
+</div>
 
-**Landing page.** What MealScholar does and why the numbers are ranges, a five-step walkthrough on
-a real lunch photo, and the 19 nutrients it tracks. "Open the app" goes to the app and offers Add
-to Home Screen.
+---
 
-**App** (in review: [#7], [#13]). Phone-first, with bottom tabs for Today and Analyze and a camera
-button.
+Snap your meal. Gemini identifies the foods and estimates their portions; a local USDA database
+supplies the nutrition facts. MealScholar turns those estimates into nutrient ranges you can
+inspect, correct and log.
 
-- **Analyze**: snap, choose or drop a photo (JPEG, PNG or HEIC, up to 25 MB). Location is off
-  unless you switch it on, and only the place name is saved. Photos are analyzed in memory and
-  never stored.
-- **Result**: the meal's calories as a range with the most likely value; each food with its
-  low/likely/high grams, its box on the photo and its USDA match. At most one clarifying question,
-  then everything recomputes. In a sheet, weigh a food to collapse its range or swap its USDA match.
-- **Today**: the day's calories and nutrients as ranges with % Daily Value (a label reference, not
-  a goal), vitamins and minerals labelled as estimates, meals by slot, this week at a glance, and
-  previous/next day. Tap a meal to reopen and correct it.
-- **Add to Home Screen**: installs as a web app (Android prompt, iPhone steps); no app store.
+> **The AI never invents nutrient numbers.** Nutrients come from USDA FoodData Central and
+> arithmetic, not from the model.
 
-Also in review, on top of these: sign-in and accounts ([#11]); onboarding preferences and UMass
-Dining menus ([#15]).
+## At a glance
 
-[#7]: https://github.com/hershey-harsh/HackUmass-26-MealScholar/pull/7
-[#11]: https://github.com/hershey-harsh/HackUmass-26-MealScholar/pull/11
-[#13]: https://github.com/hershey-harsh/HackUmass-26-MealScholar/pull/13
-[#15]: https://github.com/hershey-harsh/HackUmass-26-MealScholar/pull/15
+| Feature | What you get |
+|---|---|
+| **Photo analysis** | JPEG, PNG and HEIC uploads up to 25 MB; foods and portion estimates with boxes on the photo. |
+| **Honest uncertainty** | Low, likely and high values for portions and nutrients, with at most one clarifying question. |
+| **Check the match** | Inspect the USDA source, search alternatives and correct the selected food. |
+| **Your food diary** | Meals by day, calorie and nutrient totals, % Daily Value and weekly views. |
+| **Phone-first app** | Today and Analyze tabs, camera entry points and Add to Home Screen. |
+| **Campus dining APIs** | UMass Dining locations, menus, dish search, nearby halls and favorites alerts. |
+
+Account and preference APIs are also included: registration, sessions, per-user diaries,
+user-selected goals, dining preferences and favorites. The sign-in/onboarding UI is still being
+completed, and emails currently queue to an outbox rather than being delivered.
+
+**Current boundary:** dining-menu browsing is implemented, but photo-to-nutrient calculations
+still use USDA only. Campus-menu nutrient matching is tracked in [TODO.md](TODO.md).
 
 ## Workflow
 
-| # | Step | Module | Output |
-|---|---|---|---|
-| 0 | Capture | `cli.py` (`analyze PHOTO`) | Photo (JPEG, PNG, HEIC) |
-| 1 | Metadata | `metadata.py` | Capture time (EXIF original + offset → device clock → upload time); location only if opted in (device coords → photo GPS) |
-| 2 | Context | `context.py` | Meal slot; food place at the location via OpenStreetMap (name, type, cuisine, chain). **Coordinates are dropped here** |
-| 3 | Vision | `vision.py` | Gemini structured JSON: items, grams low/likely/high, cooking method, bounding box, hidden-fat flag, scale reference, ≤1 question |
-| 4 | Nutrition source | `nutrition.py` | Best USDA match (Survey/FNDDS, Foundation, SR Legacy) + alternatives |
-| 5 | Compute | `compute.py` | grams × per-100 g → per-item and meal totals, % Daily Value |
-| 6 | Show / answer | `cli.py`, `pipeline.py` | Ranges; answering the question re-runs Gemini on the analysis (text only) and recomputes |
-| 7 | Correct and log | `pipeline.correct`, `diary.py` | Exact grams or a different USDA food; corrections become "usual portions" fed back to Gemini |
-| 8 | Insights | `insights.py` | Day totals; 7-day averages and micronutrient low-days |
+```mermaid
+flowchart TD
+    Photo(["Meal photo"]) --> Context["Time and place context<br/>Location is opt-in"]
+    Context --> Vision["Gemini vision<br/>Foods + portion ranges"]
+    Vision --> USDA[("USDA FoodData Central<br/>Matches + alternatives")]
+    USDA --> Math["Nutrient calculation<br/>Portions × per-100 g values"]
+    Math --> Result["Meal result<br/>Ranges + % Daily Value"]
+    Result --> Diary(["Food diary<br/>Daily totals + weekly trends"])
+    Result -.->|Optional answer| Refine["Gemini refinement<br/>Text only"]
+    Refine --> USDA
+```
 
-## Setup
+Loose USDA matches are suggestions, not counted foods, until a match is selected.
+Choosing another USDA food recomputes the result without another photo analysis.
 
-Needs [uv](https://docs.astral.sh/uv/) (it installs Python 3.12 for you).
+The pipeline is in [`pipeline.py`](src/foodsmart/pipeline.py); the shared JSON contract is
+[`MealResult`](src/foodsmart/schemas.py). The model's prompt and image preparation live in
+[`vision.py`](src/foodsmart/vision.py), while [`compute.py`](src/foodsmart/compute.py) handles the math.
+
+## Quick start
+
+Requires [uv](https://docs.astral.sh/uv/). It installs Python 3.12 if needed.
+Run these commands from a clone of this repository.
+
+**1. Install dependencies**
 
 ```sh
 uv sync
-# put your key in .env: GEMINI_API_KEY=...   https://aistudio.google.com/apikey
-uv run foodsmart fdc-import          # one-time: downloads ~17 MB from USDA, builds ~/.foodsmart/fdc.sqlite
 ```
 
-`foodsmart` reads `.env` from the directory you run it in (or a parent); variables already set in
-your shell win. `.env` is gitignored.
+**2. Create a local `.env`**
 
-## Web app
+Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey), then add:
 
-```sh
-uv run foodsmart serve                    # http://127.0.0.1:8000
-uv run foodsmart serve --host 0.0.0.0     # reach it from a phone on the same Wi-Fi
+```dotenv
+GEMINI_API_KEY=your-key-here
+FOODSMART_AUTH_REQUIRED=0
 ```
 
-Drop or take a photo, answer the one question, weigh a food to collapse its range, swap a USDA
-match, and see today's meals. The site is plain HTML/CSS/JS in `src/foodsmart/site/` (no build
-step) over a JSON API in `web.py`; API docs at `/api/docs`. Photos are sent as the request body
-and analyzed in memory. Browsers only share location over HTTPS or `localhost`, so the location
-switch needs one of those when testing from a phone.
+`FOODSMART_AUTH_REQUIRED=0` enables a local, single-user diary without signing in.
+Use it only for local development, not a shared deployment. Shell variables override `.env`,
+and `.env` is gitignored.
 
-## Use
+**3. Import USDA data and start the app**
 
 ```sh
-uv run foodsmart analyze lunch.jpg                         # asks the clarifying question if there is one
-uv run foodsmart analyze lunch.jpg --use-photo-location    # opt in to the photo's GPS for the place lookup
-uv run foodsmart analyze lunch.jpg --lat 42.39 --lon -72.53 --taken-at 2026-11-14T12:30-05:00   # what a phone app would send
-uv run foodsmart analyze lunch.jpg --answer "fried in oil" --json   # non-interactive, JSON for a frontend
+uv run foodsmart fdc-import
+uv run foodsmart serve
+```
 
+Open **http://127.0.0.1:8000**. The one-time import downloads roughly 17 MB and creates
+`~/.foodsmart/fdc.sqlite`. Local API documentation is at **http://127.0.0.1:8000/api/docs**.
+
+<details>
+<summary><strong>Testing from your phone</strong></summary>
+
+```sh
+uv run foodsmart serve --host 0.0.0.0
+```
+
+Open your computer's LAN address on the same Wi-Fi. Browser geolocation needs HTTPS or
+`localhost`, so the location switch will not work over an ordinary LAN HTTP address.
+Keep this single-user development server on a trusted network.
+
+</details>
+
+> **Naming:** the product is MealScholar. The package, CLI command, `FOODSMART_*` settings and
+> `~/.foodsmart` data directory keep their existing names until the coordinated
+> [code rename](https://github.com/hershey-harsh/HackUmass-26-MealScholar/issues/23).
+
+## Command line
+
+```sh
+uv run foodsmart analyze lunch.jpg --json
+uv run foodsmart day
+uv run foodsmart week
+```
+
+<details>
+<summary><strong>Analysis options, corrections and saved meals</strong></summary>
+
+```sh
+# Opt in to the photo's GPS, or supply device context.
+uv run foodsmart analyze lunch.jpg --use-photo-location
+uv run foodsmart analyze lunch.jpg --lat 42.39 --lon -72.53 --taken-at 2026-11-14T12:30-05:00
+
+# Supply the clarifying answer without an interactive prompt.
+uv run foodsmart analyze lunch.jpg --answer "fried in oil" --json
+
+# Inspect meal 3 and find a different USDA match.
 uv run foodsmart show 3
-uv run foodsmart search "rice, white, cooked"              # find FDC ids
-uv run foodsmart fix 3 1 --grams 300                       # meal 3, item 1: exact weight
-uv run foodsmart fix 3 1 --food 2708404                    # switch the USDA match
-uv run foodsmart day                                       # today's totals
-uv run foodsmart week                                      # 7-day averages, micronutrient trends
+uv run foodsmart search "rice, white, cooked"
+uv run foodsmart fix 3 1 --food 2708404
+
+# Optional exact-weight correction for item 1 in meal 3.
+uv run foodsmart fix 3 1 --grams 300
 ```
 
-`--json` prints the full `MealResult` (see `schemas.py`) — the contract for a web or mobile frontend.
+`--json` prints the full `MealResult`. The CLI works with the local diary; signing into the
+web app keeps each account's meals separate.
+
+</details>
 
 ## Configuration
 
 Set these in `.env` or your shell.
 
-| Variable | Default | |
+| Variable | Default | Purpose |
 |---|---|---|
-| `GEMINI_API_KEY` | — | Required for `analyze` and for photo analysis in `serve` |
-| `FOODSMART_MODEL` | `gemini-4-hydrogen` | e.g. `gemini-3.6-flash` (with `FOODSMART_THINKING=minimal`) for 4× cheaper, faster runs; see [BENCHMARK.md](BENCHMARK.md) |
-| `FOODSMART_THINKING` | `low` | Gemini thinking level: `low`, `medium`, `high`, `xhigh` on Gemini 4; `minimal` only on 3.x Flash / Flash-Lite (Gemini 4 rejects it) |
-| `FOODSMART_HOME` | `~/.foodsmart` | USDA database, downloads, diary |
-| `FOODSMART_NOMINATIM_URL` | public OSM Nominatim | Public instance allows 1 request/second |
+| `GEMINI_API_KEY` | Not set | Required for photo analysis. |
+| `FOODSMART_MODEL` | `gemini-4-hydrogen` | Vision model; see [model benchmarks](BENCHMARK.md). |
+| `FOODSMART_THINKING` | `low` | Thinking level. Gemini 4 supports `low`, `medium`, `high`, `xhigh`; `minimal` is for 3.x Flash/Flash-Lite only. |
+| `FOODSMART_HOME` | `~/.foodsmart` | USDA database, downloads and SQLite diary. |
+| `FOODSMART_NOMINATIM_URL` | Public OpenStreetMap Nominatim | Place lookup; the public service allows 1 request/second. |
+
+<details>
+<summary><strong>Accounts, dining data and deployment settings</strong></summary>
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `MONGODB_URI` | Not set | Persistent accounts/preferences and access to dining data. Without it, accounts/preferences are in memory and dining routes return 503. |
+| `FOODSMART_MONGODB_DB` | `mealscholar` | Accounts and preferences database. |
+| `FOODSMART_DINING_DB` | `umass_dining` | Read-only dining-menu database. |
+| `FOODSMART_AUTH_REQUIRED` | `1` | Require sign-in for meal and diary routes. |
+| `FOODSMART_PUBLIC_URL` | `http://127.0.0.1:8000` | Public origin for account links and cross-site checks. |
+| `FOODSMART_COOKIE_SECURE` | `1` | HTTPS-only session cookies. Set to `0` only when testing accounts over local HTTP. |
+| `FOODSMART_EMAIL_PROVIDER` | `outbox` | Queue account emails; SMTP delivery is not implemented yet. |
+| `FOODSMART_DEMO_VERIFY_LINK` | `0` | Demo-only verification links in responses; never enable publicly. |
+| `FOODSMART_DEV_OUTBOX` | `0` | Development-only outbox endpoint; never enable publicly. |
+
+Do not deploy with in-memory accounts or expose the development outbox. Email delivery must be
+configured and implemented before relying on password-reset emails.
+
+</details>
 
 ## Rules the code enforces
 
-- The model identifies foods and grams; nutrients come from USDA data and arithmetic.
-- Every number is a range until the user gives an exact weight.
-- Location is opt-in; raw coordinates are never stored; photos are never stored; the image sent
-  to Gemini is re-encoded without EXIF, and requests use `store=False`.
-- Micronutrients are labelled as estimates; weekly views average only logged days.
-- No calorie targets, no insulin or carb dosing advice.
+- **Data, not guesses:** the model estimates foods and grams; USDA data supplies the nutrients.
+- **Ranges stay visible:** photo-based amounts have low/likely/high estimates. Exact-weight
+  corrections through the CLI or API can collapse a range.
+- **Private by default:** location is opt-in; coordinates and photos are not stored in the diary.
+  Images sent to Gemini are re-encoded without EXIF, using `store=False`.
+- **Estimates, not diagnosis:** micronutrients are labelled as estimates; weekly averages count
+  only days with logged meals.
+- **Your goals, not prescriptions:** calorie goals are optional and user-selected. % Daily Value
+  is a label reference, not a prescribed goal. No insulin or carb-dosing advice.
+
+## Sites and deployment
+
+| Site | Address | Source |
+|---|---|---|
+| **App** | [mealscholar.mannava.org](https://mealscholar.mannava.org) | [`src/foodsmart/site/`](src/foodsmart/site/) + [`web.py`](src/foodsmart/web.py) |
+| **Landing page** | [hackumass.mannava.org](https://hackumass.mannava.org) | [`web/`](web/) |
+
+Both sites deploy on pushes to `main` through
+[`deploy-site.yml`](.github/workflows/deploy-site.yml) on Harsh's Mac mini. Both frontends use
+plain HTML/CSS/JavaScript, with no build step. Coordinate deploy changes through the team board
+as described in [AGENTS.md](AGENTS.md).
 
 ## Development
 
 ```sh
-uvx ruff@0.17.5 check          # lint; CI runs the same version (.github/workflows/lint.yml)
-uvx ruff@0.17.5 format         # format; CI fails on unformatted files (ruff format --check)
+uvx ruff@0.17.5 check
+uvx ruff@0.17.5 format --check
 uv run pytest
-uv run python bench/report.py --rematch   # replay the USDA lookup on recorded Gemini output, no API calls; see BENCHMARK.md
+
+# Replay recorded Gemini output through the USDA lookup without API calls.
+uv run python bench/report.py --rematch
 ```
 
-## Not in v1
+Use `uvx ruff@0.17.5 format` to apply formatting.
 
-From the agreed scope: chain-restaurant menu nutrition (v2), barcode scanning (v2), allergen
-flags, processing level (NOVA) and camera-roll backfill (v3).
+CI: [Lint and formatting](https://github.com/hershey-harsh/HackUmass-26-MealScholar/actions/workflows/lint.yml) · [USDA lookup regression](https://github.com/hershey-harsh/HackUmass-26-MealScholar/actions/workflows/lookup-regression.yml)
 
-## Data
+- [Benchmarks](BENCHMARK.md) — model comparisons, latency, cost and lookup findings.
+- [Team TODO](TODO.md) — remaining work and known limitations.
+- [Submission draft](submissions/devpost.md) — project story and judging notes.
+- [Film plan](video/film-plan.md) — demo-video shots and production schedule.
 
-- U.S. Department of Agriculture, Agricultural Research Service. FoodData Central. fdc.nal.usda.gov (CC0).
-- Place data © OpenStreetMap contributors (ODbL), via Nominatim.
+## Data sources
+
+- **Nutrition:** [USDA FoodData Central](https://fdc.nal.usda.gov/) — Survey/FNDDS, Foundation
+  and SR Legacy data, CC0.
+- **Places:** [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL,
+  via Nominatim.
+- **Campus menus:** UMass Dining data in MongoDB Atlas, currently used by the dining APIs,
+  not by the photo nutrient calculation.
