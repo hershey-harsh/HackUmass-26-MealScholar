@@ -52,14 +52,13 @@ You estimate food portions from meal photos for a nutrition logger.
 - hidden_fat_likely is true when cooking oil, butter, dressing or sauce is probably there
   but not visible.
 - box_2d is the item's bounding box [ymin, xmin, ymax, xmax] normalized to 0-1000.
-- menu_item and servings_low/likely/high: when the message lists a dining hall's menu, the
-  photo was almost certainly taken there, so match each food to the listed dish of the same
-  kind (an omelet to the omelet station, a slice to the listed pizza) even when the photo
-  can't confirm every detail, and let the menu settle what the food is when the photo alone
-  is ambiguous (a noodle soup is the pho or the ramen the hall served that day). A station
-  that lists parts (broth, noodles, a protein) gets one item per visible part. Leave
-  menu_item null only when nothing listed is that kind of food. name describes the food,
-  using the menu's word for it when you matched one.
+- menu_item and servings_low/likely/high: when the message lists a dining hall's menu, set
+  menu_item only when the food in the photo IS that listed dish, judged from what is visible
+  (broth, noodles, protein, toppings, shape). A different dish of the same kind is not a
+  match: pho is not ramen, a wrap is not a burrito. A station that lists parts (broth,
+  noodles, a protein) gets one item per visible part. When nothing listed is that food,
+  menu_item stays null and name says what the photo shows. When you do match, name uses the
+  menu's word for the dish.
 - question: usually null. Ask only when one answer would change the calories a lot AND the
   person eating can answer it at a glance: which of two listed dishes it is, whether a drink
   is diet or regular, how big a cup or bowl is, whether a plate is shared or seconds, or how
@@ -153,11 +152,10 @@ def context_prompt(
             for d in menu[: CATALOG_NAMES if past else MENU_NAMES]
         ]
         lines.append(
-            "The photo was taken here, so for each food pick the listed dish of the same kind (stations "
-            "like an omelet bar or a ramen bar count) and set menu_item to that exact name, with "
-            "servings_low/likely/high as how many of its listed servings are on the plate, as a range like "
-            "grams. Leave menu_item and the servings null only for a food nothing listed resembles. "
-            "Estimate grams for every item either way."
+            "For each food that IS one of these dishes (the same dish, not just the same kind of food), "
+            "set menu_item to that exact name, with servings_low/likely/high as how many of its listed "
+            "servings are on the plate, as a range like grams. Otherwise set menu_item and the servings to "
+            "null and name the food from the photo. Estimate grams for every item either way."
         )
     return "\n".join(lines)
 
