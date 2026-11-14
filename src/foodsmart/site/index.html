@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>MealScholar · Every meal is a range</title>
-  <meta name="description" content="Snap a photo of your meal and get the foods, the grams and the nutrients, shown as honest ranges instead of one fake-precise number.">
+  <meta name="description" content="Snap a photo of your meal. It works out the foods and how much is there, checks the campus menu first, and shows the nutrients as honest ranges.">
   <meta name="theme-color" content="#EEF0F2">
   <meta name="color-scheme" content="light">
   <meta name="application-name" content="MealScholar">
@@ -14,17 +14,25 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="format-detection" content="telephone=no">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='10' fill='%231C1C1C'/%3E%3Ccircle cx='16' cy='17.5' r='8' fill='none' stroke='%23FAFAFF' stroke-width='2.4'/%3E%3Cpath d='M16.2 4.8c2.9 1.4 4.2 3.9 3.7 6.9-2.9-.2-5-2-5.5-4.9.4-.8 1-1.5 1.8-2z' fill='%23DADDD8'/%3E%3C/svg%3E">
-  <link rel="apple-touch-icon" sizes="180x180" href="data:image/png;base64,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">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
   <link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/styles.css">
-  <script type="module" src="/app.js"></script>
+  <link rel="stylesheet" href="/styles.css?v=202611141234">
+  <script>
+    // The landing page opens the app with ?install=1 to show the Home Screen sheet.
+    // Take the flag off the address bar before the app reads the URL.
+    (function () { var q = new URLSearchParams(location.search); if (q.get("install") === "1") { q.delete("install"); window.__wantInstall = true; history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash); } })();
+  </script>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <script type="module" src="/app.js?v=202611141234"></script>
+  <script src="/install.js?v=202611141234" defer></script>
 </head>
-<body data-view="analyze">
+<body data-view="analyze" data-screen="boot">
   <svg class="sprite" aria-hidden="true" focusable="false">
     <symbol id="i-camera" viewBox="0 0 24 24"><path d="M3.75 9A2.25 2.25 0 0 1 6 6.75h1.7l1.3-2h6l1.3 2H18A2.25 2.25 0 0 1 20.25 9v8.25A2.25 2.25 0 0 1 18 19.5H6a2.25 2.25 0 0 1-2.25-2.25z"/><circle cx="12" cy="13" r="3.4"/></symbol>
     <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.75" y="4.75" width="16.5" height="14.5" rx="3"/><circle cx="9" cy="9.75" r="1.6"/><path d="M20.25 15.25l-4.4-4.4a1.5 1.5 0 0 0-2.12 0L5.5 19.1"/></symbol>
     <symbol id="i-today" viewBox="0 0 24 24"><rect x="3.75" y="5.25" width="16.5" height="15" rx="3"/><path d="M3.75 10h16.5M8 3.25v3.5M16 3.25v3.5M8.5 14.5h3"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M4.5 10.6L12 4.5l7.5 6.1V18a1.75 1.75 0 0 1-1.75 1.75H6.25A1.75 1.75 0 0 1 4.5 18z"/><path d="M9.75 19.75v-5.5h4.5v5.5"/></symbol>
     <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7.5 16.5l9-9M9.5 7.5h7v7"/></symbol>
     <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M14.5 5.5L8 12l6.5 6.5"/></symbol>
     <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9.5 5.5L16 12l-6.5 6.5"/></symbol>
@@ -37,6 +45,9 @@
     <symbol id="i-plate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.25"/><circle cx="12" cy="12" r="4.5"/></symbol>
     <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.25M12 7.75v.01"/></symbol>
     <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3.75s-5.5 6-5.5 10.1a5.5 5.5 0 0 0 11 0C17.5 9.75 12 3.75 12 3.75z"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3.75" y="5.75" width="16.5" height="12.5" rx="2.75"/><path d="M4.5 7.5l7.5 5.5 7.5-5.5"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8.25" cy="15.75" r="3.75"/><path d="M11 13l8.25-8.25M16.25 7.75l2 2M14 10l1.75 1.75"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 19.25H6.75A1.75 1.75 0 0 1 5 17.5v-11a1.75 1.75 0 0 1 1.75-1.75H10M14.5 16.25L18.75 12 14.5 7.75M18.5 12H9.75"/></symbol>
   </svg>
 
   <a class="skip" href="#main">Skip to content</a>
@@ -47,87 +58,121 @@
         <svg class="brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="10" fill="#1C1C1C"/><circle cx="16" cy="17.5" r="8" fill="none" stroke="#FAFAFF" stroke-width="2.4"/><path d="M16.2 4.8c2.9 1.4 4.2 3.9 3.7 6.9-2.9-.2-5-2-5.5-4.9.4-.8 1-1.5 1.8-2z" fill="#DADDD8"/></svg>
         <span>MealScholar</span>
       </a>
-      <p class="pilot">
-        <svg class="pilot__m" viewBox="0 0 108.6 92.1" aria-hidden="true" focusable="false"><path d="M106.77,90.5h-33.9l.29-37.62c-4.63,7.03-17.63,26.48-17.63,26.48l-2.41.03s-13.09-19.47-17.72-26.51l.29,37.62H1.78l-.06-22.14h4.56l-.34-43.92H1.49l-.12-22.93h31.48l21.42,34.73L75.69,1.5h31.48l-.12,22.93h-4.44l-.34,43.92h4.56l-.06,22.14Z" fill="#fff"/><path d="M108.26,92h-36.91l.26-34.07c-5.64,8.5-14.74,22.11-14.84,22.27l-.44.66-4.01.05-.45-.67c-.11-.16-9.28-13.8-14.94-22.31l.26,34.08H.28v-25.14h4.48l-.31-40.92H0V0h33.69l20.58,33.38L74.85,0h33.69v25.93h-4.45l-.31,40.92h4.48v25.14ZM74.38,89h30.9v-19.14h-4.51l.36-46.92h4.44V3h-29.03l-22.26,36.09L32.01,3H2.98v19.93h4.44l.36,46.92H3.27v19.14h30.9l-.32-41.18,2.79,4.24c4.09,6.21,14.92,22.33,17.26,25.82h.81c2.31-3.47,13.09-19.61,17.19-25.82l2.79-4.24-.32,41.18Z"/><path d="M78.06,85.34h23.56v-11.82h-4.55l.42-54.24h4.43V6.66h-23.35l-24.3,39.4L29.97,6.66H6.62v12.62h4.43l.42,54.24h-4.55v11.82h23.56l-.38-49.99,4.81,7.38c5,7.68,11.51,17.5,19.37,29.23,7.86-11.73,14.36-21.55,19.37-29.23l4.81-7.38-.38,49.99Z" fill="#840028"/></svg>
-        <span>Piloting at UMass</span>
-      </p>
+      <nav class="topnav" aria-label="Views">
+        <a class="tab" href="#today" data-view="today"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span>Today</span></a>
+        <a class="tab" href="#capture" data-view="analyze"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg><span>Analyze</span><span class="tab__badge" hidden><span class="visually-hidden">, new result</span></span></a>
+      </nav>
+      <div class="topbar__end">
+        <p class="pilot">
+          <svg class="pilot__m" viewBox="0 0 108.6 92.1" aria-hidden="true" focusable="false"><path d="M106.77,90.5h-33.9l.29-37.62c-4.63,7.03-17.63,26.48-17.63,26.48l-2.41.03s-13.09-19.47-17.72-26.51l.29,37.62H1.78l-.06-22.14h4.56l-.34-43.92H1.49l-.12-22.93h31.48l21.42,34.73L75.69,1.5h31.48l-.12,22.93h-4.44l-.34,43.92h4.56l-.06,22.14Z" fill="#fff"/><path d="M108.26,92h-36.91l.26-34.07c-5.64,8.5-14.74,22.11-14.84,22.27l-.44.66-4.01.05-.45-.67c-.11-.16-9.28-13.8-14.94-22.31l.26,34.08H.28v-25.14h4.48l-.31-40.92H0V0h33.69l20.58,33.38L74.85,0h33.69v25.93h-4.45l-.31,40.92h4.48v25.14ZM74.38,89h30.9v-19.14h-4.51l.36-46.92h4.44V3h-29.03l-22.26,36.09L32.01,3H2.98v19.93h4.44l.36,46.92H3.27v19.14h30.9l-.32-41.18,2.79,4.24c4.09,6.21,14.92,22.33,17.26,25.82h.81c2.31-3.47,13.09-19.61,17.19-25.82l2.79-4.24-.32,41.18Z"/><path d="M78.06,85.34h23.56v-11.82h-4.55l.42-54.24h4.43V6.66h-23.35l-24.3,39.4L29.97,6.66H6.62v12.62h4.43l.42,54.24h-4.55v11.82h23.56l-.38-49.99,4.81,7.38c5,7.68,11.51,17.5,19.37,29.23,7.86-11.73,14.36-21.55,19.37-29.23l4.81-7.38-.38,49.99Z" fill="#840028"/></svg>
+          <span class="pilot__text">Piloting at UMass</span>
+        </p>
+        <button class="snap snap--bar" type="button" data-action="snap"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg>Snap a meal</button>
+        <button id="account-button" class="avatar" type="button" aria-haspopup="dialog" aria-label="Account" hidden></button>
+      </div>
     </div>
   </header>
 
-  <nav class="tabbar" aria-label="Views">
-    <a class="tab" href="#capture" data-view="analyze" aria-current="page"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg><span>Analyze</span><span id="analyze-badge" class="tab__badge" hidden><span class="visually-hidden">, new result</span></span></a>
-    <a class="tab" href="#today" data-view="today"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-today"/></svg><span>Today</span></a>
-  </nav>
+  <div class="dock">
+    <nav class="tabbar" aria-label="Views">
+      <a class="tab" href="#today" data-view="today"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span>Today</span></a>
+      <a class="tab" href="#capture" data-view="analyze"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg><span>Analyze</span><span class="tab__badge" hidden><span class="visually-hidden">, new result</span></span></a>
+    </nav>
+    <button class="snap snap--dock" type="button" data-action="snap" aria-label="Snap a meal" title="Snap a meal"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg></button>
+  </div>
 
   <main id="main" class="shell" tabindex="-1">
+    <section id="auth" class="view auth" aria-label="Account" hidden></section>
+
+    <section id="today" class="view today" aria-labelledby="today-title">
+      <div id="today-banner" class="today__banner"></div>
+      <header class="dash-head">
+        <p id="today-greeting" class="dash-head__greeting">Hello</p>
+        <div class="dash-head__row">
+          <div class="dash-head__titles">
+            <h1 id="today-title" class="view-title" tabindex="-1">Today</h1>
+            <p id="today-date" class="dash-head__date"></p>
+          </div>
+          <div class="datenav" role="group" aria-label="Choose a day">
+            <button id="day-today" class="datenav__today" type="button" data-day="today" hidden>Today</button>
+            <button id="day-prev" class="icon-btn datenav__btn" type="button" data-day="prev" aria-label="Previous day"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-left"/></svg></button>
+            <button id="day-next" class="icon-btn datenav__btn" type="button" data-day="next" aria-label="Next day" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-right"/></svg></button>
+          </div>
+        </div>
+        <p id="day-status" class="visually-hidden" role="status" aria-live="polite"></p>
+      </header>
+      <div id="today-body" class="dash">
+        <div id="dash-notice" class="dash__notice"></div>
+        <div class="dash-grid">
+          <div id="dash-day" class="dash-region"></div>
+          <section id="dash-week" class="block week-block" aria-labelledby="week-title"></section>
+          <div id="dash-micro" class="dash-region"></div>
+        </div>
+      </div>
+    </section>
+
     <section id="capture" class="view capture" aria-labelledby="capture-title">
       <header class="view-head">
         <p class="eyebrow">Meal photo <span aria-hidden="true">&rarr;</span><span class="visually-hidden">to</span> foods <span aria-hidden="true">&rarr;</span><span class="visually-hidden">to</span> USDA nutrients</p>
         <h1 id="capture-title" class="view-title" tabindex="-1">What&rsquo;s on your plate?</h1>
-        <p class="lede">Snap a photo of your meal. You get the foods, the grams and the nutrients as honest ranges, not one fake-precise number.</p>
+        <p class="lede">Snap a photo of your meal. It works out the foods and how much is there, then shows the nutrients as honest ranges, not one fake-precise number.</p>
       </header>
 
-      <div id="viewfinder" class="viewfinder" data-state="empty">
-        <span class="corner corner--tl" aria-hidden="true"></span>
-        <span class="corner corner--tr" aria-hidden="true"></span>
-        <span class="corner corner--bl" aria-hidden="true"></span>
-        <span class="corner corner--br" aria-hidden="true"></span>
+      <div class="capture__main">
+        <div id="viewfinder" class="viewfinder" data-state="empty">
+          <span class="corner corner--tl" aria-hidden="true"></span>
+          <span class="corner corner--tr" aria-hidden="true"></span>
+          <span class="corner corner--bl" aria-hidden="true"></span>
+          <span class="corner corner--br" aria-hidden="true"></span>
 
-        <div class="viewfinder__empty">
-          <span class="viewfinder__icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-camera"/></svg></span>
-          <p class="viewfinder__title"><span class="if-fine">Drop a meal photo here</span><span class="if-coarse">Photograph your plate</span></p>
-          <div class="viewfinder__actions">
-            <button id="choose" class="cta cta--block" type="button" data-pick="library" aria-describedby="photo-hint">
-              <span class="cta__pill"><span class="if-fine">Choose a photo</span><span class="if-coarse">Take or choose a photo</span></span>
-              <span class="cta__dot" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-arrow"/></svg></span>
-            </button>
-            <button class="btn btn--secondary btn--block if-coarse" type="button" data-pick="camera"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg>Open camera</button>
+          <div class="viewfinder__empty">
+            <span class="viewfinder__icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-camera"/></svg></span>
+            <p class="viewfinder__title"><span class="if-fine">Drop a meal photo here</span><span class="if-coarse">Photograph your plate</span></p>
+            <div class="viewfinder__actions">
+              <button id="choose" class="cta cta--block" type="button" data-pick="library" aria-describedby="photo-hint">
+                <span class="cta__pill"><span class="if-fine">Choose a photo</span><span class="if-coarse">Take or choose a photo</span></span>
+                <span class="cta__dot" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-arrow"/></svg></span>
+              </button>
+              <button class="btn btn--secondary btn--block if-coarse" type="button" data-pick="camera"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg>Open camera</button>
+            </div>
+            <input id="photo" class="visually-hidden" type="file" accept="image/*,.heic,.heif" tabindex="-1" aria-hidden="true">
+            <input id="camera" class="visually-hidden" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+            <p id="photo-hint" class="viewfinder__hint">JPEG, PNG or HEIC, up to 25&nbsp;MB</p>
           </div>
-          <input id="photo" class="visually-hidden" type="file" accept="image/*,.heic,.heif" tabindex="-1" aria-hidden="true">
-          <input id="camera" class="visually-hidden" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
-          <p id="photo-hint" class="viewfinder__hint">JPEG, PNG or HEIC, up to 25&nbsp;MB</p>
-          <div id="setup" class="setup" hidden></div>
-        </div>
 
-        <div id="preview" class="viewfinder__preview" hidden>
-          <img alt="The meal photo being analyzed">
-          <span class="scan" aria-hidden="true"></span>
-          <p class="viewfinder__working" aria-hidden="true"><span class="spinner"></span>Identifying foods &middot; estimating grams</p>
+          <div id="preview" class="viewfinder__preview" hidden>
+            <img alt="The meal photo being analyzed">
+            <span class="scan" aria-hidden="true"></span>
+            <p class="viewfinder__working" aria-hidden="true"><span class="spinner"></span><span>Identifying foods &middot; estimating grams</span></p>
+          </div>
         </div>
-      </div>
-      <p id="capture-status" class="status" role="status" aria-live="polite"></p>
+        <div id="setup" class="setup" hidden></div>
+        <p id="capture-status" class="status" role="status" aria-live="polite"></p>
 
-      <div class="card setting">
-        <label class="switch-row">
-          <span class="switch-row__icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-pin"/></svg></span>
-          <span class="switch-row__text">
-            <span id="location-title" class="switch-row__title">Use my location to name the place</span>
-            <span id="location-hint" class="switch-row__hint">Off unless you switch it on. Only the place name is saved with your meal.</span>
-          </span>
-          <input id="use-location" class="switch" type="checkbox" role="switch" aria-labelledby="location-title" aria-describedby="location-hint">
-        </label>
-        <p id="location-status" class="status setting__status" role="status" aria-live="polite"></p>
+        <div class="card setting">
+          <label class="switch-row">
+            <span class="switch-row__icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-pin"/></svg></span>
+            <span class="switch-row__text">
+              <span id="location-title" class="switch-row__title">Use my location to name the place</span>
+              <span id="location-hint" class="switch-row__hint">Off unless you switch it on. Only the place name is saved with your meal.</span>
+            </span>
+            <input id="use-location" class="switch" type="checkbox" role="switch" aria-labelledby="location-title" aria-describedby="location-hint">
+          </label>
+          <p id="location-status" class="status setting__status" role="status" aria-live="polite"></p>
+        </div>
       </div>
 
       <section class="how" aria-labelledby="how-title">
         <h2 id="how-title" class="eyebrow how__title">How it works</h2>
         <ol class="how__list">
-          <li class="card"><span class="how__n" aria-hidden="true">01</span><span class="how__text"><strong>Photo</strong> Analyzed in memory, never stored. Location only if you switch it on.</span></li>
-          <li class="card"><span class="how__n" aria-hidden="true">02</span><span class="how__text"><strong>Foods and grams</strong> Gemini lists each food with a low, likely and high weight. It never outputs nutrient numbers.</span></li>
-          <li class="card"><span class="how__n" aria-hidden="true">03</span><span class="how__text"><strong>Nutrients</strong> Grams &times; USDA values per 100&nbsp;g. Weigh a food and its range collapses.</span></li>
+          <li class="card"><span class="how__n" aria-hidden="true">01</span><span class="how__text"><strong>Photo</strong> That’s all you do. Location only if you switch it on.</span></li>
+          <li class="card"><span class="how__n" aria-hidden="true">02</span><span class="how__text"><strong>Foods and how much</strong> The AI names each food and estimates how much is there as a low, likely and high amount. No weighing.</span></li>
+          <li class="card"><span class="how__n" aria-hidden="true">03</span><span class="how__text"><strong>Nutrients</strong> From the campus menu when the food is on it, otherwise USDA. The AI never makes up nutrient numbers.</span></li>
         </ol>
       </section>
     </section>
 
     <section id="result" class="view result" aria-labelledby="result-title" hidden></section>
-
-    <section id="today" class="view today" aria-labelledby="today-title">
-      <header class="view-head">
-        <p id="today-date" class="eyebrow">Today</p>
-        <h2 id="today-title" class="view-title">Today</h2>
-      </header>
-      <div id="today-body" class="today__body"><p class="loading">Loading today&hellip;</p></div>
-    </section>
   </main>
 
   <footer class="footer">
@@ -146,6 +191,20 @@
         <button class="icon-btn" type="button" data-action="close-sheet" aria-label="Close"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
       </div>
       <div id="sheet-body" class="sheet__body"></div>
+    </div>
+  </dialog>
+
+  <dialog id="account" class="sheet sheet--account" aria-labelledby="account-kicker account-title">
+    <div class="sheet__inner">
+      <div class="sheet__grab" aria-hidden="true"><span></span></div>
+      <div class="sheet__head">
+        <div class="sheet__titles">
+          <p id="account-kicker" class="eyebrow">Account</p>
+          <h2 id="account-title" class="sheet__title" tabindex="-1"></h2>
+        </div>
+        <button class="icon-btn" type="button" data-action="close-account" aria-label="Close"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
+      </div>
+      <div id="account-body" class="sheet__body"></div>
     </div>
   </dialog>
 

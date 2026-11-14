@@ -1,6 +1,7 @@
-// MealScholar web client: a plain ES module over the JSON API in web.py; no build step.
-// Product rules (README, AGENTS.md): every number is a range until the user weighs the food,
-// micronutrients are labelled estimates, and there are no calorie targets.
+// MealScholar web client: a plain ES module over the JSON API (web.py, plus auth.py when accounts
+// are on); no build step. Product rules (README, AGENTS.md): every number is a range until the user
+// weighs the food, micronutrients are labelled estimates, and there are no calorie targets, goals or
+// "remaining" numbers. % Daily Value is information only.
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -9,6 +10,7 @@ const els = {
   topbar: $(".topbar"),
   skip: $(".skip"),
   main: $("#main"),
+  auth: $("#auth"),
   capture: $("#capture"),
   captureTitle: $("#capture-title"),
   viewfinder: $("#viewfinder"),
@@ -26,8 +28,22 @@ const els = {
   today: $("#today-body"),
   todayTitle: $("#today-title"),
   todayDate: $("#today-date"),
+  greeting: $("#today-greeting"),
+  banner: $("#today-banner"),
+  dayPrev: $("#day-prev"),
+  dayNext: $("#day-next"),
+  dayToday: $("#day-today"),
+  dayStatus: $("#day-status"),
+  dashNotice: $("#dash-notice"),
+  dashDay: $("#dash-day"),
+  dashWeek: $("#dash-week"),
+  dashMicro: $("#dash-micro"),
   tabs: $$(".tab[data-view]"),
-  badge: $("#analyze-badge"),
+  badges: $$(".tab__badge"),
+  accountButton: $("#account-button"),
+  account: $("#account"),
+  accountTitle: $("#account-title"),
+  accountBody: $("#account-body"),
   sheet: $("#sheet"),
   sheetKicker: $("#sheet-kicker"),
   sheetTitle: $("#sheet-title"),
@@ -36,8 +52,7 @@ const els = {
 };
 
 const media = (query) => window.matchMedia(query);
-const wide = media("(min-width: 1024px)"); // Analyze and Today side by side; no tab bar
-const bottomSheet = media("(max-width: 639.98px)"); // the edit sheet slides up from the bottom
+const bottomSheet = media("(max-width: 39.99em)"); // sheets slide up from the bottom
 const finePointer = media("(pointer: fine)");
 const reducedMotion = media("(prefers-reduced-motion: reduce)");
 
@@ -46,14 +61,26 @@ const state = {
   analyzing: false,
   nutrients: [],
   // Each tab keeps its own meal: a new analysis, with its photo, under Analyze and a logged meal
-  // under Today. Wide screens show one of them in the main column, a logged meal in front.
+  // under Today. Only the active tab's meal is on screen.
   slots: { analyze: null, today: null }, // { result, photoUrl }
   shown: null, // the slot rendered into #result
   open: null, // { index, kind, id } while the edit sheet is open
   dismissedQuestion: null,
   view: "analyze",
+  home: "analyze", // the screen everything else stacks on: Analyze, or the Today dashboard with accounts
   scroll: { analyze: 0, today: 0, list: 0 },
   openedMeal: null,
+  // Accounts: only when GET /api/status says auth_required.
+  authRequired: false,
+  emailProvider: null,
+  user: null,
+  demoVerifyUrl: null,
+  resetToken: null,
+  // Dashboard
+  day: null, // the day on show, YYYY-MM-DD
+  todayKey: null, // what "today" was when last checked
+  dashSeq: 0,
+  microOpen: false,
 };
 
 const TIME_SOURCE = { exif: "time from the photo", device: "time from your device", upload: "time of upload" };
@@ -65,16 +92,39 @@ const SEP = '<span class="visually-hidden">, </span>';
 
 // ------------------------------------------------------------------- api
 
-async function api(path, { method = "GET", body, headers } = {}) {
+const OFFLINE = "Can't reach MealScholar right now. Check your connection and try again.";
+
+class ApiError extends Error {
+  constructor(message, { status = 0, field = null, retryAfter = null } = {}) {
+    super(message);
+    this.status = status;
+    this.field = field; // the form field the server says the error is about
+    this.retryAfter = retryAfter;
+    this.signedOut = false; // the sign-in ended and the sign-in screen has taken over
+  }
+}
+
+/** `session`: a 401 here means the sign-in ended (meal and day routes; some account routes). */
+async function api(path, { method = "GET", body, headers, session = !path.startsWith("/api/auth/") } = {}) {
   let response;
   try {
-    response = await fetch(path, { method, body, headers });
+    response = await fetch(path, { method, body, headers, credentials: "same-origin" });
   } catch {
-    throw new Error("Can't reach MealScholar right now. Check your connection and try again.");
+    throw new ApiError(OFFLINE);
   }
-  const data = response.headers.get("content-type")?.includes("application/json") ? await response.json() : null;
-  if (!response.ok) throw new Error(errorDetail(data) ?? `Request failed (${response.status}).`);
-  return data;
+  const isJson = response.headers.get("content-type")?.includes("application/json");
+  const data = isJson ? await response.json().catch(() => null) : null;
+  if (response.ok) return data;
+  const retryAfter = retrySeconds(response.headers.get("retry-after"));
+  const field = typeof data?.field === "string" ? data.field : null;
+  let message = errorDetail(data) ?? `Request failed (${response.status}).`;
+  if (response.status === 429) message = tooManyMessage(retryAfter) ?? message;
+  const error = new ApiError(message, { status: response.status, field, retryAfter });
+  if (response.status === 401 && session && !field) {
+    error.signedOut = state.authRequired;
+    signInLost();
+  }
+  throw error;
 }
 
 function errorDetail(data) {
@@ -82,6 +132,24 @@ function errorDetail(data) {
   if (Array.isArray(data?.detail)) return data.detail.map((d) => d.msg).join("; ");
   return null;
 }
+
+/** Retry-After as whole seconds: a number of seconds or an HTTP date. */
+function retrySeconds(header) {
+  if (!header) return null;
+  const seconds = Number(header);
+  if (Number.isFinite(seconds)) return Math.max(1, Math.ceil(seconds));
+  const at = Date.parse(header);
+  return Number.isNaN(at) ? null : Math.max(1, Math.ceil((at - Date.now()) / 1000));
+}
+
+function waitText(seconds) {
+  if (seconds < 60) return `${seconds} second${seconds === 1 ? "" : "s"}`;
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 90) return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+  return `${Math.ceil(minutes / 60)} hours`;
+}
+
+const tooManyMessage = (seconds) => (seconds ? `Too many attempts. Try again in ${waitText(seconds)}.` : null);
 
 const jsonBody = (value) => ({ body: JSON.stringify(value), headers: { "Content-Type": "application/json" } });
 
@@ -91,6 +159,10 @@ const nf0 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const amount = (value, unit) => (unit === "kcal" || value >= 100 ? nf0 : nf1).format(value);
 const grams = (value) => nf0.format(value);
+/** Dashboard tiles: whole numbers once the range reaches 10, else one decimal, the same for all three. */
+const tileFormat = (range) => (value) => (range.high >= 10 ? nf0 : nf1).format(value);
+/** Week chart labels: 980, 1.7k, 12k. */
+const compactKcal = (value) => (value < 999.5 ? nf0.format(value) : `${nf1.format(value / 1000).replace(/\.0$/, "")}k`);
 
 const esc = (value) =>
   String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -119,27 +191,53 @@ function wallClock(iso) {
 
 const dayFormat = new Intl.DateTimeFormat("en-US", { weekday: "short", day: "numeric", month: "short" });
 const timeFormat = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
+const longDay = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" });
+const monthDay = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric" });
+const monthDayYear = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
+const monthYear = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" });
+const weekdayLong = new Intl.DateTimeFormat("en-US", { weekday: "long" });
+const weekdayShort = new Intl.DateTimeFormat("en-US", { weekday: "short" });
+
+const pad = (n) => String(n).padStart(2, "0");
 
 function localDate(date = new Date()) {
-  const pad = (n) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+function parseDay(key) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function shiftDay(key, delta) {
+  const date = parseDay(key);
+  date.setDate(date.getDate() + delta);
+  return localDate(date);
+}
+
+/** `count` days ending with `end`, oldest first. */
+const lastDays = (end, count) => Array.from({ length: count }, (_, i) => shiftDay(end, i - count + 1));
+
+/** The diary files a meal under the local date of its photo. */
+const mealDay = (result) => localDate(wallClock(result.context.taken_at));
+
 const isExact = (range) => Math.abs(range.high - range.low) < 1e-9;
 const labelOf = (key) => state.nutrients.find((n) => n.key === key)?.label ?? key;
+const unitOf = (key) => state.nutrients.find((n) => n.key === key)?.unit ?? (key.endsWith("_mg") ? "mg" : "g");
 const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+const placeName = (ctx) => ctx.place?.name ?? ctx.place_name ?? null;
 
 /** "Fast food, american, burger": the OpenStreetMap place type and its cuisines, readable. */
 function placeKind(place) {
   const words = (s) => s.replace(/_/g, " ").trim();
   const cuisines = (place.cuisine ?? "").split(";").map(words).filter(Boolean);
-  return capitalize([words(place.kind), ...cuisines].filter(Boolean).join(", "));
+  return capitalize([words(place.kind ?? ""), ...cuisines].filter(Boolean).join(", "));
 }
 
 // ---------------------------------------------------------------- bands
 // A band is a track with the low–high range and an ink tick at the likely value. Positions are
 // transforms only; on re-render each band moves from where it was, so weighing a food visibly
-// collapses its range onto one line.
+// collapses its range onto one line, and changing days slides every bar to the new day.
 
 /** `scale` is the value at the track's right end; bands that share a scale are comparable. */
 function bandHtml(key, range, { index = 0, scale = range.high * 1.12 || 1, dark = false } = {}) {
@@ -190,11 +288,12 @@ function placeBands(root) {
 }
 
 // ---------------------------------------------------------------- views
-// Phones show one view at a time behind the tab bar; wide screens show both (see styles.css).
+// One view at a time on every screen: Today (the dashboard, or a logged meal opened from it) and
+// Analyze (the capture screen, or a new result). Phones switch with the tab bar at the bottom,
+// wide screens with the tabs in the top bar.
 
-/** The slot #result shows: on phones the active tab's meal; on wide screens a logged meal, else a new one. */
+/** The slot #result shows: the active tab's meal, if it has one. */
 function shownKey() {
-  if (wide.matches) return state.slots.today ? "today" : state.slots.analyze ? "analyze" : null;
   return state.slots[state.view] ? state.view : null;
 }
 
@@ -228,20 +327,24 @@ function syncResult({ enter = null } = {}) {
   $("#result-title", els.result)?.focus({ preventScroll: true });
 }
 
-function setView(view) {
-  if (view === state.view) return;
-  if (!wide.matches) state.scroll[state.view] = window.scrollY;
-  state.view = view;
-  document.body.dataset.view = view;
+function syncTabs() {
   for (const tab of els.tabs) {
-    if (tab.dataset.view === view) tab.setAttribute("aria-current", "page");
+    if (tab.dataset.view === state.view) tab.setAttribute("aria-current", "page");
     else tab.removeAttribute("aria-current");
   }
+}
+
+function setView(view) {
+  if (view === state.view) return;
+  state.scroll[state.view] = window.scrollY;
+  state.view = view;
+  document.body.dataset.view = view;
+  syncTabs();
   if (view === "analyze") showBadge(false);
   syncResult();
-  if (wide.matches) return;
   $$(".view").forEach(replayEntrance);
   window.scrollTo(0, state.scroll[view] ?? 0);
+  if (view === "today") ensureDashboard();
 }
 
 function scrollTop() {
@@ -255,6 +358,7 @@ for (const tab of els.tabs) {
     if (view !== state.view) setView(view);
     // Tapping the active tab again goes back to the start of that view, as in native apps.
     else if (state.slots[view]) closeSlot(view, { focus: view === "today" });
+    else if (view === "today" && state.day !== state.todayKey) goToDay(state.todayKey);
     else scrollTop();
     syncHistory();
   });
@@ -263,17 +367,8 @@ for (const tab of els.tabs) {
 const onScroll = () => els.topbar.classList.toggle("is-scrolled", window.scrollY > 4);
 window.addEventListener("scroll", onScroll, { passive: true });
 
-// On phones Today is a screen of its own, so its title is the page's level-1 heading there;
-// on wide screens it is a side panel next to the Analyze h1.
-function syncHeadingLevel() {
-  if (wide.matches) els.todayTitle.removeAttribute("aria-level");
-  else els.todayTitle.setAttribute("aria-level", "1");
-}
-
-wide.addEventListener("change", () => {
-  syncHeadingLevel();
-  syncResult();
-});
+/** The tab that is on screen for this layout: the tab bar on phones, the top bar on wide screens. */
+const visibleTab = () => els.tabs.find((tab) => tab.matches("[aria-current]") && tab.getClientRects().length);
 
 // --------------------------------------------------------------- capture
 
@@ -294,7 +389,7 @@ function setStatus(message, { error = false, target = els.status } = {}) {
 }
 
 function setPickers(enabled) {
-  for (const button of $$("[data-pick], [data-action='start']")) button.disabled = !enabled;
+  for (const button of $$("[data-pick], [data-action='start'], [data-action='snap']")) button.disabled = !enabled;
 }
 
 function renderSetup(status) {
@@ -325,7 +420,7 @@ function devicePosition() {
 
 /** A dot on the Analyze tab: a result finished while you were on Today. */
 function showBadge(on) {
-  els.badge.hidden = !on;
+  for (const badge of els.badges) badge.hidden = !on;
 }
 
 /** Focus the start of the capture screen: the photo button, or the heading while it can't be used. */
@@ -341,10 +436,9 @@ async function analyze(file) {
     setStatus("That file isn't an image. Choose a JPEG, PNG or HEIC photo.", { error: true });
     return;
   }
-  // A new photo replaces the last analysis; on wide screens it also takes over the main column.
-  const leaving = Boolean(state.shown);
+  // A new photo replaces the last analysis and brings Analyze to the front.
+  const leaving = Boolean(state.shown) || state.view !== "analyze";
   discardSlot("analyze");
-  if (wide.matches) discardSlot("today");
   setView("analyze");
   syncResult();
   if (leaving) {
@@ -358,6 +452,8 @@ async function analyze(file) {
   els.previewImg.src = photoUrl;
   state.analyzing = true;
   setViewfinder("analyzing");
+  // On a short phone the frame's bottom, where the progress pill sits, would hide behind the tab bar.
+  els.viewfinder.scrollIntoView({ block: "nearest", behavior: reducedMotion.matches ? "auto" : "smooth" });
   setStatus("Analyzing your photo. This usually takes a few seconds.");
 
   let query = "";
@@ -379,8 +475,7 @@ async function analyze(file) {
     setStatus("");
     state.slots.analyze = { result, photoUrl };
     state.scroll.analyze = 0;
-    if (wide.matches) discardSlot("today");
-    if (wide.matches || state.view === "analyze") {
+    if (state.view === "analyze") {
       syncResult({ enter: "analyze" });
     } else {
       // The user moved to Today while waiting: leave them there and point at the Analyze tab.
@@ -389,16 +484,13 @@ async function analyze(file) {
       toast("Your meal is ready. Open Analyze to see it.");
     }
     syncHistory();
-    loadToday();
+    if (result.id != null) refreshDays([mealDay(result)]);
   } catch (err) {
     URL.revokeObjectURL(photoUrl);
-    // On wide screens the outcome takes the main column, as a result would.
-    if (wide.matches && state.slots.today) {
-      closeSlot("today");
-      syncHistory();
+    if (!err.signedOut) {
+      setStatus(err.message, { error: true });
+      if (state.view !== "analyze") toast("That photo couldn't be analyzed. Open Analyze to see why.");
     }
-    setStatus(err.message, { error: true });
-    if (!wide.matches && state.view !== "analyze") toast("That photo couldn't be analyzed. Open Analyze to see why.");
   } finally {
     state.analyzing = false;
     setViewfinder("empty");
@@ -416,7 +508,7 @@ function discardSlot(key) {
   if (key === "analyze") showBadge(false);
 }
 
-/** Close a tab's meal: Analyze goes back to the capture screen, Today to its list. */
+/** Close a tab's meal: Analyze goes back to the capture screen, Today to the dashboard. */
 function closeSlot(key, { focus = false } = {}) {
   const slot = state.slots[key];
   if (!slot) return;
@@ -425,21 +517,21 @@ function closeSlot(key, { focus = false } = {}) {
   if (!state.analyzing) setStatus("");
   syncResult();
   if (!wasShown) return;
-  if (key === "today" && !wide.matches) {
+  if (key === "today") {
     window.scrollTo(0, state.scroll.list);
     replayEntrance(els.todayView);
-    if (focus) $(`[data-meal="${state.openedMeal}"]`, els.today)?.focus({ preventScroll: true });
+    if (focus && state.openedMeal != null) {
+      $(`[data-meal="${CSS.escape(String(state.openedMeal))}"]`, els.today)?.focus({ preventScroll: true });
+    }
     return;
   }
   window.scrollTo(0, 0);
-  replayEntrance(state.shown ? els.result : els.capture);
-  if (!focus) return;
-  if (state.shown) $("#result-title", els.result)?.focus({ preventScroll: true });
-  else focusCapture();
+  replayEntrance(els.capture);
+  if (focus) focusCapture();
 }
 
-/** Back to a fresh capture screen, optionally opening the photo picker right away. */
-function startNewMeal({ pick = false } = {}) {
+/** Back to a fresh capture screen. */
+function startNewMeal() {
   if (state.shown && state.shown === state.slots.today) discardSlot("today"); // leaving a logged meal closes it
   discardSlot("analyze");
   if (!state.analyzing) setStatus("");
@@ -448,16 +540,29 @@ function startNewMeal({ pick = false } = {}) {
   window.scrollTo(0, 0);
   replayEntrance(els.capture);
   syncHistory();
-  if (pick && state.analyzing) toast("Still analyzing the last photo.");
-  if (pick && state.ready && !state.analyzing) els.library.click();
-  else focusCapture();
+  focusCapture();
+}
+
+/** "Snap a meal": straight to the photo picker. The app moves to Analyze once a photo is chosen,
+    so cancelling the picker leaves you where you were. */
+function snapMeal() {
+  if (!state.ready) return;
+  if (state.analyzing) {
+    toast("Still analyzing the last photo.");
+    if (state.view !== "analyze") {
+      setView("analyze");
+      syncHistory();
+    }
+    return;
+  }
+  els.library.click();
 }
 
 // ---------------------------------------------------------------- result
 
-/** Highlight the open meal in Today's list (the one beside it on wide screens). */
+/** Mark the open meal in the dashboard's list. */
 function markOpenMeal() {
-  const id = (state.slots.today ?? state.slots.analyze)?.result.id;
+  const id = state.slots.today?.result.id;
   for (const button of $$("[data-meal]", els.today)) {
     if (id != null && button.dataset.meal === String(id)) button.setAttribute("aria-current", "true");
     else button.removeAttribute("aria-current");
@@ -474,27 +579,33 @@ function renderResult(mode = "update", { focus } = {}) {
   if (focus) $(focus, els.result)?.focus();
 }
 
+/** "Today", "Yesterday" or the weekday of the day on show, for buttons that lead back to it. */
+function dayName(key = state.day ?? localDate()) {
+  return dayTitle(key).title;
+}
+
 function resultHtml(slot) {
   const { result, photoUrl } = slot;
   const ctx = result.context;
   const when = wallClock(ctx.taken_at);
-  const place = ctx.place ? ` <span class="result__place">at ${esc(ctx.place.name)}</span>` : "";
+  const place = placeName(ctx) ? ` <span class="result__place">at ${esc(placeName(ctx))}</span>` : "";
   // Date and time source stay whole; a long list of OpenStreetMap cuisines may wrap.
   const meta = [`${dayFormat.format(when)}, ${timeFormat.format(when)}`, TIME_SOURCE[ctx.time_source]]
     .filter(Boolean)
     .map((part, i) => `<span class="nowrap">${i ? "· " : ""}${esc(part)}</span>`);
   if (ctx.place) meta.push(`<span>·&nbsp;${esc(placeKind(ctx.place))}</span>`);
   const fromToday = slot === state.slots.today;
-  const back = fromToday ? '<span class="if-narrow">Today</span><span class="if-wide">Back</span>' : "New photo";
+  const name = dayName();
+  const backTo = /^(Today|Yesterday)$/.test(name) ? name.toLowerCase() : name;
 
   return `
     <div class="result__nav">
-      <button class="back" type="button" data-action="back">${icon("chevron-left")}${back}</button>
+      <button class="back" type="button" data-action="back">${icon("chevron-left")}${fromToday ? esc(name) : "New photo"}</button>
     </div>
     <article class="card meal-card${photoUrl ? " meal-card--photo" : ""}">
       ${photoUrl ? photoHtml(result, photoUrl) : ""}
       <div class="meal-card__body">
-        ${result.id != null ? `<p class="eyebrow">Meal #${result.id}</p>` : ""}
+        ${result.id != null ? `<p class="eyebrow">Meal #${esc(result.id)}</p>` : ""}
         <h1 id="result-title" class="result__title" tabindex="-1">${esc(capitalize(ctx.meal_slot))}${place}</h1>
         <p class="result__meta">${meta.join(" ")}</p>
         ${totalHtml(result, photoUrl)}
@@ -509,7 +620,7 @@ function resultHtml(slot) {
         <span class="cta__pill">Analyze another meal</span>
         <span class="cta__dot" aria-hidden="true">${icon("arrow")}</span>
       </button>
-      <button class="btn btn--secondary btn--block if-narrow" type="button" data-action="see-today">${icon("today")}${fromToday ? "Back to today" : "See today"}</button>
+      <button class="btn btn--secondary btn--block" type="button" data-action="see-today">${icon("home")}${fromToday ? `Back to ${esc(backTo)}` : "See today"}</button>
     </div>`;
 }
 
@@ -528,7 +639,7 @@ function totalHtml(result, photoUrl) {
   if (!result.items.length) {
     return `<p class="total__empty">No food or drink found in this photo. Try another shot with the whole plate in view.</p>`;
   }
-  const noPhoto = photoUrl ? "" : '<p class="answered">Photos are never stored, so saved meals appear without one.</p>';
+  const noPhoto = photoUrl ? "" : '<p class="answered">Saved meals show their foods, not the photo.</p>';
   const answered = result.answer
     ? `<p class="answered">${icon("check")}<span>You said: “${esc(result.answer)}”. The foods and ranges below include it.</span></p>`
     : "";
@@ -627,7 +738,7 @@ function itemHtml(r, i, gramsScale) {
       : '<span class="value__none">No energy data</span>'
     : '<span class="chip chip--alert">Not counted</span>';
   const matchLine = match
-    ? `<p class="item__match"><span class="item__src">USDA<span class="visually-hidden">:</span></span> ${esc(match.description)}<span class="item__id">${SEP}${esc(match.data_type)} #${match.fdc_id}</span></p>`
+    ? `<p class="item__match"><span class="item__src">USDA<span class="visually-hidden">:</span></span> ${esc(match.description)}<span class="item__id">${SEP}${esc(match.data_type)} #${esc(match.fdc_id)}</span></p>`
     : `<p class="item__match is-missing">No close USDA match, so this food isn't in the totals yet. Pick one to count it.</p>`;
   return `
     <li class="item card" data-index="${i}" style="--i:${i}">
@@ -670,14 +781,15 @@ function nutrientRowsHtml(totals, dv, { micro, prefix, skip = [] }) {
     .join("");
 }
 
+const DV_NOTE = "Bars show % of the FDA Daily Value. It's a label reference, not a goal.";
+
 function nutrientsHtml(result) {
   const macros = nutrientRowsHtml(result.totals, result.daily_value_pct, { micro: false, prefix: "n", skip: ["energy_kcal"] });
   const micros = nutrientRowsHtml(result.totals, result.daily_value_pct, { micro: true, prefix: "n" });
   if (!macros && !micros) return "";
+  // Nutrient names keep their own case (Vitamin D, not "vitamin d").
   const partial = result.partial_nutrients.length
-    ? `<p class="note">Some foods have no USDA data for ${esc(
-        result.partial_nutrients.map((k) => labelOf(k).toLowerCase()).join(", ")
-      )}, so those totals undercount.</p>`
+    ? `<p class="note">Some foods have no USDA data for ${esc(result.partial_nutrients.map(labelOf).join(", "))}, so those totals undercount.</p>`
     : "";
   return `
     <section class="block" aria-labelledby="nutrients-title">
@@ -687,7 +799,7 @@ function nutrientsHtml(result) {
       </div>
       <div class="card nutrients-card">
         <ul class="nutrients">${macros}</ul>
-        <p class="note">Bars run to 100% of the FDA Daily Value, the reference on food labels. It is not a goal.</p>
+        <p class="note">${DV_NOTE}</p>
         ${micros ? microDetailsHtml(micros) : ""}
         ${partial}
       </div>
@@ -737,12 +849,13 @@ function highlight(index) {
   else delete boxes.dataset.active;
 }
 
-/** A meal came back changed: update every tab that holds it, and the screen if it shows it. */
+/** A meal came back changed: update every tab that holds it, the screen if it shows it, and its day. */
 function updateMeal(result, { focus } = {}) {
   for (const slot of [state.slots.analyze, state.slots.today]) {
     if (slot && result.id != null && slot.result.id === result.id) slot.result = result;
   }
   if (state.shown?.result === result) renderResult("update", { focus });
+  if (result.id != null) refreshDays([mealDay(result)]);
 }
 
 els.result.addEventListener("click", (event) => {
@@ -758,8 +871,13 @@ els.result.addEventListener("click", (event) => {
       startNewMeal();
       break;
     case "see-today":
-      if (shownKey() === "today") closeSlot("today", { focus: true });
-      else setView("today");
+      if (shownKey() === "today") {
+        closeSlot("today", { focus: true });
+      } else {
+        setView("today");
+        window.scrollTo(0, 0);
+        els.todayTitle.focus({ preventScroll: true });
+      }
       syncHistory();
       break;
     case "dismiss-question":
@@ -785,18 +903,27 @@ els.result.addEventListener("submit", async (event) => {
     try {
       updateMeal(await api(`/api/meals/${id}/answer`, { method: "POST", ...jsonBody({ answer }) }), { focus: "#result-title" });
       toast("Thanks. The ranges now include your answer.");
-      loadToday();
     } catch (err) {
-      if (form.isConnected) $(".question__error", form).textContent = err.message;
+      if (form.isConnected && !err.signedOut) $(".question__error", form).textContent = err.message;
     }
   });
 });
 
+// The plate's matching box lights up with its food card under a mouse or keyboard focus. Touch skips
+// it: a finger scrolling the list would otherwise flash a selection ring on every card it crosses.
 els.result.addEventListener("pointerover", (event) => {
-  if (!state.open) highlight(event.target.closest(".item")?.dataset.index ?? null);
+  if (event.pointerType !== "mouse" || state.open) return;
+  highlight(event.target.closest(".item")?.dataset.index ?? null);
 });
-els.result.addEventListener("pointerleave", () => state.open || highlight(null));
-els.result.addEventListener("focusin", (event) => highlight(event.target.closest(".item")?.dataset.index ?? null));
+els.result.addEventListener("pointerleave", (event) => {
+  if (event.pointerType === "mouse" && !state.open) highlight(null);
+});
+els.result.addEventListener("focusin", (event) => {
+  if (state.open) return;
+  const item = event.target.closest(".item");
+  if (item && !event.target.matches(":focus-visible")) return; // a tap, not the keyboard
+  highlight(item?.dataset.index ?? null);
+});
 
 // ------------------------------------------------------------ edit sheet
 // Fixing a food (exact grams or a different USDA match) happens in a sheet over the result.
@@ -853,7 +980,7 @@ els.sheet.addEventListener("close", () => {
   els.sheet.classList.remove("is-closing");
   els.sheet.style.transition = "";
   els.sheet.style.transform = "";
-  document.documentElement.classList.remove("has-sheet");
+  if (!els.account.open) document.documentElement.classList.remove("has-sheet");
   const open = state.open;
   state.open = null;
   els.sheetBody.innerHTML = "";
@@ -870,38 +997,40 @@ els.sheet.addEventListener("cancel", (event) => {
   closeSheet();
 });
 
-let pressedBackdrop = false;
-let drag = null;
-
-els.sheet.addEventListener("pointerdown", (event) => {
-  pressedBackdrop = event.target === els.sheet;
-  // Drag the grabber or the header down to dismiss, like a native sheet.
-  if (!bottomSheet.matches || event.button !== 0 || event.target.closest("button")) return;
-  if (!event.target.closest(".sheet__grab, .sheet__head")) return;
-  drag = { id: event.pointerId, y: event.clientY, dy: 0 };
-  els.sheet.setPointerCapture(event.pointerId);
-  els.sheet.style.transition = "none";
-});
-
-els.sheet.addEventListener("pointermove", (event) => {
-  if (drag?.id !== event.pointerId) return;
-  drag.dy = Math.max(0, event.clientY - drag.y);
-  els.sheet.style.transform = `translateY(${drag.dy}px)`;
-});
-
-function endDrag(event) {
-  if (drag?.id !== event.pointerId) return;
-  const { dy } = drag;
-  drag = null;
-  if (dy > 80) return closeSheet({ swiped: true });
-  els.sheet.style.transition = "transform 240ms cubic-bezier(0.16, 1, 0.3, 1)";
-  els.sheet.style.transform = "";
+/** Drag a bottom sheet down by its grabber or header to dismiss it, like a native sheet. */
+function dragToDismiss(dialog, close) {
+  let drag = null;
+  dialog.addEventListener("pointerdown", (event) => {
+    if (!bottomSheet.matches || event.button !== 0 || event.target.closest("button")) return;
+    if (!event.target.closest(".sheet__grab, .sheet__head")) return;
+    drag = { id: event.pointerId, y: event.clientY, dy: 0 };
+    dialog.setPointerCapture(event.pointerId);
+    dialog.style.transition = "none";
+  });
+  dialog.addEventListener("pointermove", (event) => {
+    if (drag?.id !== event.pointerId) return;
+    drag.dy = Math.max(0, event.clientY - drag.y);
+    dialog.style.transform = `translateY(${drag.dy}px)`;
+  });
+  const end = (event) => {
+    if (drag?.id !== event.pointerId) return;
+    const { dy } = drag;
+    drag = null;
+    if (dy > 80) return close({ swiped: true });
+    dialog.style.transition = "transform 240ms cubic-bezier(0.16, 1, 0.3, 1)";
+    dialog.style.transform = "";
+  };
+  dialog.addEventListener("pointerup", end);
+  dialog.addEventListener("pointercancel", end);
 }
 
-els.sheet.addEventListener("pointerup", endDrag);
-els.sheet.addEventListener("pointercancel", endDrag);
+let pressedBackdrop = false;
+els.sheet.addEventListener("pointerdown", (event) => {
+  pressedBackdrop = event.target === els.sheet;
+});
+dragToDismiss(els.sheet, closeSheet);
 
-// Keep the bottom sheet above the on-screen keyboard: --kb is the part of the screen it covers.
+// Keep a bottom sheet above the on-screen keyboard: --kb is the part of the screen it covers.
 if (window.visualViewport) {
   const vv = window.visualViewport;
   const lift = () => {
@@ -958,7 +1087,7 @@ function weighHtml(r, i) {
       <label class="field-label" for="grams-${i}">Exact weight in grams<span class="visually-hidden"> of ${esc(r.item.name)}</span></label>
       <div class="weigh__row">
         <span class="field-unit">
-          <input id="grams-${i}" class="field" name="grams" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="10000" step="1" required placeholder="${r.item.grams_likely}" enterkeyhint="done" aria-describedby="weigh-hint">
+          <input id="grams-${i}" class="field" name="grams" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="10000" step="1" required placeholder="${esc(r.item.grams_likely)}" enterkeyhint="done" aria-describedby="weigh-hint">
           <span aria-hidden="true">g</span>
         </span>
         <button class="btn btn--primary" type="submit">${icon("check")}Set weight</button>
@@ -990,7 +1119,7 @@ function optionHtml(food, current = false) {
   const meta = [food.data_type, kcal != null ? `${nf0.format(kcal)} kcal/100 g` : null].filter(Boolean).join(" · ");
   return `
     <li>
-      <button class="option" type="button" data-action="pick" data-fdc="${food.fdc_id}"${current ? ' aria-current="true" disabled' : ""}>
+      <button class="option" type="button" data-action="pick" data-fdc="${esc(food.fdc_id)}"${current ? ' aria-current="true" disabled' : ""}>
         <span class="option__name">${esc(food.description)}${SEP}</span>
         <span class="option__meta">${esc(meta)}</span>
         <span class="option__end">${current ? `${icon("check")}${SEP}Current` : icon("chevron-right")}</span>
@@ -1006,9 +1135,8 @@ async function correct(index, body, button, kind) {
     try {
       updateMeal(await api(`/api/meals/${id}/items/${index}`, { method: "PATCH", ...jsonBody(body) }));
       closeSheet({ message: kind === "weigh" ? "Weight set. Totals updated." : "Food changed. Totals updated." });
-      loadToday();
     } catch (err) {
-      if (error?.isConnected) error.textContent = err.message;
+      if (error?.isConnected && !err.signedOut) error.textContent = err.message;
     }
   });
 }
@@ -1041,7 +1169,7 @@ async function searchFoods(input) {
     // The suggestions would repeat what the search shows; they come back when the field is cleared.
     suggest.hidden = found.foods.length > 0;
   } catch (err) {
-    if (seq !== searchSeq || !list.isConnected) return;
+    if (seq !== searchSeq || !list.isConnected || err.signedOut) return;
     list.innerHTML = `<li class="options__empty is-error">${esc(err.message)}</li>`;
     count.textContent = err.message; // the live region announces the failure too
   }
@@ -1061,85 +1189,540 @@ function toast(message) {
   }, 2600);
 }
 
-// ----------------------------------------------------------------- today
+// ------------------------------------------------------------- dashboard
+// Today: one day's calories, nutrients and meals, plus the last 7 days. Every day comes from
+// GET /api/days/{day} and stays cached, so switching days is instant; a change to a meal marks its
+// day stale and the next render fetches it again while the old numbers stay on screen.
 
-async function loadToday() {
-  const day = localDate();
-  els.todayDate.textContent = dayFormat.format(new Date());
-  try {
-    renderToday(await api(`/api/days/${day}`));
-  } catch (err) {
-    els.today.innerHTML = `<p class="status is-error" role="alert">${esc(err.message)}</p>`;
+const SLOTS = ["breakfast", "lunch", "dinner", "snack"];
+const MACROS = [["protein_g", "Protein"], ["carbs_g", "Carbs"], ["fat_g", "Fat"]];
+const MINIS = [["fiber_g", "Fiber"], ["sugars_g", "Total sugars"], ["sodium_mg", "Sodium"]];
+
+const dayCache = new Map(); // "YYYY-MM-DD" -> { value, error, pending, stale, promise, version }
+const rendered = { day: "", week: "" }; // what each region shows, so unchanged data isn't redrawn
+
+function fetchDay(key) {
+  let entry = dayCache.get(key);
+  if (entry?.pending) return entry.promise;
+  if (entry?.value && !entry.stale) return Promise.resolve(entry.value);
+  if (!entry) {
+    entry = { version: 0 };
+    dayCache.set(key, entry);
   }
+  entry.pending = true;
+  entry.promise = api(`/api/days/${key}`).then(
+    (view) => {
+      Object.assign(entry, { value: view, error: null, stale: false, pending: false, version: entry.version + 1 });
+      return view;
+    },
+    (err) => {
+      Object.assign(entry, { error: err, pending: false, version: entry.version + 1 });
+      throw err;
+    }
+  );
+  entry.promise.catch(() => {}); // callers that need the error read it from the entry
+  return entry.promise;
 }
 
-function renderToday(view) {
-  if (!view.meals.length) {
-    els.today.innerHTML = `
-      <div class="card empty">
-        <span class="empty__icon" aria-hidden="true">${icon("plate")}</span>
-        <p class="empty__title">Nothing logged yet today</p>
-        <p>Each meal you analyze lands here with its ranges, and the day's total adds up. No targets, just what you ate.</p>
-        <button class="btn btn--primary if-narrow" type="button" data-action="start"${state.ready ? "" : " disabled"}>${icon("camera")}Take or choose a photo</button>
-      </div>`;
+/** Mark days changed; the dashboard fetches them again and keeps showing the old numbers meanwhile. */
+function refreshDays(keys) {
+  for (const key of keys) {
+    const entry = dayCache.get(key);
+    if (entry) entry.stale = true;
+  }
+  loadDashboard();
+}
+
+/** Keep "today" current across midnight: a dashboard left on today moves to the new day. */
+function ensureToday() {
+  const today = localDate();
+  if (state.todayKey === today) return false;
+  const followToday = !state.day || state.day === state.todayKey;
+  state.todayKey = today;
+  if (followToday || state.day > today) state.day = today;
+  return true;
+}
+
+function dayTitle(key) {
+  const today = state.todayKey ?? localDate();
+  const date = parseDay(key);
+  if (key === today) return { title: "Today", sub: longDay.format(date) };
+  if (key === shiftDay(today, -1)) return { title: "Yesterday", sub: longDay.format(date) };
+  const sameYear = date.getFullYear() === parseDay(today).getFullYear();
+  return { title: weekdayLong.format(date), sub: (sameYear ? monthDay : monthDayYear).format(date) };
+}
+
+const firstName = (user) => (user?.name ?? "").trim().split(/\s+/)[0] ?? "";
+
+function greetingText() {
+  const hour = new Date().getHours();
+  const part = hour >= 5 && hour < 12 ? "morning" : hour >= 12 && hour < 18 ? "afternoon" : "evening";
+  const name = state.authRequired ? firstName(state.user) : "";
+  return name ? `Good ${part}, ${name}` : `Good ${part}`;
+}
+
+function renderDashHead() {
+  const key = state.day;
+  const { title, sub } = dayTitle(key);
+  els.todayTitle.textContent = title;
+  els.todayDate.textContent = sub;
+  els.greeting.textContent = greetingText(); // text, never HTML: the name comes from the server
+  const isToday = key === state.todayKey;
+  const active = document.activeElement;
+  els.dayNext.disabled = isToday; // never a future day
+  els.dayToday.hidden = isToday;
+  if (isToday && (active === els.dayNext || active === els.dayToday)) els.dayPrev.focus();
+  els.dayPrev.setAttribute("aria-label", `Previous day, ${longDay.format(parseDay(shiftDay(key, -1)))}`);
+  els.dayNext.setAttribute("aria-label", isToday ? "Next day" : `Next day, ${longDay.format(parseDay(shiftDay(key, 1)))}`);
+}
+
+function ensureDashboard() {
+  if (ensureToday() || !rendered.day.startsWith(`${state.day}|`)) return loadDashboard();
+  const keys = [state.day, ...lastDays(state.todayKey, 7)];
+  if (keys.some((key) => !dayCache.get(key)?.value || dayCache.get(key).stale)) loadDashboard();
+}
+
+async function loadDashboard() {
+  if (document.body.dataset.screen !== "app") return;
+  ensureToday();
+  const seq = ++state.dashSeq;
+  const week = lastDays(state.todayKey, 7);
+  const dayTask = fetchDay(state.day);
+  const weekTasks = week.map((key) => fetchDay(key));
+  renderDashHead();
+  renderDay(); // straight from the cache: the day if it is known, else a skeleton
+  renderWeek();
+  await Promise.allSettled([dayTask]);
+  if (seq !== state.dashSeq) return;
+  renderDay();
+  await Promise.allSettled(weekTasks);
+  if (seq !== state.dashSeq) return;
+  renderWeek();
+}
+
+function goToDay(key) {
+  ensureToday();
+  if (key > state.todayKey) key = state.todayKey; // never a future day
+  if (key === state.day) return;
+  state.day = key;
+  els.dayStatus.textContent = `Showing ${longDay.format(parseDay(key))}.`;
+  loadDashboard();
+}
+
+/** Redraw a region and put keyboard focus back on the same control (a meal row, a day) if it had it. */
+function redraw(region, html, key) {
+  const focused = document.activeElement?.closest?.(`[${key}]`);
+  const value = focused && region.contains(focused) ? focused.getAttribute(key) : null;
+  region.innerHTML = html;
+  if (value != null) $(`[${key}="${CSS.escape(value)}"]`, region)?.focus({ preventScroll: true });
+}
+
+function renderDay() {
+  const key = state.day;
+  const entry = dayCache.get(key);
+  const view = entry?.value ?? null;
+  const failed = Boolean(entry?.error) && !entry?.pending;
+  els.today.setAttribute("aria-busy", String(Boolean(entry?.pending)));
+  els.today.dataset.state = view ? (view.meals.length ? "ready" : "empty") : failed ? "error" : "loading";
+  // A refresh that failed keeps the last numbers and says so above them.
+  els.dashNotice.innerHTML =
+    view && failed
+      ? `<div class="dash-alert"><p class="status is-error" role="alert">Couldn't refresh this day. ${esc(entry.error.message)}</p><button class="btn btn--soft" type="button" data-action="retry">Try again</button></div>`
+      : "";
+  const sig = `${key}|${entry?.version ?? 0}|${view ? "v" : failed ? "e" : "l"}|${state.nutrients.length}`;
+  if (sig === rendered.day) return;
+  rendered.day = sig;
+  if (!view) {
+    els.dashDay.innerHTML = failed ? dayErrorHtml(entry.error) : daySkeletonHtml();
+    els.dashMicro.innerHTML = "";
     return;
   }
-  const meals = view.meals
-    .map((m) => {
-      const kcal = m.totals.energy_kcal;
-      return `
-      <li>
-        <button class="meal" type="button" data-meal="${m.id}">
-          <span class="meal__slot">${esc(capitalize(m.context.meal_slot))}${SEP}<span class="meal__time">${timeFormat.format(wallClock(m.context.taken_at))}</span></span>
-          <span class="meal__names">${SEP}${esc(m.items.map((r) => r.item.name).join(", "))}</span>
-          <span class="meal__kcal">${SEP}${kcal ? rangeHtml(kcal, "kcal", undefined, { stack: true }) : '<span class="value__none">Not counted</span>'}</span>
-          <span class="meal__chev" aria-hidden="true">${icon("chevron-right")}</span>
-        </button>
-      </li>`;
-    })
-    .join("");
-  const kcal = view.totals.energy_kcal;
-  const macros = nutrientRowsHtml(view.totals, view.daily_value_pct, { micro: false, prefix: "d", skip: ["energy_kcal"] });
-  const micros = nutrientRowsHtml(view.totals, view.daily_value_pct, { micro: true, prefix: "d" });
-  const count = `${view.meals.length} meal${view.meals.length === 1 ? "" : "s"}`;
-  const kcalHtml = kcal
-    ? `<p class="day-total__value">${kcalRangeHtml(kcal)}</p>
-       ${bandHtml("d-kcal", kcal, { dark: true })}
-       ${isExact(kcal) ? "" : `<p class="day-total__likely">Most likely <strong>${amount(kcal.likely, "kcal")}&nbsp;kcal</strong>.</p>`}`
-    : '<p class="day-total__likely">Nothing counted yet.</p>';
-  const previous = snapshotBands(els.today);
-  els.today.innerHTML = `
-    <div class="card day-total">
-      <p class="eyebrow">Day total · ${count}</p>
-      ${kcalHtml}
-    </div>
-    <section class="block" aria-labelledby="meals-title">
-      <div class="section-head">
-        <h3 id="meals-title" class="section-title">Meals</h3>
-        <p class="eyebrow">${count}</p>
-      </div>
-      <ol class="card meals" aria-label="Meals logged today">${meals}</ol>
-    </section>
-    ${
-      macros || micros
-        ? `<section class="block" aria-labelledby="day-nutrients-title">
-            <div class="section-head">
-              <h3 id="day-nutrients-title" class="section-title">Nutrients</h3>
-              <p class="eyebrow">% Daily Value</p>
-            </div>
-            <div class="card nutrients-card">
-              <ul class="nutrients">${macros}</ul>
-              <p class="note">Information only. The Daily Value is a label reference, not a target.</p>
-              ${micros ? microDetailsHtml(micros) : ""}
-            </div>
-          </section>`
-        : ""
-    }`;
-  animateBands(els.today, previous);
+  const previous = new Map([...snapshotBands(els.dashDay), ...snapshotBands(els.dashMicro)]);
+  if (view.meals.length) {
+    redraw(els.dashDay, heroHtml(view) + statsHtml(view) + mealsHtml(view), "data-meal");
+    els.dashMicro.innerHTML = microHtml(view);
+  } else {
+    els.dashDay.innerHTML = emptyDayHtml(key);
+    els.dashMicro.innerHTML = "";
+  }
+  animateBands(els.dashDay, previous);
+  animateBands(els.dashMicro, previous);
   markOpenMeal();
 }
 
-/** A logged meal opens over Today's list (in the main column on wide screens). */
+function mealCount(n) {
+  return `${n} meal${n === 1 ? "" : "s"}`;
+}
+
+function heroHtml(view) {
+  const kcal = view.totals.energy_kcal;
+  const head = `
+    <div class="hero__top">
+      <h2 id="hero-title" class="eyebrow">Total calories</h2>
+      <p class="eyebrow">${mealCount(view.meals.length)}</p>
+    </div>`;
+  if (!kcal) {
+    return `
+      <section class="card hero" aria-labelledby="hero-title">
+        ${head}
+        <p class="hero__none">Nothing is counted yet. Open a meal and pick a USDA food for each item.</p>
+      </section>`;
+  }
+  const [low, likely, high] = [amount(kcal.low, "kcal"), amount(kcal.likely, "kcal"), amount(kcal.high, "kcal")];
+  const exact = low === high;
+  return `
+    <section class="card hero" aria-labelledby="hero-title">
+      ${head}
+      <div class="hero__main">
+        <p class="hero__value"><span class="hero__num">${likely}</span><span class="hero__unit">kcal</span>${exact ? "" : '<span class="visually-hidden">, most likely</span>'}</p>
+        <p class="hero__range">${
+          exact
+            ? "Every counted food is weighed, so this is one number."
+            : `Most likely, in a range of <strong>${low}${TO}${high}&nbsp;kcal</strong>`
+        }</p>
+      </div>
+      <div class="hero__foot">
+        ${bandHtml("dash-kcal", kcal, { dark: true })}
+        <p class="hero__note">${icon("info")}<span>A range, not a target. There's no goal to hit.</span></p>
+      </div>
+    </section>`;
+}
+
+function statHtml(view, key, label, size) {
+  const range = view.totals[key];
+  const pct = view.daily_value_pct[key];
+  const unit = unitOf(key);
+  const fmt = range ? tileFormat(range) : null;
+  const figure = range
+    ? `<p class="stat__figure">
+         <span class="stat__value"><strong>${fmt(range.likely)}</strong><span class="stat__unit">${esc(unit)}</span>${isExact(range) ? "" : '<span class="visually-hidden">, most likely</span>'}</span>
+         <span class="stat__range">${isExact(range) ? "Weighed" : `<span class="visually-hidden">range </span>${fmt(range.low)}${TO}${fmt(range.high)}`}</span>
+       </p>`
+    : '<p class="stat__figure"><span class="stat__none">No data</span></p>';
+  const dv =
+    range && pct
+      ? `${bandHtml(`dash-${key}`, pct, { scale: Math.max(100, pct.high * 1.05) })}<p class="stat__dv">${SEP}${dvHtml(pct)}</p>`
+      : `<p class="stat__dv stat__dv--none">${SEP}No Daily Value</p>`;
+  return `<li class="card stat stat--${size}"><p class="stat__label">${esc(label)}</p>${figure}${dv}</li>`;
+}
+
+function statsHtml(view) {
+  return `
+    <section class="stats-block" aria-labelledby="stats-title">
+      <h2 id="stats-title" class="visually-hidden">Nutrients</h2>
+      <ul class="stats stats--macro">${MACROS.map(([key, label]) => statHtml(view, key, label, "macro")).join("")}</ul>
+      <ul class="stats stats--mini">${MINIS.map(([key, label]) => statHtml(view, key, label, "mini")).join("")}</ul>
+      <p class="note stats__note">${DV_NOTE}</p>
+    </section>`;
+}
+
+function mealRowHtml(m) {
+  const kcal = m.totals.energy_kcal;
+  const place = placeName(m.context);
+  const names = m.items.map((r) => r.item.name).join(", ");
+  return `
+    <li>
+      <button class="meal" type="button" data-meal="${esc(m.id)}">
+        <span class="meal__when"><span class="visually-hidden">${esc(capitalize(m.context.meal_slot))}, </span><span class="meal__time">${timeFormat.format(wallClock(m.context.taken_at))}</span>${
+          place ? `<span class="meal__place"><span aria-hidden="true"> · </span><span class="visually-hidden">, </span>${esc(place)}</span>` : ""
+        }</span>
+        <span class="meal__names">${SEP}${names ? esc(names) : "No foods found"}</span>
+        <span class="meal__kcal">${SEP}${kcal ? rangeHtml(kcal, "kcal", undefined, { stack: true }) : '<span class="value__none">Not counted</span>'}</span>
+        <span class="meal__chev" aria-hidden="true">${icon("chevron-right")}</span>
+      </button>
+    </li>`;
+}
+
+function mealsHtml(view) {
+  const known = new Set(SLOTS);
+  const slots = [...SLOTS, ...new Set(view.meals.map((m) => m.context.meal_slot).filter((s) => !known.has(s)))];
+  const groups = slots
+    .map((slot) => [slot, view.meals.filter((m) => m.context.meal_slot === slot)])
+    .filter(([, meals]) => meals.length)
+    .map(
+      ([slot, meals], i) => `
+        <section class="meal-group" aria-labelledby="slot-${i}">
+          <h3 id="slot-${i}" class="meal-group__title">${esc(capitalize(slot))}</h3>
+          <ol class="meals">${meals.map(mealRowHtml).join("")}</ol>
+        </section>`
+    )
+    .join("");
+  return `
+    <section class="block meals-block" aria-labelledby="meals-title">
+      <div class="section-head">
+        <h2 id="meals-title" class="section-title">Meals</h2>
+        <p class="eyebrow">${mealCount(view.meals.length)}</p>
+      </div>
+      <div class="card meals-card">${groups}</div>
+    </section>`;
+}
+
+function microHtml(view) {
+  const rows = nutrientRowsHtml(view.totals, view.daily_value_pct, { micro: true, prefix: "dm" });
+  if (!rows) return "";
+  return `
+    <details class="card micro-card"${state.microOpen ? " open" : ""}>
+      <summary><h2 class="micro-card__title">Vitamins and minerals</h2><span class="chip">Estimates</span></summary>
+      <div class="micro-card__body">
+        <p class="note">Photos can't show vitamins and minerals well, so these are rough estimates. A weekly trend says more than one day.</p>
+        <ul class="nutrients">${rows}</ul>
+        <p class="note">${DV_NOTE}</p>
+      </div>
+    </details>`;
+}
+
+function emptyDayHtml(key) {
+  const isToday = key === state.todayKey;
+  const name = dayName(key);
+  const when = isToday ? "today" : name === "Yesterday" ? "yesterday" : `on ${name}`;
+  return `
+    <div class="card empty dash-empty">
+      <span class="empty__icon" aria-hidden="true">${icon("plate")}</span>
+      <h2 class="empty__title">Nothing logged ${esc(when)}</h2>
+      <p>${
+        isToday
+          ? "Snap a meal and it lands here with its ranges. No targets, just what you ate."
+          : "Meals with photos from this day show up here."
+      }</p>
+      ${
+        isToday
+          ? `<button class="btn btn--primary" type="button" data-action="snap"${state.ready ? "" : " disabled"}>${icon("camera")}Snap a meal</button>`
+          : ""
+      }
+    </div>`;
+}
+
+function dayErrorHtml(err) {
+  return `
+    <div class="card dash-error">
+      <p class="status is-error" role="alert">${esc(err.message)}</p>
+      <button class="btn btn--secondary" type="button" data-action="retry">Try again</button>
+    </div>`;
+}
+
+function daySkeletonHtml() {
+  const tile = (size) =>
+    `<li class="card stat stat--${size} is-skeleton"><span class="sk sk--label"></span><span class="sk sk--num"></span><span class="sk sk--band"></span></li>`;
+  return `
+    <div class="card hero is-skeleton" aria-hidden="true"><span class="sk sk--eyebrow"></span><span class="sk sk--hero"></span><span class="sk sk--line"></span><div class="hero__foot"><span class="sk sk--band"></span></div></div>
+    <div class="stats-block" aria-hidden="true"><ul class="stats">${tile("macro").repeat(3)}</ul><ul class="stats">${tile("mini").repeat(3)}</ul></div>
+    <div class="block meals-block" aria-hidden="true"><span class="sk sk--title"></span><div class="card meals-card is-skeleton">${'<span class="sk-row"><span class="sk sk--line"></span><span class="sk sk--short"></span></span>'.repeat(3)}</div></div>
+    <p class="visually-hidden" role="status">Loading this day</p>`;
+}
+
+// ---- the week
+
+function niceTop(value) {
+  const step = value <= 1000 ? 250 : value <= 4000 ? 500 : 1000;
+  return Math.max(step, Math.ceil((value * 1.06) / step) * step);
+}
+
+function renderWeek() {
+  const keys = lastDays(state.todayKey, 7);
+  const entries = keys.map((key) => dayCache.get(key));
+  const sig = `${state.day}|${keys.map((key, i) => `${key}:${entries[i]?.version ?? 0}:${entries[i]?.value ? 1 : 0}`).join(",")}`;
+  if (sig === rendered.week) return;
+  const entering = !rendered.week || els.dashWeek.dataset.state !== "ready";
+  rendered.week = sig;
+  const loaded = entries.some((entry) => entry?.value);
+  els.dashWeek.dataset.state = loaded ? "ready" : "loading";
+  redraw(els.dashWeek, loaded ? weekHtml(keys, entries) : weekSkeletonHtml(), "data-day");
+  els.dashWeek.classList.toggle("is-entering", loaded && entering && !reducedMotion.matches);
+}
+
+function weekHead() {
+  return `
+    <div class="section-head">
+      <h2 id="week-title" class="section-title">This week</h2>
+      <p class="eyebrow">Likely kcal and range</p>
+    </div>`;
+}
+
+function weekSkeletonHtml() {
+  const bars = [0.55, 0.7, 0.35, 0.8, 0.6, 0.45, 0.65]
+    .map((h) => `<li class="wk__day"><span class="wk__col is-skeleton"><span class="wk__plot"><span class="sk sk--bar" style="--h:${h}"></span></span><span class="sk sk--tick"></span></span></li>`)
+    .join("");
+  return `${weekHead()}<div class="card week" aria-hidden="true"><ol class="wk">${bars}</ol></div>`;
+}
+
+function weekHtml(keys, entries) {
+  const days = keys.map((key, i) => {
+    const view = entries[i]?.value ?? null;
+    const kcal = view?.meals.length ? view.totals.energy_kcal ?? null : null;
+    return { key, view, kcal, logged: Boolean(view?.meals.length), failed: !view && Boolean(entries[i]?.error), pending: !view && !entries[i]?.error };
+  });
+  const counted = days.filter((d) => d.kcal);
+  const top = niceTop(Math.max(1, ...counted.map((d) => d.kcal.high)));
+  const cols = days.map((d, i) => weekColHtml(d, top, i)).join("");
+  let avg = '<p class="wk__avg-label">No meals logged in the last 7 days.</p>';
+  if (counted.length) {
+    // Only days with logged meals count; an empty day is missing data, not a zero.
+    const mean = (part) => counted.reduce((sum, d) => sum + d.kcal[part], 0) / counted.length;
+    const n = counted.length;
+    avg = `
+      <p class="wk__avg-label">Average over ${n} logged day${n === 1 ? "" : "s"}</p>
+      <p class="wk__avg-value">${rangeHtml({ low: mean("low"), likely: mean("likely"), high: mean("high") }, "kcal")}</p>`;
+  }
+  return `
+    ${weekHead()}
+    <div class="card week">
+      <ol class="wk">${cols}</ol>
+      <div class="wk__avg">${avg}</div>
+      <div class="wk__tip" aria-hidden="true" hidden></div>
+    </div>`;
+}
+
+function weekColHtml(d, top, i) {
+  const date = parseDay(d.key);
+  const isToday = d.key === state.todayKey;
+  const name = isToday ? "Today" : weekdayShort.format(date);
+  const spoken = `${isToday ? "Today, " : ""}${dayFormat.format(date)}`;
+  const current = d.key === state.day ? ' aria-current="date"' : "";
+  let plot = '<span class="wk__plot"></span>';
+  let short = "";
+  let full = "";
+  let label = `${spoken}: no meals logged`;
+  let tip = "No meals logged";
+  if (d.kcal) {
+    const f = (v) => Math.max(0, Math.min(1, v / top)).toFixed(4);
+    const [low, likely, high] = [amount(d.kcal.low, "kcal"), amount(d.kcal.likely, "kcal"), amount(d.kcal.high, "kcal")];
+    const exact = low === high;
+    plot = `<span class="wk__plot" style="--lo:${f(d.kcal.low)};--likely:${f(d.kcal.likely)};--hi:${f(d.kcal.high)};--i:${i}"><span class="wk__bar"></span>${
+      exact ? "" : '<span class="wk__whisker wk__whisker--lo"></span><span class="wk__whisker wk__whisker--hi"></span>'
+    }</span>`;
+    short = compactKcal(d.kcal.likely);
+    full = `${likely} kcal`;
+    label = exact ? `${spoken}: ${likely} kcal` : `${spoken}: ${likely} kcal likely, range ${low} to ${high}`;
+    tip = exact ? `${likely} kcal` : `${likely} kcal|${low}–${high}`;
+  } else if (d.logged) {
+    label = `${spoken}: meals logged, calories not counted`;
+    tip = "Calories not counted";
+    full = "Not counted";
+  } else if (d.failed) {
+    label = `${spoken}: couldn't load`;
+    tip = "Couldn't load this day";
+  } else if (d.pending) {
+    label = `${spoken}: loading`;
+    tip = "Loading";
+  }
+  const cls = `wk__col${isToday ? " is-today" : ""}${d.kcal ? "" : " is-empty"}${d.pending ? " is-pending" : ""}`;
+  return `
+    <li class="wk__day">
+      <button class="${cls}" type="button" data-day="${d.key}"${current} aria-label="${esc(label)}" data-tip-day="${esc(dayFormat.format(date))}" data-tip="${esc(tip)}">
+        ${plot}
+        <span class="wk__name" aria-hidden="true">${name}</span>
+        <span class="wk__val" aria-hidden="true"><span class="wk__val--short">${short}</span><span class="wk__val--full">${esc(full)}</span></span>
+      </button>
+    </li>`;
+}
+
+// A tooltip with the full numbers for the column under the mouse or keyboard focus. Every number
+// in it is also in the column's accessible name; on touch, a tap opens that day instead.
+function showWeekTip(col) {
+  const card = col.closest(".week");
+  const tip = card && $(".wk__tip", card);
+  if (!tip) return;
+  const [value, range] = col.dataset.tip.split("|");
+  tip.replaceChildren();
+  const day = document.createElement("span");
+  day.className = "wk__tip-day";
+  day.textContent = col.dataset.tipDay;
+  const strong = document.createElement("strong");
+  strong.textContent = value;
+  tip.append(day, strong);
+  if (range) {
+    const span = document.createElement("span");
+    span.className = "wk__tip-range";
+    span.textContent = range;
+    tip.append(span);
+  }
+  tip.hidden = false;
+  const plot = $(".wk__plot", col).getBoundingClientRect();
+  const box = card.getBoundingClientRect();
+  const half = tip.offsetWidth / 2;
+  const x = Math.min(Math.max(plot.left + plot.width / 2 - box.left, half + 6), box.width - half - 6);
+  tip.style.left = `${x}px`;
+  tip.style.top = `${plot.top - box.top - 6}px`;
+}
+
+function hideWeekTip() {
+  for (const tip of $$(".wk__tip", els.dashWeek)) tip.hidden = true;
+}
+
+els.dashWeek.addEventListener("pointerover", (event) => {
+  const col = event.target.closest(".wk__col[data-tip]");
+  if (event.pointerType === "mouse" && col) showWeekTip(col);
+});
+els.dashWeek.addEventListener("pointerout", (event) => {
+  if (event.pointerType === "mouse" && !event.relatedTarget?.closest?.(".wk__col")) hideWeekTip();
+});
+els.dashWeek.addEventListener("focusin", (event) => {
+  const col = event.target.closest(".wk__col[data-tip]");
+  if (col && col.matches(":focus-visible")) showWeekTip(col);
+});
+els.dashWeek.addEventListener("focusout", hideWeekTip);
+
+// ---- dashboard events
+
+els.todayView.addEventListener("click", (event) => {
+  const target = event.target;
+  const day = target.closest("[data-day]");
+  if (day) {
+    const which = day.dataset.day;
+    if (which === "prev") goToDay(shiftDay(state.day, -1));
+    else if (which === "next") goToDay(shiftDay(state.day, 1));
+    else if (which === "today") goToDay(state.todayKey);
+    else goToDay(which);
+    return;
+  }
+  const action = target.closest("[data-action]");
+  switch (action?.dataset.action) {
+    case "snap":
+    case "start":
+      return snapMeal();
+    case "retry":
+      for (const entry of dayCache.values()) if (entry.error) entry.stale = true;
+      rendered.day = "";
+      return loadDashboard();
+    case "resend":
+      return resendLink(action);
+    case "demo-verify":
+      return demoVerify(action);
+  }
+  const meal = target.closest("[data-meal]");
+  if (meal) openMealFrom(meal);
+});
+
+els.dashMicro.addEventListener("toggle", (event) => (state.microOpen = event.target.open), true);
+
+function clearMealError() {
+  $("[data-meal-error]", els.today)?.remove();
+}
+
+async function openMealFrom(button) {
+  const id = button.dataset.meal;
+  clearMealError();
+  state.scroll.list = window.scrollY;
+  state.openedMeal = id;
+  await withBusy(button, async () => {
+    try {
+      openLogged(await api(`/api/meals/${encodeURIComponent(id)}`));
+    } catch (err) {
+      if (err.signedOut) return;
+      // One alert at a time, right under the meal that was tapped.
+      clearMealError();
+      const alert = document.createElement("p");
+      alert.className = "status is-error meal-error";
+      alert.setAttribute("role", "alert");
+      alert.dataset.mealError = "";
+      alert.textContent = err.message;
+      (button.closest("li") ?? button.parentElement).append(alert);
+      alert.scrollIntoView({ block: "nearest", behavior: reducedMotion.matches ? "auto" : "smooth" });
+    }
+  });
+}
+
+/** A logged meal opens over the dashboard. */
 function openLogged(result) {
   discardSlot("today");
   state.slots.today = { result, photoUrl: null };
@@ -1147,53 +1730,776 @@ function openLogged(result) {
   syncHistory();
 }
 
-els.today.addEventListener("click", async (event) => {
-  if (event.target.closest('[data-action="start"]')) return startNewMeal({ pick: true });
-  const button = event.target.closest("[data-meal]");
-  if (!button) return;
-  const id = button.dataset.meal;
-  $("[data-meal-error]", els.today)?.remove();
-  // Wide screens: the meal you just analyzed opens as itself, photo included, not as a copy without it.
-  if (wide.matches && String(state.slots.analyze?.result.id) === id) {
-    if (state.slots.today) closeSlot("today", { focus: true });
-    else $("#result-title", els.result)?.focus();
-    syncHistory();
+// -------------------------------------------------------------- accounts
+// Only when GET /api/status says auth_required: true. The session is an HttpOnly cookie, so the
+// page never sees a token; GET /api/auth/me says who is signed in.
+
+/** Emails go out for real only with a sending provider; the default outbox just queues them. */
+const emailSending = () => Boolean(state.emailProvider) && state.emailProvider !== "outbox";
+
+function enableAccounts(status) {
+  state.authRequired = true;
+  state.emailProvider = status.email_provider ?? null;
+  state.home = "today";
+  document.body.dataset.accounts = "on";
+}
+
+let recheck = null;
+
+/** A 401 without accounts on: the server may have just switched them on. */
+function signInLost() {
+  if (state.authRequired) return sessionEnded();
+  recheck ??= api("/api/status", { session: false })
+    .then((status) => {
+      if (status?.auth_required !== true) return;
+      enableAccounts(status);
+      sessionEnded({ notice: "MealScholar now uses accounts. Sign in or create one to continue." });
+    })
+    .catch(() => {})
+    .finally(() => (recheck = null));
+}
+
+function initials(user) {
+  const letter = (s) => s.match(/[\p{L}\p{N}]/u)?.[0] ?? "";
+  const words = (user?.name ?? "").trim().split(/\s+/).filter(Boolean);
+  let out = words.length ? letter(words[0]) + (words.length > 1 ? letter(words[words.length - 1]) : "") : "";
+  if (!out) out = letter(user?.email ?? "") || "?";
+  return out.toUpperCase();
+}
+
+function updateAccountUi() {
+  const user = state.authRequired ? state.user : null;
+  els.accountButton.hidden = !user;
+  document.body.dataset.account = user ? "on" : "off";
+  if (!user) return;
+  els.accountButton.textContent = initials(user);
+  els.accountButton.setAttribute("aria-label", `Account, ${user.name || user.email}`);
+}
+
+/** Leave the app for one of the account screens. */
+function showAuth(screen, options = {}) {
+  if (els.sheet.open) closeSheet({ restoreFocus: false });
+  if (els.account.open) els.account.close();
+  document.body.dataset.screen = "auth";
+  els.auth.hidden = false;
+  els.auth.dataset.screen = screen;
+  els.auth.innerHTML = AUTH_SCREENS[screen](options);
+  placeBands(els.auth);
+  window.scrollTo(0, 0);
+  replayEntrance(els.auth);
+  const field = finePointer.matches ? $("input:not([value]), input[value='']", els.auth) : null;
+  (field ?? $("h1", els.auth))?.focus({ preventScroll: true });
+}
+
+/** Into the app: the home screen, with this account's data. */
+function enterApp({ focus = false } = {}) {
+  document.body.dataset.screen = "app";
+  els.auth.hidden = true;
+  els.auth.innerHTML = "";
+  updateAccountUi();
+  renderBanner();
+  state.view = state.home;
+  document.body.dataset.view = state.home;
+  syncTabs();
+  syncResult();
+  history.replaceState({ layers: [] }, "", baseUrl);
+  window.scrollTo(0, 0);
+  if (!state.nutrients.length) {
+    loadNutrients().then(() => {
+      rendered.day = "";
+      renderDay();
+    });
+  }
+  loadDashboard();
+  if (focus) (state.home === "today" ? els.todayTitle : els.captureTitle).focus({ preventScroll: true });
+}
+
+/** Forget everything that belongs to the account that was signed in. */
+function resetData() {
+  state.dashSeq += 1;
+  dayCache.clear();
+  rendered.day = "";
+  rendered.week = "";
+  if (els.sheet.open) closeSheet({ restoreFocus: false });
+  discardSlot("analyze");
+  discardSlot("today");
+  state.shown = null;
+  state.open = null;
+  state.day = null;
+  state.todayKey = null;
+  state.microOpen = false;
+  state.scroll = { analyze: 0, today: 0, list: 0 };
+  els.result.innerHTML = "";
+  els.result.hidden = true;
+  delete document.body.dataset.result;
+  els.dashDay.innerHTML = "";
+  els.dashWeek.innerHTML = "";
+  els.dashMicro.innerHTML = "";
+  els.dashNotice.innerHTML = "";
+  els.today.dataset.state = "loading";
+  els.dashWeek.dataset.state = "loading";
+  if (!state.analyzing) setStatus("");
+}
+
+function signedIn(user, message) {
+  resetData();
+  state.user = user;
+  enterApp({ focus: true });
+  if (message) toast(message);
+}
+
+/** The sign-in ended (a 401 from a meal or day call): back to the sign-in screen. */
+function sessionEnded({ notice = "Your session ended. Sign in again to continue." } = {}) {
+  if (document.body.dataset.screen === "auth") return;
+  const email = state.user?.email ?? "";
+  resetData();
+  state.user = null;
+  state.demoVerifyUrl = null;
+  updateAccountUi();
+  renderBanner();
+  history.replaceState({ layers: [] }, "", baseUrl);
+  showAuth("signin", { email, notice });
+}
+
+async function loadNutrients() {
+  try {
+    state.nutrients = await api("/api/nutrients", { session: false });
+  } catch {
+    // Labels for the nutrient rows; the next sign-in tries again.
+  }
+}
+
+async function refreshUser() {
+  try {
+    const { user } = await api("/api/auth/me", { session: true });
+    state.user = user;
+    updateAccountUi();
+  } catch {
+    // signed out (handled by api) or offline: keep what we have
+  }
+}
+
+// ---- screens
+
+const backHtml = (to, label) => `<div class="result__nav"><button class="back" type="button" data-auth="${to}">${icon("chevron-left")}${label}</button></div>`;
+
+function fieldHtml({ id, name, label, type = "text", autocomplete, value = "", hint = "", optional = false }) {
+  const describedby = [hint && `${id}-hint`, `${id}-error`].filter(Boolean).join(" ");
+  const email = type === "email" ? ' autocapitalize="none" spellcheck="false"' : "";
+  return `
+    <div class="form-field">
+      <label class="form-field__label" for="${id}">${label}${optional ? ' <span class="form-field__optional">Optional</span>' : ""}</label>
+      <input id="${id}" class="field" name="${name}" type="${type}" autocomplete="${autocomplete}" value="${esc(value)}" aria-describedby="${describedby}"${email}>
+      ${hint ? `<p id="${id}-hint" class="form-field__hint">${hint}</p>` : ""}
+      <p id="${id}-error" class="field-error" hidden></p>
+    </div>`;
+}
+
+function passwordFieldHtml({ id, name, label, autocomplete, hint = "" }) {
+  const describedby = [hint && `${id}-hint`, `${id}-error`].filter(Boolean).join(" ");
+  return `
+    <div class="form-field">
+      <label class="form-field__label" for="${id}">${label}</label>
+      <span class="pw">
+        <input id="${id}" class="field" name="${name}" type="password" autocomplete="${autocomplete}" autocapitalize="none" spellcheck="false" aria-describedby="${describedby}">
+        <button class="pw__toggle" type="button" data-action="toggle-password" aria-controls="${id}"><span class="pw__label">Show</span><span class="visually-hidden"> password</span></button>
+      </span>
+      ${hint ? `<p id="${id}-hint" class="form-field__hint">${hint}</p>` : ""}
+      <p id="${id}-error" class="field-error" hidden></p>
+    </div>`;
+}
+
+const EMAIL_NOTE = `<p class="auth-note">${icon("info")}<span>Email sending isn't switched on yet, so the link may not arrive.</span></p>`;
+
+function sampleHtml() {
+  return `
+    <div class="card welcome__sample" aria-hidden="true">
+      <p class="eyebrow">Example</p>
+      <p class="welcome__sample-title">Lunch</p>
+      <div class="total">
+        <p class="eyebrow">Calories, this meal</p>
+        <p class="total__value"><span>407</span><span class="total__dash">–</span><span>655</span><span class="total__unit">kcal</span></p>
+        ${bandHtml("sample-kcal", { low: 407, likely: 520, high: 655 }, { dark: true })}
+        <p class="total__likely">Most likely <strong>520&nbsp;kcal</strong>.</p>
+      </div>
+      <ul class="welcome__foods">
+        <li><span>Chicken fried rice</span>${rangeHtml({ low: 220, likely: 280, high: 350 }, "g", grams)}</li>
+        <li><span>Steamed broccoli</span>${rangeHtml({ low: 70, likely: 95, high: 130 }, "g", grams)}</li>
+      </ul>
+    </div>`;
+}
+
+const AUTH_SCREENS = {
+  welcome: () => `
+    <div class="auth-screen auth-screen--welcome">
+      <header class="view-head welcome__head">
+        <p class="eyebrow">Meal photo <span aria-hidden="true">&rarr;</span><span class="visually-hidden">to</span> foods <span aria-hidden="true">&rarr;</span><span class="visually-hidden">to</span> USDA nutrients</p>
+        <h1 class="view-title" tabindex="-1">Every meal is a range</h1>
+        <p class="lede">Snap a photo of your meal. It works out the foods and how much is there, then shows the nutrients as honest ranges, not one fake-precise number.</p>
+      </header>
+      ${sampleHtml()}
+      <div class="welcome__actions">
+        <button class="cta cta--block" type="button" data-auth="register"><span class="cta__pill">Create account</span><span class="cta__dot" aria-hidden="true">${icon("arrow")}</span></button>
+        <button class="btn btn--secondary btn--block" type="button" data-auth="signin">Sign in</button>
+        <p class="welcome__fine">Your meals go into your own diary. No targets, just what you ate.</p>
+      </div>
+    </div>`,
+
+  signin: ({ email = "", notice = "" } = {}) => `
+    <div class="auth-screen">
+      ${backHtml("welcome", "Back")}
+      <header class="auth-head">
+        <h1 class="view-title" tabindex="-1">Sign in</h1>
+        <p class="lede">Welcome back. Your diary is where you left it.</p>
+      </header>
+      ${notice ? `<p class="notice" role="status">${icon("info")}<span>${esc(notice)}</span></p>` : ""}
+      <form class="card form" data-form="signin" novalidate>
+        ${fieldHtml({ id: "signin-email", name: "email", label: "Email", type: "email", autocomplete: "email", value: email })}
+        ${passwordFieldHtml({ id: "signin-password", name: "password", label: "Password", autocomplete: "current-password" })}
+        <p class="form__aside"><button class="link-btn" type="button" data-auth="forgot">Forgot password?</button></p>
+        <p class="form-error" role="alert" hidden></p>
+        <button class="btn btn--primary btn--block" type="submit">Sign in</button>
+      </form>
+      <p class="auth-switch">New to MealScholar? <button class="link-btn" type="button" data-auth="register">Create an account</button></p>
+    </div>`,
+
+  register: ({ email = "" } = {}) => `
+    <div class="auth-screen">
+      ${backHtml("welcome", "Back")}
+      <header class="auth-head">
+        <h1 class="view-title" tabindex="-1">Create your account</h1>
+        <p class="lede">Your meals go into your own private diary.</p>
+      </header>
+      <form class="card form" data-form="register" novalidate>
+        ${fieldHtml({ id: "register-name", name: "name", label: "Name", autocomplete: "name", optional: true })}
+        ${fieldHtml({ id: "register-email", name: "email", label: "Email", type: "email", autocomplete: "email", value: email })}
+        ${passwordFieldHtml({ id: "register-password", name: "password", label: "Password", autocomplete: "new-password", hint: "At least 8 characters." })}
+        <p class="form-error" role="alert" hidden></p>
+        <button class="btn btn--primary btn--block" type="submit">Create account</button>
+      </form>
+      <p class="auth-switch">Already have an account? <button class="link-btn" type="button" data-auth="signin">Sign in</button></p>
+    </div>`,
+
+  forgot: ({ email = "", sent = false } = {}) => {
+    const note = emailSending() ? "" : EMAIL_NOTE;
+    if (sent) {
+      return `
+        <div class="auth-screen">
+          ${backHtml("signin", "Sign in")}
+          <header class="auth-head"><h1 class="view-title" tabindex="-1">Check your email</h1></header>
+          <div class="card sent" role="status">
+            <span class="sent__icon" aria-hidden="true">${icon("mail")}</span>
+            <p>If there's an account for that email, we sent a reset link.</p>
+          </div>
+          ${note}
+          <button class="btn btn--secondary btn--block" type="button" data-auth="signin">Back to sign in</button>
+        </div>`;
+    }
+    return `
+      <div class="auth-screen">
+        ${backHtml("signin", "Sign in")}
+        <header class="auth-head">
+          <h1 class="view-title" tabindex="-1">Reset your password</h1>
+          <p class="lede">Enter the email for your account. We'll send a link to set a new password.</p>
+        </header>
+        <form class="card form" data-form="forgot" novalidate>
+          ${fieldHtml({ id: "forgot-email", name: "email", label: "Email", type: "email", autocomplete: "email", value: email })}
+          <p class="form-error" role="alert" hidden></p>
+          <button class="btn btn--primary btn--block" type="submit">Send reset link</button>
+        </form>
+        ${note}
+      </div>`;
+  },
+
+  reset: () => `
+    <div class="auth-screen">
+      <header class="auth-head">
+        <h1 class="view-title" tabindex="-1">Set a new password</h1>
+        <p class="lede">Choose a new password. You'll be signed in right after.</p>
+      </header>
+      <form class="card form" data-form="reset" novalidate>
+        ${passwordFieldHtml({ id: "reset-password", name: "password", label: "New password", autocomplete: "new-password", hint: "At least 8 characters." })}
+        <p class="form-error" role="alert" hidden></p>
+        <button class="btn btn--primary btn--block" type="submit">Save new password</button>
+      </form>
+      <p class="auth-switch"><button class="link-btn" type="button" data-auth="${state.user ? "app" : "signin"}">${state.user ? "Keep my current password" : "Back to sign in"}</button></p>
+    </div>`,
+
+  verify: ({ phase = "pending", message = "" } = {}) => {
+    if (phase === "pending") {
+      return `
+        <div class="auth-screen">
+          <header class="auth-head">
+            <h1 class="view-title" tabindex="-1">Confirming your email</h1>
+            <p class="lede auth-wait"><span class="spinner" aria-hidden="true"></span>One moment.</p>
+          </header>
+        </div>`;
+    }
+    const next = state.user ? "app" : "signin";
+    const label = state.user ? "Continue" : "Sign in";
+    if (phase === "done") {
+      return `
+        <div class="auth-screen">
+          <header class="auth-head">
+            <span class="auth-badge" aria-hidden="true">${icon("check")}</span>
+            <h1 class="view-title" tabindex="-1">Email confirmed</h1>
+            <p class="lede">Thanks. Your account is all set.</p>
+          </header>
+          <button class="cta cta--block" type="button" data-auth="${next}"><span class="cta__pill">${label}</span><span class="cta__dot" aria-hidden="true">${icon("arrow")}</span></button>
+        </div>`;
+    }
+    return `
+      <div class="auth-screen">
+        <header class="auth-head">
+          <span class="auth-badge" aria-hidden="true">${icon("mail")}</span>
+          <h1 class="view-title" tabindex="-1">That link didn't work</h1>
+          <p class="lede">You can ask for a new one after you sign in.</p>
+        </header>
+        <p class="status is-error" role="alert">${esc(message)}</p>
+        <button class="btn btn--primary btn--block" type="button" data-auth="${next}">${label}</button>
+      </div>`;
+  },
+};
+
+// ---- forms
+
+function setFieldError(input, message) {
+  const error = document.getElementById(`${input.id}-error`);
+  input.setAttribute("aria-invalid", "true");
+  if (error) {
+    error.textContent = message;
+    error.hidden = false;
+  }
+}
+
+function clearFieldError(input) {
+  if (!(input instanceof HTMLInputElement) || input.getAttribute("aria-invalid") !== "true") return;
+  input.removeAttribute("aria-invalid");
+  const error = document.getElementById(`${input.id}-error`);
+  if (error) {
+    error.hidden = true;
+    error.textContent = "";
+  }
+}
+
+function setFormAlert(form, message, action = null) {
+  const alert = $(".form-error", form);
+  const text = document.createElement("span");
+  text.className = "form-error__text";
+  text.textContent = message;
+  alert.replaceChildren(text);
+  if (action) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "link-btn";
+    button.dataset.auth = action.to;
+    button.textContent = action.label;
+    alert.append(button);
+  }
+  alert.hidden = false;
+}
+
+function clearFormErrors(form) {
+  $$('[aria-invalid="true"]', form).forEach(clearFieldError);
+  const alert = $(".form-error", form);
+  if (alert) {
+    alert.hidden = true;
+    alert.textContent = "";
+  }
+}
+
+/** A server error goes next to its field when it names one (detail.field), else above the button. */
+function showFormError(form, err) {
+  if (err.signedOut || !form.isConnected) return;
+  const input = err.field ? form.elements.namedItem(err.field) : null;
+  if (input instanceof HTMLInputElement && !input.classList.contains("visually-hidden")) {
+    setFieldError(input, err.message);
+    input.focus();
     return;
   }
-  state.scroll.list = window.scrollY;
-  state.openedMeal = id;
+  setFormAlert(form, err.message, err.field === "token" ? { to: "forgot", label: "Get a new link" } : null);
+}
+
+const EMAIL_SHAPE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+/** Quick checks before a round trip; the server checks again and has the last word. */
+function checkForm(form, kind, data) {
+  const problems = [];
+  if ("email" in data && kind !== "change-password") {
+    const email = data.email.trim();
+    if (!email) problems.push(["email", "Enter your email address."]);
+    else if (!EMAIL_SHAPE.test(email)) problems.push(["email", "Enter a valid email address."]);
+  }
+  if (kind === "signin" && !data.password) problems.push(["password", "Enter your password."]);
+  if ((kind === "register" || kind === "reset") && [...data.password].length < 8) {
+    problems.push(["password", "Use at least 8 characters for your password."]);
+  }
+  if (kind === "change-password") {
+    if (!data.current_password) problems.push(["current_password", "Enter your current password."]);
+    if ([...data.new_password].length < 8) problems.push(["new_password", "Use at least 8 characters for your password."]);
+  }
+  for (const [name, message] of problems) setFieldError(form.elements.namedItem(name), message);
+  if (problems.length) form.elements.namedItem(problems[0][0]).focus();
+  return !problems.length;
+}
+
+async function submitAccountForm(form) {
+  const kind = form.dataset.form;
+  const data = Object.fromEntries(new FormData(form));
+  clearFormErrors(form);
+  if (!checkForm(form, kind, data)) return;
+  const button = $('button[type="submit"]', form);
+  const post = (path, body, options = {}) => api(path, { method: "POST", ...jsonBody(body), ...options });
   await withBusy(button, async () => {
     try {
-      openLogged(await api(`/api/meals/${id}`));
+      if (kind === "signin") {
+        const { user } = await post("/api/auth/login", { email: data.email.trim(), password: data.password });
+        const name = firstName(user);
+        signedIn(user, name ? `Welcome back, ${name}.` : "Welcome back.");
+      } else if (kind === "register") {
+        const name = data.name.trim();
+        const reply = await post("/api/auth/register", { email: data.email.trim(), password: data.password, ...(name ? { name } : {}) });
+        state.demoVerifyUrl = reply.demo_verify_url ?? null;
+        signedIn(reply.user, "Account created.");
+      } else if (kind === "forgot") {
+        await post("/api/auth/forgot-password", { email: data.email.trim() });
+        showAuth("forgot", { email: data.email.trim(), sent: true });
+      } else if (kind === "reset") {
+        const { user } = await post("/api/auth/reset-password", { token: state.resetToken ?? "", password: data.password });
+        state.resetToken = null;
+        signedIn(user, "New password saved. You're signed in.");
+      } else if (kind === "change-password") {
+        const body = { current_password: data.current_password, new_password: data.new_password };
+        const { user } = await post("/api/auth/change-password", body, { session: true });
+        if (user) state.user = user;
+        closeAccount({ message: "Password changed." });
+      }
     } catch (err) {
-      // One alert at a time, however often it fails.
-      $("[data-meal-error]", els.today)?.remove();
-      els.today.insertAdjacentHTML("afterbegin", `<p class="status is-error" role="alert" data-meal-error>${esc(err.message)}</p>`);
+      showFormError(form, err);
     }
   });
+}
+
+function togglePassword(button) {
+  const input = document.getElementById(button.getAttribute("aria-controls"));
+  if (!input) return;
+  const show = input.type === "password";
+  input.type = show ? "text" : "password";
+  $(".pw__label", button).textContent = show ? "Hide" : "Show";
+}
+
+els.auth.addEventListener("click", (event) => {
+  const nav = event.target.closest("[data-auth]");
+  if (nav) {
+    if (nav.dataset.auth === "app") return enterApp({ focus: true });
+    const email = $("input[name=email]", els.auth)?.value.trim() ?? "";
+    return showAuth(nav.dataset.auth, { email });
+  }
+  const toggle = event.target.closest('[data-action="toggle-password"]');
+  if (toggle) togglePassword(toggle);
 });
 
+els.auth.addEventListener("submit", (event) => {
+  event.preventDefault();
+  submitAccountForm(event.target);
+});
+
+els.auth.addEventListener("input", (event) => clearFieldError(event.target));
+
+/** ?verify=TOKEN: confirm, then carry on into the app when already signed in. */
+async function confirmEmail(token) {
+  showAuth("verify", { phase: "pending" });
+  try {
+    const { user } = await api("/api/auth/verify-email", { method: "POST", ...jsonBody({ token }) });
+    if (state.user && user?.id === state.user.id) state.user = user;
+    if (state.user) {
+      enterApp();
+      toast("Email confirmed. Thanks.");
+    } else {
+      showAuth("verify", { phase: "done" });
+    }
+  } catch (err) {
+    showAuth("verify", { phase: "failed", message: err.message });
+  }
+}
+
+// ---- the unconfirmed-email banner and its actions
+
+function confirmActionsHtml() {
+  return `
+    <button class="btn btn--soft" type="button" data-action="resend">${icon("mail")}Resend link</button>
+    ${state.demoVerifyUrl ? `<button class="btn btn--primary" type="button" data-action="demo-verify">${icon("check")}Confirm now (demo)</button>` : ""}`;
+}
+
+function renderBanner() {
+  const user = state.user;
+  if (!state.authRequired || !user || user.email_verified) {
+    els.banner.innerHTML = "";
+    return;
+  }
+  els.banner.innerHTML = `
+    <div class="banner" data-confirm="banner">
+      <span class="banner__icon" aria-hidden="true">${icon("mail")}</span>
+      <div class="banner__text">
+        <p class="banner__title">Confirm your email</p>
+        <p>Open the link we sent to <strong>${esc(user.email)}</strong>.</p>
+      </div>
+      <div class="banner__actions">${confirmActionsHtml()}</div>
+      <p class="banner__status" role="status"></p>
+    </div>`;
+}
+
+/** Redraw both places that offer the confirm actions, keeping focus on the same action. */
+function refreshConfirmUi(where, action) {
+  renderBanner();
+  if (els.account.open) renderAccountBody();
+  if (!where) return null;
+  const box = $(`[data-confirm="${where}"]`);
+  $(`[data-action="${action}"]`, box ?? document)?.focus({ preventScroll: true });
+  return box;
+}
+
+function confirmStatus(box, message, { error = false } = {}) {
+  const out = box && $(".banner__status", box);
+  if (!out) return;
+  out.textContent = message;
+  out.classList.toggle("is-error", error);
+}
+
+async function resendLink(button) {
+  const where = button.closest("[data-confirm]")?.dataset.confirm;
+  await withBusy(button, async () => {
+    try {
+      const reply = await api("/api/auth/resend-verification", { method: "POST", session: true });
+      if (reply?.demo_verify_url) state.demoVerifyUrl = reply.demo_verify_url;
+      confirmStatus(refreshConfirmUi(where, "resend"), "We sent a new link.");
+    } catch (err) {
+      if (err.signedOut) return;
+      if (err.status === 409) {
+        await refreshUser();
+        refreshConfirmUi();
+        (els.account.open ? els.accountTitle : els.todayTitle).focus({ preventScroll: true });
+        toast("Your email is already confirmed.");
+        return;
+      }
+      confirmStatus(button.closest("[data-confirm]"), err.message, { error: true });
+    }
+  });
+}
+
+/** Demo only: the server put the link in its reply, so confirm with its token right here. */
+async function demoVerify(button) {
+  let token = null;
+  try {
+    token = new URL(state.demoVerifyUrl, location.origin).searchParams.get("verify");
+  } catch {
+    token = null;
+  }
+  if (!token) return;
+  const box = button.closest("[data-confirm]");
+  await withBusy(button, async () => {
+    try {
+      const { user } = await api("/api/auth/verify-email", { method: "POST", ...jsonBody({ token }) });
+      if (state.user && user?.id === state.user.id) state.user = user;
+      else await refreshUser();
+      state.demoVerifyUrl = null;
+      updateAccountUi();
+      refreshConfirmUi();
+      (els.account.open ? els.accountTitle : els.todayTitle).focus({ preventScroll: true });
+      toast("Email confirmed. Thanks.");
+    } catch (err) {
+      if (!err.signedOut) confirmStatus(box, err.message, { error: true });
+    }
+  });
+}
+
+// ---- the account sheet
+
+function renderAccountBody() {
+  const user = state.user;
+  if (!user) return;
+  const created = new Date(user.created_at);
+  const since = Number.isNaN(created.getTime()) ? "" : `<p class="account__since">Member since ${monthYear.format(created)}</p>`;
+  els.accountTitle.textContent = user.name || "Your account";
+  els.accountBody.innerHTML = `
+    <div class="account__id">
+      <span class="avatar avatar--lg" aria-hidden="true">${esc(initials(user))}</span>
+      <div class="account__who">
+        <p class="account__email">${esc(user.email)}</p>
+        <p>${
+          user.email_verified
+            ? `<span class="chip chip--ok">${icon("check")}Confirmed</span>`
+            : '<span class="chip chip--alert">Not confirmed</span>'
+        }</p>
+      </div>
+    </div>
+    ${
+      user.email_verified
+        ? ""
+        : `<div class="account__confirm" data-confirm="account">
+             <p>Open the link we sent to confirm your email.</p>
+             <div class="banner__actions">${confirmActionsHtml()}</div>
+             <p class="banner__status" role="status"></p>
+           </div>`
+    }
+    ${since}
+    <section class="account__section" aria-labelledby="password-title">
+      <h3 id="password-title" class="account__section-title">Password</h3>
+      <button class="btn btn--soft btn--block" type="button" data-action="show-change-password" aria-expanded="false" aria-controls="change-password">${icon("key")}Change password</button>
+      <form id="change-password" class="form form--plain" data-form="change-password" novalidate hidden>
+        <input class="visually-hidden" type="email" name="username" autocomplete="username" value="${esc(user.email)}" tabindex="-1" aria-hidden="true" readonly>
+        ${passwordFieldHtml({ id: "current-password", name: "current_password", label: "Current password", autocomplete: "current-password" })}
+        ${passwordFieldHtml({ id: "new-password", name: "new_password", label: "New password", autocomplete: "new-password", hint: "At least 8 characters." })}
+        <p class="form-error" role="alert" hidden></p>
+        <button class="btn btn--primary btn--block" type="submit">Save new password</button>
+      </form>
+    </section>
+    <p class="account__status status" role="status"></p>
+    <button class="btn btn--soft btn--block" type="button" data-install>${icon("home")}Add to Home Screen</button>
+    <button class="btn btn--secondary btn--block" type="button" data-action="sign-out">${icon("logout")}Sign out</button>`;
+}
+
+function openAccount() {
+  if (!state.user) return;
+  clearTimeout(accountTimer);
+  els.account.classList.remove("is-closing");
+  els.account.style.transform = "";
+  accountMessage = "";
+  renderAccountBody();
+  document.documentElement.classList.add("has-sheet");
+  if (!els.account.open) els.account.showModal();
+  els.accountTitle.focus();
+}
+
+let accountTimer = 0;
+let accountRestore = true;
+let accountMessage = "";
+let pressedAccountBackdrop = false;
+
+function closeAccount({ restoreFocus: restore = true, swiped = false, message = "" } = {}) {
+  if (!els.account.open) {
+    if (message) toast(message);
+    return;
+  }
+  accountRestore = restore;
+  if (message) accountMessage = message;
+  const done = () => els.account.open && els.account.close();
+  clearTimeout(accountTimer);
+  if (reducedMotion.matches) return done();
+  if (swiped) {
+    els.account.style.transition = "transform 200ms ease-in";
+    els.account.style.transform = "translateY(100%)";
+  } else {
+    els.account.classList.add("is-closing");
+  }
+  accountTimer = setTimeout(done, 190);
+}
+
+els.account.addEventListener("close", () => {
+  clearTimeout(accountTimer);
+  els.account.classList.remove("is-closing");
+  els.account.style.transition = "";
+  els.account.style.transform = "";
+  if (!els.sheet.open) document.documentElement.classList.remove("has-sheet");
+  els.accountBody.innerHTML = "";
+  if (accountRestore && !els.accountButton.hidden) els.accountButton.focus();
+  accountRestore = true;
+  if (accountMessage) toast(accountMessage);
+  accountMessage = "";
+});
+
+els.account.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeAccount();
+});
+
+els.account.addEventListener("pointerdown", (event) => {
+  pressedAccountBackdrop = event.target === els.account;
+});
+dragToDismiss(els.account, closeAccount);
+
+els.account.addEventListener("click", (event) => {
+  if (event.target === els.account && pressedAccountBackdrop) return closeAccount();
+  const button = event.target.closest("[data-action]");
+  switch (button?.dataset.action) {
+    case "close-account":
+      return closeAccount();
+    case "toggle-password":
+      return togglePassword(button);
+    case "show-change-password": {
+      const form = $("#change-password", els.account);
+      const open = form.hidden;
+      form.hidden = !open;
+      button.setAttribute("aria-expanded", String(open));
+      if (open) $("input:not(.visually-hidden)", form).focus();
+      return;
+    }
+    case "resend":
+      return resendLink(button);
+    case "demo-verify":
+      return demoVerify(button);
+    case "sign-out":
+      return signOut(button);
+  }
+});
+
+els.account.addEventListener("submit", (event) => {
+  event.preventDefault();
+  submitAccountForm(event.target);
+});
+
+els.account.addEventListener("input", (event) => clearFieldError(event.target));
+
+els.accountButton.addEventListener("click", openAccount);
+
+async function signOut(button) {
+  await withBusy(button, async () => {
+    try {
+      await api("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      if (err.status !== 401) {
+        setStatus(err.message, { error: true, target: $(".account__status", els.account) });
+        return;
+      }
+    }
+    closeAccount({ restoreFocus: false });
+    resetData();
+    state.user = null;
+    state.demoVerifyUrl = null;
+    updateAccountUi();
+    renderBanner();
+    showAuth("welcome");
+    toast("You're signed out.");
+  });
+}
+
 // --------------------------------------------------------------- history
-// Every screen above the capture screen has a history entry, so the Android back gesture and the
+// Every screen above the home screen has a history entry, so the Android back gesture and the
 // browser's back button step back through the app (a logged meal, then Today, then a result)
-// instead of leaving it.
+// instead of leaving it. Home is Analyze, or the Today dashboard when accounts are on.
 
-const baseUrl = location.pathname + location.search;
+// "install" belongs to install.js (the Home Screen sheet); it never stays in the address bar.
+const _bootParams = new URLSearchParams(location.search);
+_bootParams.delete("install");
+let baseUrl = location.pathname + (_bootParams.toString() ? "?" + _bootParams.toString() : "");
 
-/** The screens stacked above the capture screen right now. */
+const SLOT_LAYER = { analyze: "result", today: "meal" };
+const otherView = () => (state.home === "analyze" ? "today" : "analyze");
+
+/** The screens stacked above the home screen right now. */
 function layers() {
+  if (document.body.dataset.screen !== "app") return [];
   const out = [];
-  if (state.slots.analyze) out.push("result");
-  if (wide.matches) {
-    if (state.slots.today) out.push("meal");
-  } else if (state.view === "today") {
-    out.push("today");
-    if (state.slots.today) out.push("meal");
+  if (state.slots[state.home]) out.push(SLOT_LAYER[state.home]);
+  const other = otherView();
+  if (state.view === other) {
+    out.push(other);
+    if (state.slots[other]) out.push(SLOT_LAYER[other]);
   }
   return out;
 }
 
-const urlFor = (list) => (list.includes("today") ? "#today" : baseUrl);
+const urlFor = (list) => (list.includes("today") ? `${baseUrl}#today` : baseUrl);
 const entryLayers = (entry) => (Array.isArray(entry?.layers) ? entry.layers : []);
 
 let historyTask = Promise.resolve();
@@ -1232,6 +2538,7 @@ function traverse(delta) {
 
 window.addEventListener("popstate", (event) => {
   if (ownTraversal) return ownTraversal();
+  if (document.body.dataset.screen !== "app") return;
   applyLayers(entryLayers(event.state));
 });
 
@@ -1240,18 +2547,16 @@ function applyLayers(target) {
   const current = layers();
   const dropped = (name) => current.includes(name) && !target.includes(name);
   if (els.sheet.open) closeSheet({ restoreFocus: false });
+  if (els.account.open) closeAccount({ restoreFocus: false });
   if (dropped("meal")) closeSlot("today", { focus: true });
   if (dropped("result")) closeSlot("analyze", { focus: true });
-  if (!wide.matches) setView(target.includes("today") ? "today" : "analyze");
+  const other = otherView();
+  setView(target.includes(other) ? other : state.home);
   const now = layers();
   if (now.join() !== target.join()) history.replaceState({ layers: now }, "", urlFor(now));
   // Focus that was left in a view that is now hidden goes to the view's tab.
   const active = document.activeElement;
-  if (active && active !== document.body && !active.getClientRects().length) {
-    if (!wide.matches) $(".tab[aria-current]")?.focus({ preventScroll: true });
-    else if (state.shown) $("#result-title", els.result)?.focus({ preventScroll: true });
-    else focusCapture();
-  }
+  if (active && active !== document.body && !active.getClientRects().length) visibleTab()?.focus({ preventScroll: true });
 }
 
 // ----------------------------------------------------------------- wiring
@@ -1261,6 +2566,9 @@ for (const button of $$("[data-pick]")) {
 }
 for (const input of [els.library, els.camera]) {
   input.addEventListener("change", () => input.files[0] && analyze(input.files[0]));
+}
+for (const button of $$('.dock [data-action="snap"], .topbar [data-action="snap"]')) {
+  button.addEventListener("click", snapMeal);
 }
 
 let dragDepth = 0;
@@ -1303,27 +2611,80 @@ els.skip.addEventListener("click", (event) => {
   els.main.focus();
 });
 
+// Back to the page after a while (or past midnight): today may be a new day.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && document.body.dataset.screen === "app" && ensureToday()) loadDashboard();
+});
+
+/** ?verify= and ?reset= carry one-time tokens: take them, then drop them from the address bar. */
+function takeLinkTokens() {
+  const url = new URL(location.href);
+  const tokens = { verify: url.searchParams.get("verify"), reset: url.searchParams.get("reset") };
+  url.searchParams.delete("verify");
+  url.searchParams.delete("reset");
+  baseUrl = url.pathname + url.search;
+  if (tokens.verify !== null || tokens.reset !== null) history.replaceState(null, "", baseUrl + url.hash);
+  return tokens;
+}
+
+function bootFailed(err) {
+  document.body.dataset.screen = "app";
+  setPickers(false);
+  setStatus(err.message, { error: true });
+  els.today.dataset.state = "error";
+  els.dashDay.innerHTML = `<div class="card dash-error"><p class="status is-error" role="alert">${esc(err.message)}</p></div>`;
+}
+
 async function init() {
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  const links = takeLinkTokens();
   const startOnToday = location.hash === "#today";
   history.replaceState({ layers: [] }, "", baseUrl);
-  if (startOnToday) {
-    setView("today");
-    syncHistory();
-  }
   onScroll();
-  syncHeadingLevel();
+  syncTabs();
+  let status;
+  let nutrients;
   try {
-    const [status, nutrients] = await Promise.all([api("/api/status"), api("/api/nutrients")]);
-    state.nutrients = nutrients;
-    renderSetup(status);
+    [status, nutrients] = await Promise.all([
+      api("/api/status", { session: false }),
+      api("/api/nutrients", { session: false }).catch((err) => err),
+    ]);
   } catch (err) {
-    setPickers(false);
-    setStatus(err.message, { error: true });
-    els.today.innerHTML = `<p class="status is-error" role="alert">${esc(err.message)}</p>`;
+    return bootFailed(err);
+  }
+  const accounts = status.auth_required === true;
+  if (nutrients instanceof Error) {
+    // With accounts on, nutrient labels may need a sign-in; they load again after it.
+    if (!(accounts && nutrients.status === 401)) return bootFailed(nutrients);
+  } else {
+    state.nutrients = nutrients;
+  }
+  renderSetup(status);
+
+  if (!accounts) {
+    // No accounts on this server: the app as it always was, starting on Analyze.
+    enterApp();
+    if (startOnToday) {
+      setView("today");
+      syncHistory();
+    }
     return;
   }
-  loadToday();
+
+  enableAccounts(status);
+  try {
+    state.user = (await api("/api/auth/me")).user;
+  } catch (err) {
+    if (err.status !== 401) return bootFailed(err);
+    state.user = null;
+  }
+  if (links.reset) {
+    state.resetToken = links.reset;
+    return showAuth("reset");
+  }
+  if (links.verify) return confirmEmail(links.verify);
+  if (state.user) enterApp();
+  else showAuth("welcome");
 }
 
 init();
