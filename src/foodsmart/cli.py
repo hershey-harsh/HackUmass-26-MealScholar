@@ -1,4 +1,4 @@
-"""Command-line front end for the FoodSmart workflow."""
+"""Command-line front end for the MealScholar workflow."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def main(argv: list[str] | None = None) -> None:
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="foodsmart", description="Photo -> foods -> USDA nutrients.")
+    parser = argparse.ArgumentParser(prog="foodsmart", description="MealScholar: photo -> foods -> USDA nutrients.")
     sub = parser.add_subparsers(required=True, metavar="command")
 
     p = sub.add_parser("fdc-import", help="download USDA FoodData Central and build the local database")

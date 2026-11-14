@@ -36,4 +36,4 @@ Hacking began **Fri Nov 13, 8:30 PM**. Bold rows are hard deadlines; "Team targe
 
 ## Candidate prize tracks
 
-Pick once the FoodSmart scope is fixed: Best UMass Hack, Best Use of Gemini API, Most Impactful AI Hack, Best Use of MongoDB Atlas, Best UI/UX, Best Pitch, Best Domain Name from GoDaddy Registry. Full list on [hackumass.com](https://www.hackumass.com/).
+Pick once the MealScholar scope is fixed: Best UMass Hack, Best Use of Gemini API, Most Impactful AI Hack, Best Use of MongoDB Atlas, Best UI/UX, Best Pitch, Best Domain Name from GoDaddy Registry. Full list on [hackumass.com](https://www.hackumass.com/).
