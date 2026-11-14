@@ -40,4 +40,4 @@ Fill this in at kickoff so every agent knows whose files are whose.
 | UMass Dining menu data (MongoDB Atlas, database `umass_dining`) | `hershey-harsh` (Harsh) | none (the data lives in Atlas) |
 | Pitch deck and presentation | `gabbyao` (Gabby) | none in the repo yet |
 
-`web/` is live at https://hackumass.mannava.org: every push to `main` redeploys it (`.github/workflows/deploy-site.yml`, on the self-hosted runner on Harsh's Mac mini).
+`web/` is live at https://hackumass.mannava.org: every push to `main` redeploys it (`.github/workflows/deploy-site.yml`, on the self-hosted runner on Harsh's Mac mini). `web/` is published as plain static files. That runner runs nothing but that workflow on `main`, and only in a version Harsh has approved on the Mac. It refuses every other job, so don't point other workflows at it (`runs-on: hackumass-deploy`), and ask on the board before changing the deploy workflow.
