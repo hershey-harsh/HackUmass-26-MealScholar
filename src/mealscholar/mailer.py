@@ -91,12 +91,12 @@ class SmtpSender:
         wait(list(self._pending), timeout=timeout)
 
     def _deliver_logged(self, email: Email) -> None:
-        masked = _mask(email.to)
+        masked = mask_address(email.to)
         try:
             self._deliver(email)
         except (smtplib.SMTPException, OSError) as exc:  # OSError covers socket.timeout and ssl.SSLError
             # Only the error's name and SMTP code: a relay's reply text repeats the address and the login user.
-            log.warning("Couldn't send the %s email to %s: %s", email.purpose, masked, _describe(exc))
+            log.warning("Couldn't send the %s email to %s: %s", email.purpose, masked, describe_error(exc))
         else:
             log.info("Sent the %s email to %s", email.purpose, masked)
 
@@ -118,8 +118,9 @@ class SmtpSender:
             smtp.send_message(msg)
 
 
-def _describe(exc: BaseException) -> str:
-    """'SMTPRecipientsRefused (550)': the type and reply code, never the relay's text."""
+def describe_error(exc: BaseException) -> str:
+    """'SMTPRecipientsRefused (550)': the type and reply code, never the relay's text, which repeats
+    the address and the login user. For a log line about a failed send, together with mask_address."""
     codes: list[int] = []
     if isinstance(exc, smtplib.SMTPResponseException):
         codes = [exc.smtp_code]
@@ -129,7 +130,7 @@ def _describe(exc: BaseException) -> str:
     return f"{name} ({', '.join(str(c) for c in codes)})" if codes else name
 
 
-def _mask(address: str) -> str:
+def mask_address(address: str) -> str:
     """s***@example.com: enough for a log line, not an address."""
     local, _, domain = address.partition("@")
     return f"{local[:1]}***@{domain}"

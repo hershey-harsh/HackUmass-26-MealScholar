@@ -13,7 +13,7 @@ import re
 import shutil
 import smtplib
 import sqlite3
-import time
+import threading
 import tracemalloc
 import unicodedata
 from contextlib import closing, suppress
@@ -705,7 +705,7 @@ class FakeSMTP:
     calls: list[str] = []
     messages: list = []
     connections: list[tuple[str, int, float]] = []
-    on_send: object = None  # an exception to raise, or a number of seconds to sleep, in send_message
+    on_send: object = None  # an exception to raise, or a threading.Event to wait for, in send_message
 
     def __init__(self, host, port, timeout=None):
         FakeSMTP.connections.append((host, port, timeout))
@@ -730,8 +730,8 @@ class FakeSMTP:
     def send_message(self, msg):
         if isinstance(FakeSMTP.on_send, BaseException):
             raise FakeSMTP.on_send
-        if isinstance(FakeSMTP.on_send, (int, float)):
-            time.sleep(FakeSMTP.on_send)
+        if isinstance(FakeSMTP.on_send, threading.Event):
+            assert FakeSMTP.on_send.wait(30), "the test never released the relay"
         FakeSMTP.calls.append("send_message")
         FakeSMTP.messages.append(msg)
 
@@ -740,7 +740,9 @@ class FakeSMTP:
 def fake_smtp(monkeypatch):
     FakeSMTP.calls, FakeSMTP.messages, FakeSMTP.connections, FakeSMTP.on_send = [], [], [], None
     monkeypatch.setattr(mailer.smtplib, "SMTP", FakeSMTP)
-    return FakeSMTP
+    yield FakeSMTP
+    if isinstance(FakeSMTP.on_send, threading.Event):
+        FakeSMTP.on_send.set()  # never leave a worker blocked after a failed assertion
 
 
 SMTP_ENV = {
@@ -773,25 +775,25 @@ def test_smtp_sender_talks_starttls_and_sends(make_app, fake_smtp):
 
 
 def test_smtp_sending_does_not_delay_sign_up_or_forgot_password(make_app, fake_smtp):
-    fake_smtp.on_send = 2  # a slow relay
-
-    def timed(call):
-        start = time.perf_counter()
-        res = call()
-        return res.status_code, time.perf_counter() - start
-
+    # A relay that hangs until the test releases it: every request must answer while it is still
+    # stuck, which a wall-clock bound could not show reliably on a busy CI runner.
+    relay = fake_smtp.on_send = threading.Event()
     app = make_app(**SMTP_ENV)
     client = browser(app)
-    status, took = timed(lambda: register(client))
-    assert (status, took < 0.5) == (201, True)
+    assert register(client).status_code == 201
     for email in ("sam@example.com", "nobody@example.com"):
-        status, took = timed(lambda email=email: client.post("/api/auth/forgot-password", json={"email": email}))
-        assert (status, took < 0.5) == (202, True), email
+        assert client.post("/api/auth/forgot-password", json={"email": email}).status_code == 202, email
+    assert fake_smtp.messages == []  # all three answered before the relay accepted anything
+    assert "send_message" not in fake_smtp.calls
+    assert len(app.state.auth.sender._pending) == 2  # the verify and reset emails are queued; nothing for nobody@
+
+    relay.set()
     app.state.auth.sender.drain(10)
     assert [(m["To"], m["Subject"]) for m in fake_smtp.messages] == [
         ("sam@example.com", "Confirm your MealScholar email"),
         ("sam@example.com", "Reset your MealScholar password"),
     ]
+    assert app.state.auth.sender._pending == set()
 
 
 @pytest.mark.parametrize(

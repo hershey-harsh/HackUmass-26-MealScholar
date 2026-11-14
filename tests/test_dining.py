@@ -7,7 +7,9 @@ MongoDB is never contacted; MongoDiningSource's queries are checked against stan
 
 import copy
 import hashlib
+import logging
 import re
+import smtplib
 from collections import Counter
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
@@ -737,7 +739,7 @@ def accounts_with_prefs():
     return users, prefs
 
 
-def test_digest_emails_confirmed_users_with_email_alerts_on(source, clock, monkeypatch):
+def test_digest_emails_confirmed_users_with_email_alerts_on(source, clock, monkeypatch, caplog):
     users, prefs = accounts_with_prefs()
     dining = Dining(source, clock=clock)
     report = send_favorites_digests(users, prefs, dining, OutboxSender(users), "https://meals.example", days=1)
@@ -753,10 +755,65 @@ def test_digest_emails_confirmed_users_with_email_alerts_on(source, clock, monke
 
     monkeypatch.setattr(mailer.smtplib, "SMTP", refuse)
     smtp = SmtpSender(SmtpSettings(host="smtp.invalid", sender="x@example.com"), background=False)
-    failing = send_favorites_digests(users, prefs, dining, smtp, "https://meals.example", days=1)
+    with caplog.at_level(logging.WARNING, logger="mealscholar.dining"):
+        failing = send_favorites_digests(users, prefs, dining, smtp, "https://meals.example", days=1)
     assert failing == DigestReport(users=4, queued=0, failed=1)  # synchronous: the command counts the failure
+    assert "Couldn't send the favorites_digest email to s***@example.com: OSError" in caplog.text
+    assert "sam@example.com" not in caplog.text
     with pytest.raises(ValueError, match="MEALSCHOLAR_SMTP_HOST"):
         make_sender("smtp", users, None)
+
+    # A bounce or an auth refusal: the relay's reply text (which repeats the address and the login
+    # user) and the traceback stay out of the log, same as the account emails in background mode.
+    class Relay:
+        error: Exception
+
+        def __init__(self, host, port, timeout=None):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def ehlo(self):
+            pass
+
+        def starttls(self, context=None):
+            pass
+
+        def login(self, user, password):
+            if isinstance(Relay.error, smtplib.SMTPAuthenticationError):
+                raise Relay.error
+
+        def send_message(self, msg):
+            raise Relay.error
+
+    monkeypatch.setattr(mailer.smtplib, "SMTP", Relay)
+    relay = SmtpSettings(host="smtp.invalid", sender="x@example.com", user="harsh@gmail.com", password="pw")
+    for Relay.error, logged in [
+        (
+            smtplib.SMTPRecipientsRefused({"sam@example.com": (550, b"5.1.1 user unknown")}),
+            "SMTPRecipientsRefused (550)",
+        ),
+        (
+            smtplib.SMTPAuthenticationError(535, b"5.7.8 not accepted for user harsh@gmail.com"),
+            "SMTPAuthenticationError (535)",
+        ),
+    ]:
+        caplog.clear()
+        with caplog.at_level(logging.WARNING, logger="mealscholar.dining"):
+            report = send_favorites_digests(
+                users, prefs, dining, SmtpSender(relay, background=False), "https://x", days=1
+            )
+        assert report == DigestReport(users=4, queued=0, failed=1)
+        (record,) = caplog.records
+        assert record.getMessage() == f"Couldn't send the favorites_digest email to s***@example.com: {logged}"
+        assert record.exc_info is None  # no traceback: its last line would be the relay's reply
+        assert "sam@example.com" not in caplog.text
+        assert "user unknown" not in caplog.text
+        assert "harsh@gmail.com" not in caplog.text
 
     kim = users.user_by_email("kim@example.com")  # confirmed; a broken document is skipped, not fatal
     prefs.update(kim.id, {"notify.email": True, "favorites": "not a list"})

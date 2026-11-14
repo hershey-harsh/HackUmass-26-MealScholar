@@ -35,7 +35,7 @@ from pymongo.errors import PyMongoError
 from .auth_store import AuthStore, open_store, utc_now
 from .campus import serving_grams
 from .config import Settings
-from .mailer import Email, EmailSender
+from .mailer import Email, EmailSender, describe_error, mask_address
 from .prefs import ALLERGENS, DIETS, MAX_LOCATION_ID, MyPrefs, Prefs, PrefsStore, dish_key, no_store, open_prefs_store
 
 log = logging.getLogger(__name__)
@@ -996,8 +996,10 @@ def send_favorites_digests(
             continue
         try:
             sender.send(favorites_email(user.email, alerts, public_url))
-        except Exception:
-            log.exception("Couldn't send a favorites email")  # best effort, like the account emails
+        except Exception as exc:  # best effort, like the account emails; one line per failure, no address in it
+            log.warning(
+                "Couldn't send the favorites_digest email to %s: %s", mask_address(user.email), describe_error(exc)
+            )
             failed += 1
         else:
             queued += 1
