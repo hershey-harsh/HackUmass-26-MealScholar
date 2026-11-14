@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import io
+import logging
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Protocol
 
@@ -16,7 +17,15 @@ from .schemas import MealAnalysis, MealContext
 if TYPE_CHECKING:
     from .dining import DishFacts
 
+log = logging.getLogger(__name__)
+
 MAX_IMAGE_SIDE = 1536
+REQUEST_TIMEOUT_S = 60.0
+"""Wall-clock budget of one Gemini call, so a stalled request frees its worker instead of hanging."""
+ATTEMPTS = 2
+"""Calls per analysis at most: a truncated or schema-invalid reply is retried once with the same input."""
+FINAL_STATUSES = ("failed", "cancelled", "budget_exceeded", "requires_action")
+"""Interaction statuses that a retry would not change."""
 MENU_NAMES = 100
 """Menu dishes listed in the prompt at most: the meal on at the photo's time first, whole
 (campus.candidates), so the cap only ever cuts other meals."""
@@ -27,6 +36,7 @@ You estimate food portions from meal photos for a nutrition logger.
 - List every distinct food and drink as its own item. Split a plate into components only
   when they are visibly separate (rice beside chicken = 2 items; fried rice = 1 item).
   Sauces, dressings and spreads that are visible get their own item.
+- Skip food that is cut off by the edge of the photo unless it is the subject of the photo.
 - Estimate edible weight in grams as low / likely / high. Judge size against objects in the
   photo: dinner plate ~26 cm, side plate ~18 cm, fork ~19 cm, spoon ~15 cm, chopsticks
   ~23 cm, soda can ~12 cm tall, adult hand ~18 cm long. Name the object you used in
@@ -45,7 +55,7 @@ You estimate food portions from meal photos for a nutrition logger.
   shows, never the menu.
 - question: at most one short question about the single uncertainty with the biggest
   calorie impact (cooking fat, drink size, sugar in a drink, hidden layer, sauce amount).
-  Use null when nothing material is uncertain.
+  The question is one sentence. Use null when nothing material is uncertain.
 - Only a meal counts: real food or drink that is about to be eaten or drunk. Otherwise return
   is_food=false and an empty items list. That includes a photo with no food at all, and one that
   shows only food models or replicas (plastic display food), food on display in a shop window or
@@ -63,8 +73,9 @@ The user answered: {answer}
 Return the full corrected analysis. Change only what the answer affects (grams, cooking method, \
 fdc_query, hidden_fat_likely); add an item if the answer reveals one. If the answer pins down an \
 amount, such as a drink size, a count, or how much dressing, narrow grams_low and grams_high of \
-the items it affects to match. Keep menu_item and the servings unless the answer changes them. Set \
-question to null."""
+the items it affects to match. Keep menu_item and the servings unless the answer changes them. Update \
+the existing items in place; never add a second entry for a food that is already listed. Set question \
+to null."""
 
 _MENU_FIELDS = ("menu_item", "servings_low", "servings_likely", "servings_high")
 
@@ -133,10 +144,11 @@ def context_prompt(
 
 
 class GeminiVision:
-    def __init__(self, api_key: str, model: str, thinking_level: str) -> None:
+    def __init__(self, api_key: str, model: str, thinking_level: str, *, timeout: float = REQUEST_TIMEOUT_S) -> None:
         self._client = genai.Client(api_key=api_key)
         self._model = model
         self._thinking_level = thinking_level
+        self._timeout = timeout
 
     def analyze(self, jpeg: bytes, context: str) -> MealAnalysis:
         return self._call(
@@ -151,20 +163,32 @@ class GeminiVision:
         return self._call([{"type": "text", "text": text}])
 
     def _call(self, content: list[dict]) -> MealAnalysis:
-        try:
-            interaction = self._client.interactions.create(
-                model=self._model,
-                system_instruction=SYSTEM_PROMPT,
-                input=content,
-                response_format=_RESPONSE_FORMAT,
-                generation_config={"thinking_level": self._thinking_level},
-                store=False,  # don't retain meal photos server-side
-            )
-        except Exception as exc:  # the SDK's interaction error classes are not public API
-            raise VisionError(f"Gemini request failed: {exc}") from exc
-        if not interaction.output_text:
-            raise VisionError(f"Gemini returned no text (status: {interaction.status}).")
-        try:
-            return MealAnalysis.model_validate_json(interaction.output_text)
-        except ValidationError as exc:
-            raise VisionError(f"Gemini output did not match the schema: {exc}") from exc
+        """One structured-output call, bounded by the timeout. A reply the schema rejects (cut off,
+        empty, or off-shape) gets one more attempt; an SDK error or a final status does not."""
+        problem = "Gemini returned no text."
+        for attempt in range(1, ATTEMPTS + 1):
+            try:
+                interaction = self._client.interactions.create(
+                    model=self._model,
+                    system_instruction=SYSTEM_PROMPT,
+                    input=content,
+                    response_format=_RESPONSE_FORMAT,
+                    generation_config={"thinking_level": self._thinking_level},
+                    store=False,  # don't retain meal photos server-side
+                    timeout=self._timeout,  # seconds for the whole call, across continuation hops
+                )
+            except Exception as exc:  # the SDK's interaction error classes are not public API
+                raise VisionError(f"Gemini request failed: {exc}") from exc
+            status = interaction.status
+            if status in FINAL_STATUSES:
+                raise VisionError(f"Gemini did not complete the request (status: {status}).")
+            text = interaction.output_text or ""
+            if status != "incomplete" and text:
+                try:
+                    return MealAnalysis.model_validate_json(text)
+                except ValidationError as exc:
+                    problem = f"Gemini output did not match the schema: {exc}"
+            else:
+                problem = f"Gemini returned {'a truncated reply' if text else 'no text'} (status: {status})."
+            log.warning("Gemini attempt %d/%d unusable (status %s): %.200s", attempt, ATTEMPTS, status, text)
+        raise VisionError(problem)

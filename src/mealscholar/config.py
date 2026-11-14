@@ -11,6 +11,8 @@ DEFAULT_MODEL = "gemini-4-hydrogen"
 DEFAULT_NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
 DEFAULT_PUBLIC_URL = "http://127.0.0.1:8000"
 EMAIL_PROVIDERS = ("outbox", "smtp")
+THINKING_LEVELS = ("minimal", "low", "medium", "high", "xhigh")
+"""Gemini thinking levels the installed SDK accepts (google.genai.interactions.ThinkingLevel)."""
 USER_AGENT = "MealScholar/0.1 (HackUMass prototype; https://github.com/hershey-harsh/HackUmass-26-MealScholar)"
 
 
@@ -54,7 +56,7 @@ def load_settings(env: Mapping[str, str] = os.environ) -> Settings:
     return Settings(
         gemini_api_key=env.get("GEMINI_API_KEY") or None,
         gemini_model=env.get("MEALSCHOLAR_MODEL", DEFAULT_MODEL),
-        thinking_level=env.get("MEALSCHOLAR_THINKING", "low"),
+        thinking_level=_thinking_level(env.get("MEALSCHOLAR_THINKING") or "low"),
         home=Path(env.get("MEALSCHOLAR_HOME", "~/.mealscholar")).expanduser(),
         nominatim_url=env.get("MEALSCHOLAR_NOMINATIM_URL", DEFAULT_NOMINATIM_URL),
         mongodb_uri=env.get("MONGODB_URI") or None,
@@ -92,3 +94,10 @@ def _email_provider(value: str) -> str:
     if provider not in EMAIL_PROVIDERS:
         raise ValueError(f"MEALSCHOLAR_EMAIL_PROVIDER must be one of {', '.join(EMAIL_PROVIDERS)}, not {value!r}.")
     return provider
+
+
+def _thinking_level(value: str) -> str:
+    level = value.strip().lower()
+    if level not in THINKING_LEVELS:
+        raise ValueError(f"MEALSCHOLAR_THINKING must be one of {', '.join(THINKING_LEVELS)}, not {value!r}.")
+    return level

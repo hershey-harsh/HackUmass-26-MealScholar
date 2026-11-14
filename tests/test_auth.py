@@ -901,11 +901,14 @@ def test_account_settings_from_the_environment():
     assert (custom.mongodb_uri, custom.mongodb_db) == ("mongodb://localhost", "other")
     assert (custom.public_url, custom.email_provider) == ("https://meals.example", "smtp")
     assert [getattr(custom, flag) for flag in flags] == [False, False, True, True]
+    assert defaults.thinking_level == "low"
+    assert load_settings({"MEALSCHOLAR_THINKING": "High"}).thinking_level == "high"
 
     for name, value in (
         ("MEALSCHOLAR_AUTH_REQUIRED", "maybe"),
         ("MEALSCHOLAR_EMAIL_PROVIDER", "pigeon"),
         ("MEALSCHOLAR_PUBLIC_URL", "meals.example"),
+        ("MEALSCHOLAR_THINKING", "ultra"),
     ):
         with pytest.raises(ValueError, match=name):
             load_settings({name: value})
