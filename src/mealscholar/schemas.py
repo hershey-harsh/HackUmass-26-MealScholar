@@ -60,7 +60,9 @@ class MealContext(BaseModel):
 # which is what Gemini's constrained decoding handles best.
 
 
-_SERVINGS = "How many of the dish's listed serving are on the plate, as a range like grams; null unless menu_item is set."
+_SERVINGS = (
+    "How many of the dish's listed serving are on the plate, as a range like grams; null unless menu_item is set."
+)
 
 
 class FoodItem(BaseModel):
@@ -84,7 +86,9 @@ class FoodItem(BaseModel):
     # Defaults keep stored meals valid; vision.response_schema() still marks them required for Gemini.
     menu_item: str | None = Field(
         default=None,
-        description="Exact name of the listed menu dish this food is; null when it is not one of them or no menu was given.",
+        description=(
+            "Exact name of the listed menu dish this food is; null when it is not one of them or no menu was given."
+        ),
     )
     servings_low: float | None = Field(default=None, description=_SERVINGS)
     servings_likely: float | None = Field(default=None, description=_SERVINGS)

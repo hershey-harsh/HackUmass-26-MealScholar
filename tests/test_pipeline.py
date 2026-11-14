@@ -1,16 +1,24 @@
 import math
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 from PIL import Image
 
+from mealscholar.campus import serving_grams
 from mealscholar.diary import Diary
+from mealscholar.dining import DiningUnavailable, DishFacts
 from mealscholar.insights import summarize_days
-from mealscholar.pipeline import UnknownFood, Workflow, correct
-from mealscholar.schemas import FoodItem, MealAnalysis, Range
+from mealscholar.nutrients import NUTRIENTS
+from mealscholar.pipeline import UnknownFood, Workflow, correct, meal_name
+from mealscholar.schemas import FoodItem, MealAnalysis, MenuRef, Range
+
+WORCESTER, BERKSHIRE = "Worcester Dining Commons", "Berkshire Dining Commons"
+LUNCH_DAY = date(2026, 11, 13)
+MICRO_KEYS = [n.key for n in NUTRIENTS if n.micro]
 
 
-def item(name, query, low, likely, high, *, method="unknown", hidden_fat=False):
+def item(name, query, low, likely, high, *, method="unknown", hidden_fat=False, menu_item=None, servings=None):
+    low_s, likely_s, high_s = servings if servings is not None else (None, None, None)
     return FoodItem(
         name=name,
         fdc_query=query,
@@ -20,21 +28,61 @@ def item(name, query, low, likely, high, *, method="unknown", hidden_fat=False):
         grams_high=high,
         box_2d=None,
         hidden_fat_likely=hidden_fat,
+        menu_item=menu_item,
+        servings_low=low_s,
+        servings_likely=likely_s,
+        servings_high=high_s,
+    )
+
+
+def dish(name, serving, kcal, *, meal="lunch", protein=5.0, carbs=20.0, fat=5.0, score=4, **more):
+    per_serving = {"energy_kcal": kcal, "protein_g": protein, "carbs_g": carbs, "fat_g": fat, **more}
+    return DishFacts(
+        dish_id=f"d-{name.lower().replace(' ', '-')}",
+        name=name,
+        meal=meal,
+        category=None,
+        serving_size=serving,
+        serving_grams=serving_grams(serving),
+        per_serving=per_serving,
+        healthfulness_score=score,
     )
 
 
 class FakeVision:
     def __init__(self, analysis):
         self.analysis = analysis
+        self.context = None
         self.refined_with = None
 
     def analyze(self, jpeg, context):
+        self.context = context
         return self.analysis
 
     def refine(self, analysis, question, answer):
         self.refined_with = (question, answer)
         rice = analysis.items[0].model_copy(update={"hidden_fat_likely": True})
         return analysis.model_copy(update={"items": [rice, *analysis.items[1:]]})
+
+
+class FakeMenus:
+    """dining.Dining as the pipeline sees it: a hall's dishes for a day, and its name."""
+
+    names = {1: WORCESTER, 2: BERKSHIRE}
+
+    def __init__(self, facts):
+        self.facts = facts  # {(location_id, day): [DishFacts]}
+        self.down = False
+
+    def dishes_on(self, location_id, day):
+        if self.down:
+            raise DiningUnavailable("MongoDB is down")
+        return tuple(self.facts.get((location_id, day), ()))
+
+    def location_name(self, location_id):
+        if self.down:
+            raise DiningUnavailable("MongoDB is down")
+        return self.names.get(location_id)
 
 
 @pytest.fixture
@@ -58,10 +106,35 @@ def analysis():
     )
 
 
-def analyze(food_db, analysis, meal_photo):
-    workflow = Workflow(vision=FakeVision(analysis), foods=food_db)
-    result = workflow.analyze(meal_photo, device_time=datetime(2026, 11, 13, 12, 30))
+@pytest.fixture
+def campus():
+    """Worcester's menu on the lunch day; Berkshire has none."""
+    lunch = [
+        dish("Jasmine Rice", "4 OZ", 186, protein=4, carbs=41, fat=0, sodium_mg=5, score=5),
+        dish("Cheese Pizza", "1 Slice", 212, protein=9, carbs=26, fat=8),
+        dish("Scrambled Eggs", "3 OZ", 112, protein=9, carbs=1, fat=8),
+        dish("Chicken Piccata Pizza", "1/6 PIZZA", 803, protein=35, carbs=80, fat=38),
+        dish("12 oz Regular Coffee", "12 OZL", 0, protein=0, carbs=0, fat=0),
+        dish("16 oz Latte", "16 OZL", 0, protein=0, carbs=0, fat=0),
+    ]
+    dinner = [dish("Pad Thai", "8 OZ", 450, meal="dinner")]
+    return FakeMenus({(1, LUNCH_DAY): lunch + dinner})
+
+
+def one(food_item, question=None):
+    return MealAnalysis(is_food=True, items=[food_item], scale_reference=None, question=question)
+
+
+def analyze(food_db, analysis, meal_photo, *, menus=None, location_id=None, device_time=None):
+    workflow = Workflow(vision=FakeVision(analysis), foods=food_db, menus=menus)
+    result = workflow.analyze(
+        meal_photo, device_time=device_time or datetime(2026, 11, 13, 12, 30), location_id=location_id
+    )
     return workflow, result
+
+
+def bounds(r):
+    return r.low, r.likely, r.high
 
 
 def test_totals_are_grams_times_database_values_with_ranges(food_db, analysis, meal_photo):
@@ -84,6 +157,8 @@ def test_totals_are_grams_times_database_values_with_ranges(food_db, analysis, m
     assert "vitamin_d_ug" in result.partial_nutrients
     assert any("Zzyzx" in n or "mystery sauce" in n for n in result.notes)
     assert result.context.meal_slot == "lunch"
+    assert result.menu is None and result.name == "white rice, pizza slice and mystery sauce"
+    assert all(r.source == "usda" and r.dish is None for r in result.items)
 
 
 def test_loose_lookup_is_suggested_not_counted(food_db, meal_photo):
@@ -148,3 +223,204 @@ def test_day_total_is_narrower_than_its_meals_added_up(food_db, analysis, meal_p
     meal, total = lunch.totals["energy_kcal"], day.totals["energy_kcal"]
     assert total.likely == pytest.approx(2 * meal.likely)
     assert meal.high - meal.likely < total.high - total.likely < 2 * (meal.high - meal.likely)
+
+
+# --- campus menu matching (only with an explicit hall) -------------------------
+
+
+def test_menu_dish_with_a_weight_serving_uses_its_label_and_usda_micros(food_db, analysis, meal_photo, campus):
+    rice = analysis.items[0].model_copy(update={"menu_item": "Jasmine Rice"})
+    analysis = analysis.model_copy(update={"items": [rice, *analysis.items[1:]]})
+    _, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=1)
+
+    rice = result.items[0]
+    assert rice.source == "campus" and rice.match.fdc_id == 1  # USDA rice donates micronutrients only
+    per_gram = 186 / 113.4  # the label's 186 kcal per 4 OZ, over the model's 150/200/260 g
+    assert bounds(rice.nutrients["energy_kcal"]) == pytest.approx((246.0, 328.0, 426.4), abs=0.1)
+    assert bounds(rice.nutrients["sodium_mg"]) == pytest.approx((5 * 150 / 113.4, 5 * 200 / 113.4, 5 * 260 / 113.4))
+    assert rice.nutrients["energy_kcal"].likely == pytest.approx(per_gram * 200)
+    assert (rice.dish.name, rice.dish.serving_size, rice.dish.serving_grams) == ("Jasmine Rice", "4 OZ", 113.4)
+    assert (rice.dish.healthfulness_score, rice.dish.meal, rice.dish.location_name) == (5, "lunch", WORCESTER)
+    assert rice.dish.per_serving["energy_kcal"] == 186
+    assert result.menu == MenuRef(location_id=1, location_name=WORCESTER, date=LUNCH_DAY, dishes=7)
+    assert result.name == "white rice, pizza slice and mystery sauce"
+    assert f"Campus menu: {WORCESTER}, 2026-11-13." in result.notes
+    assert result.totals["energy_kcal"].likely == pytest.approx(per_gram * 200 + 266 * 1.2)
+
+
+def test_menu_dish_counted_in_servings_keeps_a_range(food_db, meal_photo, campus):
+    query = "Pizza, cheese, from restaurant or fast food, thin crust"
+    pizza = item("pizza slice", query, 100, 120, 150, menu_item="Cheese Pizza", servings=(1, 1.5, 2))
+    _, result = analyze(food_db, one(pizza), meal_photo, menus=campus, location_id=1)
+
+    (slice_,) = result.items
+    assert slice_.source == "campus" and slice_.match.fdc_id == 6
+    assert bounds(slice_.nutrients["energy_kcal"]) == pytest.approx((212, 318, 424))
+    assert bounds(slice_.nutrients["vitamin_d_ug"]) == pytest.approx((0.2 * 1.0, 0.2 * 1.2, 0.2 * 1.5))
+    assert all(key in result.partial_nutrients for key in MICRO_KEYS if key != "vitamin_d_ug")
+    assert "vitamin_d_ug" not in result.partial_nutrients
+
+    pinned = pizza.model_copy(update={"servings_low": 2, "servings_likely": 2, "servings_high": 2})
+    _, result = analyze(food_db, one(pinned), meal_photo, menus=campus, location_id=1)
+    low, likely, high = bounds(result.items[0].nutrients["energy_kcal"])
+    assert low < likely == pytest.approx(424) < high  # widened by the model's own 100/120 and 150/120
+    assert (low, high) == pytest.approx((424 * 100 / 120, 424 * 150 / 120))
+
+
+def test_a_count_that_does_not_fit_the_plate_falls_back_to_usda(food_db, meal_photo, campus):
+    query = "Pizza, cheese, from restaurant or fast food, thin crust"
+    three = item("chicken pizza", query, 360, 420, 480, menu_item="Chicken Piccata Pizza", servings=(3, 3, 3))
+    _, result = analyze(food_db, one(three), meal_photo, menus=campus, location_id=1)
+
+    (pizza,) = result.items
+    assert (pizza.source, pizza.dish, pizza.match.fdc_id) == ("usda", None, 6)
+    assert pizza.nutrients["energy_kcal"].likely == pytest.approx(266 * 4.2)
+    assert any("Chicken Piccata Pizza (1/6 PIZZA)" in n and "didn't fit the estimated amount" in n for n in result.notes)
+
+    one_slice = three.model_copy(update={"servings_low": 1, "servings_likely": 1, "servings_high": 1})
+    _, result = analyze(food_db, one(one_slice), meal_photo, menus=campus, location_id=1)
+    assert result.items[0].source == "campus"
+    assert result.items[0].nutrients["energy_kcal"].likely == pytest.approx(803)
+
+
+def test_zero_calorie_labels_are_trusted_only_when_usda_agrees(food_db, meal_photo, campus):
+    latte = item("latte", "Soft drink, cola", 355, 355, 355, menu_item="16 oz Latte")
+    _, result = analyze(food_db, one(latte), meal_photo, menus=campus, location_id=1)
+    assert (result.items[0].source, result.items[0].match.fdc_id) == ("usda", 4)
+    assert any("16 oz Latte (16 OZL)" in n and "didn't fit" in n for n in result.notes)
+
+    coffee = item("black coffee", "Soft drink, cola, diet", 355, 355, 355, menu_item="12 oz Regular Coffee")
+    _, result = analyze(food_db, one(coffee), meal_photo, menus=campus, location_id=1)
+    assert result.items[0].source == "campus"
+    assert result.items[0].nutrients["energy_kcal"].likely == 0
+
+
+def test_servings_zero_or_missing_fall_back_with_a_note(food_db, meal_photo, campus):
+    query = "Pizza, cheese, from restaurant or fast food, thin crust"
+    zero = item("pizza slice", query, 100, 120, 150, menu_item="Cheese Pizza", servings=(0, 0, 0))
+    assert (zero.menu_item, zero.servings_likely) == ("Cheese Pizza", None)  # the schema nulls the count
+    for pizza in (zero, item("pizza slice", query, 100, 120, 150, menu_item="Cheese Pizza")):
+        _, result = analyze(food_db, one(pizza), meal_photo, menus=campus, location_id=1)
+        assert (result.items[0].source, result.items[0].match.fdc_id) == ("usda", 6)
+        assert any("Cheese Pizza (1 Slice)" in n and "no serving count was estimated" in n for n in result.notes)
+
+
+def test_menu_item_null_never_matches_by_name(food_db, meal_photo, campus):
+    query = "Egg omelet or scrambled egg, with cheese, made with oil"
+    for menu_item, source in ((None, "usda"), ("Scrambled Egg", "campus"), ("Chicken Piccata", "usda")):
+        egg = item("scrambled egg", query, 80, 100, 120, menu_item=menu_item)
+        _, result = analyze(food_db, one(egg), meal_photo, menus=campus, location_id=1)
+        assert result.items[0].source == source, menu_item
+        assert (result.items[0].dish is None) == (source == "usda")
+    assert result.items[0].match.fdc_id == 19
+
+
+def test_items_not_on_the_menu_take_the_usda_path_unchanged(food_db, analysis, meal_photo, campus):
+    _, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=1)
+
+    rice, pizza, sauce = result.items
+    assert (rice.match.fdc_id, pizza.match.fdc_id, sauce.match) == (1, 6, None)
+    assert all(r.source == "usda" and r.dish is None for r in result.items)
+    assert sauce.alternatives and any("No close USDA match for 'mystery sauce'" in n for n in result.notes)
+    assert result.menu.dishes == 7
+
+
+def test_without_a_hall_nothing_is_matched(food_db, analysis, meal_photo, campus):
+    rice = analysis.items[0].model_copy(update={"menu_item": "Jasmine Rice"})
+    analysis = analysis.model_copy(update={"items": [rice, *analysis.items[1:]]})
+    workflow, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=None)
+
+    assert result.menu is None
+    assert all(r.source == "usda" for r in result.items)
+    assert workflow.vision.context.startswith("Photo taken Fri 2026-11-13 12:30 local time (lunch).")
+    assert "Today's menu" not in workflow.vision.context
+
+
+def test_hall_problems_are_notes_not_errors(food_db, analysis, meal_photo, campus):
+    _, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=9)
+    assert "No dining location 9; USDA used." in result.notes and result.menu is None
+
+    _, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=2)
+    assert f"No campus menu for {BERKSHIRE} on 2026-11-13; USDA used." in result.notes
+    assert result.menu == MenuRef(location_id=2, location_name=BERKSHIRE, date=LUNCH_DAY, dishes=0)
+
+    campus.down = True
+    _, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=1)
+    assert "Campus menu unavailable right now; USDA used." in result.notes and result.menu is None
+
+    _, result = analyze(food_db, analysis, meal_photo, menus=None, location_id=1)
+    assert "Campus menus aren't connected; USDA used." in result.notes and result.menu is None
+    assert all(r.source == "usda" for r in result.items)
+
+
+def test_late_night_after_midnight_uses_the_previous_days_menu(food_db, analysis, meal_photo, campus):
+    after_midnight = datetime(2026, 11, 14, 0, 30)
+    campus.facts[(1, LUNCH_DAY)].append(dish("Mozzarella Sticks", "6 EACH", 540, meal="late_night"))
+    workflow, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=1, device_time=after_midnight)
+    assert result.menu.date == LUNCH_DAY and result.menu.dishes == 8
+    assert workflow.vision.context.splitlines()[2] == "- Mozzarella Sticks (serving: 6 EACH)"
+
+    campus.facts[(1, LUNCH_DAY)].pop()
+    _, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=1, device_time=after_midnight)
+    assert (result.menu.date, result.menu.dishes) == (date(2026, 11, 14), 0)
+
+
+def test_prompt_lists_the_meals_dishes_first_and_the_date(food_db, analysis, meal_photo, campus):
+    workflow, _ = analyze(food_db, analysis, meal_photo, menus=campus, location_id=1)
+
+    prompt = workflow.vision.context
+    assert prompt.startswith("Photo taken Fri 2026-11-13 12:30 local time (lunch).")
+    assert f"Today's menu at {WORCESTER}, dishes for this meal first:" in prompt
+    assert prompt.index("- Cheese Pizza (serving: 1 Slice)") < prompt.index("- Pad Thai (serving: 8 OZ)")
+    assert "name stays what the photo shows" in prompt
+
+
+def test_answer_rematches_against_the_same_menu(food_db, analysis, meal_photo, campus):
+    rice = analysis.items[0].model_copy(update={"menu_item": "Jasmine Rice"})
+    analysis = analysis.model_copy(update={"items": [rice, *analysis.items[1:]]})
+    workflow, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=1)
+
+    answered = workflow.answer(result, "yes, oil")
+    assert answered.items[0].source == "campus" and answered.items[0].match.fdc_id == 3
+    assert answered.menu == result.menu and f"Campus menu: {WORCESTER}, 2026-11-13." in answered.notes
+
+    offline = Workflow(vision=workflow.vision, foods=food_db, menus=None).answer(result, "yes, oil")
+    assert offline.items[0].source == "usda"
+    assert "Campus menus aren't connected; USDA used for this answer." in offline.notes
+
+    campus.down = True
+    down = workflow.answer(result, "yes, oil")
+    assert down.items[0].source == "usda" and "Campus menu unavailable right now; USDA used." in down.notes
+
+
+def test_grams_correction_on_a_campus_item_switches_to_usda_for_now(food_db, analysis, meal_photo, campus):
+    rice = analysis.items[0].model_copy(update={"menu_item": "Jasmine Rice"})
+    analysis = analysis.model_copy(update={"items": [rice, *analysis.items[1:]]})
+    _, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=1)
+    assert result.items[0].source == "campus"
+
+    fixed = correct(result, 0, food_db, grams=200)
+    rice = fixed.items[0]
+    assert (rice.source, rice.dish, rice.match.fdc_id) == ("usda", None, 1)
+    assert bounds(rice.nutrients["energy_kcal"]) == pytest.approx((129 * 2, 129 * 2, 129 * 2))
+
+
+def test_summarize_counts_a_campus_item_without_a_usda_donor(food_db, meal_photo, campus):
+    rice = item("mystery rice", "Zzyzx", 150, 200, 260, menu_item="Jasmine Rice")
+    _, result = analyze(food_db, one(rice), meal_photo, menus=campus, location_id=1)
+
+    (rice,) = result.items
+    assert (rice.source, rice.match, rice.dish.name) == ("campus", None, "Jasmine Rice")
+    assert result.totals["energy_kcal"].likely == pytest.approx(186 * 200 / 113.4)
+    assert all(key in result.partial_nutrients for key in MICRO_KEYS) and len(MICRO_KEYS) == 10
+    assert not any("No close USDA match" in n for n in result.notes)
+
+
+def test_meal_name_joins_the_items():
+    names = ["rice", "pizza", "sauce", "salad", "water"]
+    items = [item(n, n, 1, 2, 3) for n in names]
+    assert meal_name([]) is None
+    assert meal_name(items[:1]) == "rice"
+    assert meal_name(items[:2]) == "rice and pizza"
+    assert meal_name(items[:3]) == "rice, pizza and sauce"
+    assert meal_name(items) == "rice, pizza, sauce and 2 more"
