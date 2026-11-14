@@ -29,6 +29,9 @@ log = logging.getLogger("umass_cams.demo")
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--window", type=float, default=20.0)
+    ap.add_argument(
+        "--interval", type=float, default=0.5, help="seconds between frames; short, so tracking can follow people"
+    )
     ap.add_argument("--out", default=str(config.DEMO_DIR))
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--only", default=None)
@@ -54,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
         for s in streams:
             t0 = time.time()
             name = s.slug.replace("/", "_")
-            res = grabber.grab(s, window_s=args.window, interval_s=config.FRAME_INTERVAL_S, play_timeout_s=25.0)
+            res = grabber.grab(s, window_s=args.window, interval_s=args.interval, play_timeout_s=25.0)
             if not res.ok:
                 msg = f"{res.status}\n{res.player_text[:70]}\n{res.player_text[70:140]}\nengine {res.engine}"
                 tile = status_tile(msg, title=s.label)
@@ -77,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
             counts, ids, per_frame = run_window(tracker, res.frames)
             people, tracks = busy.summarize_window(counts, ids)
             level = busy.level_from_thresholds(people, busy.thresholds_for(s.youtube_id))
-            clip = write_annotated_mp4(per_frame, out / f"{name}_{stamp}.mp4", title=s.label, fps=2.0)
+            clip = write_annotated_mp4(per_frame, out / f"{name}_{stamp}.mp4", title=s.label, fps=1.0 / args.interval)
             ts, frame, dets = per_frame[-1]
             tiles.append(annotate(frame, dets, s.label, f"median {people}, {tracks} ids, {level}"))
             summary[s.youtube_id] = {

@@ -185,27 +185,36 @@ def _decode_data_url(data_url: str) -> np.ndarray | None:
 class FrameGrabber:
     """Playwright session that can capture frames from several streams in turn.
 
-    Tries engines in order (chromium, then webkit). One browser per engine is
+    Tries engines in order (webkit, then chromium: some cams are H.264 only, which
+    Playwright's Chromium can't play, so it would wait out its timeout first). One browser per engine is
     kept open for the life of the grabber so four halls do not pay four launches.
     """
 
     def __init__(
         self,
-        engines: tuple[str, ...] = ("chromium", "webkit"),
+        engines: tuple[str, ...] = ("webkit", "chromium"),
         headless: bool = True,
         screenshot_dir: str | None = None,
         poll_s: float = 1.0,
+        egress: str | None = None,
     ):
+        """`egress`: UMASS_CAMS_EGRESS by default (see egress.py); "vpn" for the default route."""
         self.engines = engines
         self.headless = headless
         self.screenshot_dir = screenshot_dir
         self.poll_s = poll_s  # seconds between player-state polls while waiting for playback
+        self.egress = egress
+        self._proxy = None
         self._pw = None
         self._browsers: dict[str, object] = {}
 
     def __enter__(self):
         from playwright.sync_api import sync_playwright
 
+        from . import config, egress
+
+        mode = self.egress if self.egress is not None else config.setting("UMASS_CAMS_EGRESS")
+        self._proxy = egress.proxy_for(mode)
         self._pw = sync_playwright().start()
         return self
 
@@ -217,6 +226,9 @@ class FrameGrabber:
                 pass
         if self._pw:
             self._pw.stop()
+        if self._proxy is not None:
+            self._proxy.stop()
+            self._proxy = None
 
     def _browser(self, engine: str):
         b = self._browsers.get(engine)
@@ -224,6 +236,8 @@ class FrameGrabber:
             self._browsers.pop(engine, None)
         if engine not in self._browsers:
             kw = {"headless": self.headless}
+            if self._proxy is not None:
+                kw["proxy"] = {"server": self._proxy.url}
             if engine == "chromium":
                 kw["args"] = ["--autoplay-policy=no-user-gesture-required", "--mute-audio"]
             self._browsers[engine] = getattr(self._pw, engine).launch(**kw)

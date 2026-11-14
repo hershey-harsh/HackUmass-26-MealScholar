@@ -26,7 +26,7 @@ LOCATIONS_COLLECTION = "locations"
 
 MODEL_NAME = os.environ.get("UMASS_CAMS_MODEL", "yolo11n.pt")
 CONF = 0.35
-IMGSZ = 640
+IMGSZ = 1280  # the streams are 1280x720; at 640 people across the room are missed
 WINDOW_S = 20.0
 FRAME_INTERVAL_S = 2.0
 TOTAL_BUDGET_S = 115.0

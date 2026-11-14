@@ -1,7 +1,11 @@
-"""Person detection + tracking with ultralytics YOLO and its built-in ByteTrack.
+"""Person detection + tracking with ultralytics YOLO and ByteTrack.
 
-Only the COCO "person" class (0) is used, conf >= 0.35, imgsz 640, CPU. Green
-boxes (BGR 0,200,0) carry the track id; a count overlay sits top-left. No
+Only the COCO "person" class (0) is used, conf >= 0.35, imgsz 1280 (the streams'
+width, so people across the room still count), CPU. Every person detected in a
+frame counts. ByteTrack only adds ids: it hides a person until it has matched them
+in two frames in a row, and frames taken seconds apart rarely match, so its own
+output would undercount. Green boxes (BGR 0,200,0) carry the id once there is
+one; a count overlay sits top-left. No
 crops, no faces, no identification: a box and a number per person is all that
 is ever produced, and nothing here is written to the database.
 """
@@ -22,6 +26,7 @@ from . import config
 
 GREEN = (0, 200, 0)  # BGR
 PERSON_CLASS = 0
+TRACK_CONF = 0.1  # ByteTrack also takes low-score boxes, to keep a track through a weak frame
 
 
 @dataclass(frozen=True)
@@ -54,27 +59,42 @@ class PersonTracker:
         self.conf = conf
         self.imgsz = imgsz
         self.device = device
+        self._tracker = None
 
     def reset(self) -> None:
         """Forget tracker state between windows (ids restart)."""
-        for p in getattr(self.model, "predictor", None) and getattr(self.model.predictor, "trackers", []) or []:
-            try:
-                p.reset()
-            except Exception:
-                pass
+        self._tracker = None
+
+    def _new_tracker(self):
+        from ultralytics.trackers.byte_tracker import BYTETracker
+        from ultralytics.utils import YAML, IterableSimpleNamespace
+        from ultralytics.utils.checks import check_yaml
+
+        return BYTETracker(IterableSimpleNamespace(**YAML.load(check_yaml("bytetrack.yaml"))))
 
     def track(self, frame_bgr: np.ndarray) -> list[Detection]:
-        results = self.model.track(
+        """Every person in the frame (conf >= self.conf), with a track id once ByteTrack has one."""
+        results = self.model.predict(
             frame_bgr,
-            persist=True,
             classes=[PERSON_CLASS],
-            conf=self.conf,
+            conf=min(TRACK_CONF, self.conf),
             imgsz=self.imgsz,
             device=self.device,
-            tracker="bytetrack.yaml",
             verbose=False,
         )
-        return boxes_to_detections(results[0].boxes if results else None)
+        if not results or results[0].boxes is None:
+            return []
+        boxes = results[0].boxes.cpu().numpy()
+        if self._tracker is None:
+            self._tracker = self._new_tracker()
+        tracks = self._tracker.update(boxes, frame_bgr)
+        # Each row is x1, y1, x2, y2, id, score, class, index of the detection it came from.
+        ids = {int(row[-1]): int(row[4]) for row in tracks}
+        return [
+            Detection(ids.get(i), int(x1), int(y1), int(x2), int(y2), float(c))
+            for i, ((x1, y1, x2, y2), c) in enumerate(zip(boxes.xyxy, boxes.conf, strict=True))
+            if c >= self.conf
+        ]
 
     def detect(self, frame_bgr: np.ndarray) -> list[Detection]:
         """Detection only (no ids); used when a single frame is all there is."""
