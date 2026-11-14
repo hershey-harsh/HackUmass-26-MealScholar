@@ -4096,6 +4096,9 @@ async function toggleFavorite(button) {
     }
     renderMenu();
   });
+  // The busy (disabled) button dropped focus; give it back so a keyboard user can toggle again.
+  const lost = !document.activeElement || document.activeElement === document.body || document.activeElement === els.panel;
+  if (lost && button.isConnected && els.panel.open) button.focus({ preventScroll: true });
 }
 
 // ---- the Recently uploaded column (laptops)
