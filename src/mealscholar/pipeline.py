@@ -16,7 +16,7 @@ from typing import BinaryIO, Protocol
 from .campus import candidates, dish_nutrients, find_dish, label_fits
 from .compute import item_nutrients, summarize
 from .context import PlaceLookup, build_context
-from .dining import DiningUnavailable, DishFacts
+from .dining import CATALOG_MEAL, DiningUnavailable, DishFacts
 from .metadata import extract_metadata, load_image
 from .nutrients import BY_KEY
 from .nutrition import Food, FoodDatabase, Matches
@@ -135,7 +135,7 @@ class Workflow:
         except DiningUnavailable:
             return _Menu(notes=(UNAVAILABLE,))
         ref = MenuRef(location_id=location_id, location_name=name, date=day, dishes=len(facts))
-        return _Menu(ref, candidates(facts, context.taken_at.time()), (_menu_note(ref),))
+        return _Menu(ref, candidates(facts, context.taken_at.time()), (_menu_note(ref, facts),))
 
     def _menu_day(self, location_id: int, taken_at: datetime) -> tuple[date, Sequence[DishFacts]]:
         """The menu day for the photo: its date, except before LATE_NIGHT_ENDS the previous day
@@ -160,7 +160,7 @@ class Workflow:
             facts = self.menus.dishes_on(ref.location_id, ref.date)
         except DiningUnavailable:
             return _Menu(ref, notes=(UNAVAILABLE,))
-        return _Menu(ref, candidates(facts, result.context.taken_at.time()), (_menu_note(ref),))
+        return _Menu(ref, candidates(facts, result.context.taken_at.time()), (_menu_note(ref, facts),))
 
     def _result(self, context: MealContext, analysis: MealAnalysis, menu: _Menu | None = None) -> MealResult:
         menu = menu or _Menu()
@@ -348,7 +348,9 @@ def _campus_result(
     )
 
 
-def _menu_note(ref: MenuRef) -> str:
+def _menu_note(ref: MenuRef, facts: Sequence[DishFacts] = ()) -> str:
     if ref.dishes == 0:
         return f"No campus menu for {ref.location_name} on {ref.date}; USDA used."
+    if facts and all(dish.meal == CATALOG_MEAL for dish in facts):
+        return f"No menu posted for {ref.location_name} on {ref.date}; matched against dishes it has served."
     return f"Campus menu: {ref.location_name}, {ref.date}."

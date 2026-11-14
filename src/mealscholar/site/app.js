@@ -591,6 +591,38 @@ function focusCapture() {
   (usable ? els.choose : els.captureTitle).focus({ preventScroll: true });
 }
 
+/** When the photo was taken, as far as the browser knows: the file's time if it's from the last
+    two days, else now (a camera capture is always "now"). The server prefers the photo's own
+    EXIF time when it has one. */
+function photoTime(file) {
+  const t = Number(file?.lastModified);
+  const now = Date.now();
+  return Number.isFinite(t) && t <= now + 60_000 && now - t < 2 * 86_400_000 ? new Date(t) : new Date(now);
+}
+
+/** "2026-11-14T12:30:00-05:00": local time with its offset, as POST /api/meals?taken_at= wants. */
+function localIso(date) {
+  const pad = (n) => String(Math.trunc(Math.abs(n))).padStart(2, "0");
+  const off = -date.getTimezoneOffset();
+  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  return `${day}T${time}${off >= 0 ? "+" : "-"}${pad(off / 60)}:${pad(off % 60)}`;
+}
+
+const AT_HALL_M = 400; // within this of a dining commons, the photo is taken to be from it
+
+async function uploadHall(coords) {
+  if (!diningOn()) return null;
+  if (coords) {
+    const near = state.nearest ?? (await fetchNearest(coords[0], coords[1]));
+    if (near && Number.isInteger(near.location?.id) && near.distance_m <= AT_HALL_M) return near.location.id;
+  }
+  const halls = state.prefs?.dining_halls ?? [];
+  const picked = menuHallIds().includes(pickedHall(menuHallIds())) ? pickedHall(menuHallIds()) : null;
+  const id = picked && picked !== DEFAULT_HALL ? picked : halls[0];
+  return Number.isInteger(id) ? id : null;
+}
+
 async function analyze(file) {
   if (!state.ready) return;
   if (state.analyzing) return toast("Still analyzing the last photo.");
@@ -624,21 +656,28 @@ async function analyze(file) {
   setViewfinder("analyzing");
   setStatus("Analyzing your photo. This usually takes a few seconds.");
 
-  let query = "";
+  const params = new URLSearchParams();
+  params.set("taken_at", localIso(photoTime(file)));
   let coords = null;
   if (els.location.checked) {
     try {
       const [lat, lon] = await devicePosition();
       coords = [lat, lon];
-      query = `?lat=${lat}&lon=${lon}`;
+      params.set("lat", lat);
+      params.set("lon", lon);
     } catch (err) {
       if (current()) setStatus(`${err.message} Continuing without location.`);
     }
     if (!current()) return; // stopAnalysis has already cleared the screen
   }
+  // The hall whose menu the server checks the photo against: the dining commons you're at, else
+  // the one picked on the Menu tab, else your main hall. Without one it's USDA only.
+  const hall = await uploadHall(coords);
+  if (!current()) return;
+  if (hall != null) params.set("location_id", hall);
 
   try {
-    const result = await api(`/api/meals${query}`, {
+    const result = await api(`/api/meals?${params}`, {
       method: "POST",
       body: file,
       headers: { "Content-Type": file.type || "application/octet-stream" },
@@ -928,19 +967,22 @@ function itemHtml(r, i, gramsScale) {
   const range = itemGrams(item);
   const weighed = isExact(range);
   const kcal = r.nutrients.energy_kcal;
-  const name = esc(capitalize(item.name));
+  const dish = r.source === "campus" && r.dish ? r.dish : null;
+  const name = esc(capitalize(dish ? dish.name : item.name));
   const method = item.cooking_method === "unknown" ? "" : capitalize(item.cooking_method.replace(/_/g, " "));
   const meta = [
     method && `<span class="chip">${esc(method)}</span>`,
     weighed ? `<span class="chip chip--ok">${icon("check")}Set amount</span>` : null,
     item.hidden_fat_likely ? `<span class="chip chip--warn">${icon("drop")}Likely hidden oil or butter</span>` : null,
   ].filter(Boolean);
-  const energy = match
+  const energy = match || dish
     ? kcal
       ? rangeHtml(kcal, "kcal", undefined, { stack: true })
       : '<span class="value__none">No energy data</span>'
     : '<span class="chip chip--alert">Not counted</span>';
-  const matchLine = match
+  const matchLine = dish
+    ? `<p class="item__match"><span class="item__src">Menu<span class="visually-hidden">:</span></span> ${esc(dish.location_name)}’s ${esc(dish.name)}${dish.serving_size ? `, label per ${esc(dish.serving_size)}` : ""}<span class="item__id">${SEP}what the photo shows: ${esc(item.name)}</span></p>`
+    : match
     ? `<p class="item__match"><span class="item__src">USDA<span class="visually-hidden">:</span></span> ${esc(match.description)}<span class="item__id">${SEP}${esc(match.data_type)} #${esc(match.fdc_id)}</span></p>`
     : `<p class="item__match is-missing">No close USDA match, so this food isn't in the totals yet. Pick one to count it.</p>`;
   return `
