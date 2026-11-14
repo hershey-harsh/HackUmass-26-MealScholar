@@ -48,7 +48,6 @@
   --marker: #F5DF6E;
   --radius: 22px;
   --radius-sm: 16px;
-  --shadow-sm: 0 1px 2px rgba(28, 28, 28, .05);
   --shadow: 0 1px 2px rgba(28, 28, 28, .05), 0 10px 24px rgba(28, 28, 28, .06);
   --shadow-lg: 0 1px 2px rgba(28, 28, 28, .05), 0 22px 44px rgba(28, 28, 28, .1);
   --gutter: 16px;
@@ -76,7 +75,6 @@
   --ink-2: #C4C6C7;
   --label: #AFB0B2;
   --hover: rgba(238, 240, 242, .84);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .3);
   --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 24px rgba(0, 0, 0, .32);
   --shadow-lg: 0 1px 2px rgba(0, 0, 0, .3), 0 22px 44px rgba(0, 0, 0, .5);
   --on-ink-2: rgba(28, 28, 28, .74);
@@ -567,7 +565,7 @@ html:not(.js) .theme { display: none; }
   padding: 26px 20px 0;
   background:
     linear-gradient(var(--hero-scrim), var(--hero-scrim)),
-    linear-gradient(180deg, rgba(var(--veil-rgb), .92) 0%, rgba(var(--veil-rgb), .84) 58%, rgba(var(--veil-rgb), .5) 100%),
+    linear-gradient(180deg, rgba(var(--veil-rgb), .92) 0%, rgba(var(--veil-rgb), .86) 58%, rgba(var(--veil-rgb), .64) 100%),
     url("img/hero-plates-900.jpg") 50% 100% / cover no-repeat,
     var(--warm);
 }
@@ -677,13 +675,14 @@ html:not(.js) .theme { display: none; }
     padding: 56px 40px 0;
     background:
       linear-gradient(var(--hero-scrim), var(--hero-scrim)),
-      linear-gradient(90deg, rgba(var(--veil-rgb), .9) 0%, rgba(var(--veil-rgb), .66) 46%, rgba(var(--veil-rgb), 0) 80%),
+      linear-gradient(90deg, rgba(var(--veil-rgb), .92) 0%, rgba(var(--veil-rgb), .8) 50%, rgba(var(--veil-rgb), 0) 88%),
       linear-gradient(180deg, rgba(var(--veil-rgb), 0) 50%, rgba(var(--veil-rgb), .84) 100%),
       url("img/hero-plates-1408.jpg") 50% 78% / cover no-repeat,
       var(--warm);
   }
   .hero__copy { display: flex; flex-direction: column; align-items: flex-start; padding-bottom: calc(clamp(120px, 17.6vw, 232px) * .74 + 6px); }
   .hero__actions { padding-top: 8px; }
+  .hero__lede { max-width: 25em; }
   .h1-br { display: inline; }
   .watermark {
     position: absolute;
@@ -700,7 +699,7 @@ html:not(.js) .theme { display: none; }
 @media (min-width: 1100px) {
   .hero { min-height: 560px; padding: 80px 64px 0; }
   .hero .h1 { margin-top: 0; max-width: 12.4em; font-size: clamp(76px, 6.6vw, 124px); }
-  .hero__lede { margin-top: 28px; font-size: 19px; }
+  .hero__lede { margin-top: 28px; max-width: 29em; font-size: 19px; }
   .hero__copy { padding-bottom: 76px; }
   .hero__actions { flex-direction: row; align-items: center; gap: 22px; }
   .hero__hint { max-width: 15em; font-size: 14px; }
