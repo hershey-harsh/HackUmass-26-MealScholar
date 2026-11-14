@@ -480,7 +480,8 @@ function fitSideCard() {
   sideFitQueued = false;
   const card = $(".upcoming", els.dashSide);
   if (!card) return;
-  if (!laptop.matches || document.body.dataset.view !== "today") {
+  // Up to 80em the card sits under the scans instead of pinned beside them, at its own height.
+  if (!laptop.matches || document.body.dataset.view !== "today" || getComputedStyle(els.dashSide).position !== "sticky") {
     if (sideFit.last !== "") card.style.maxHeight = "";
     sideFit.last = "";
     return;

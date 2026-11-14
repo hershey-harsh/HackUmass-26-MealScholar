@@ -7953,3 +7953,59 @@ body[data-prefs="on"] .today .dash-col .stat {
     max-height: none;
   }
 }
+
+@media (min-width: 64em) and (max-width: 79.99em) {
+  body[data-prefs="on"] .dash-col--side .upcoming {
+    max-height: none;
+  }
+}
+
+@media (min-width: 64em) and (max-width: 79.99em) {
+  body[data-prefs="on"] .dash-col--side .upcoming {
+    max-height: 36rem;
+  }
+}
+
+/* Settings: each section named in sentence case, as a small plain title. */
+.account__section-title {
+  color: var(--ink);
+  font: 500 0.9375rem / 1.4 var(--font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.field-label,
+.meal-group__title {
+  font-size: 0.78125rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Today's head is the same shape as every other tab's, whatever the older day-head rules say. */
+body .today .dash-head {
+  gap: 2px;
+  padding: 4px 4px 0;
+}
+
+body .today .dash-head .view-title {
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+@media (min-width: 64em) {
+  body .today .dash-head {
+    padding-top: 8px;
+  }
+
+  body .today .dash-head .view-title {
+    font-size: 2.25rem;
+  }
+}
+
+/* Laptops: the head lines up with the content's left edge on every tab. */
+@media (min-width: 64em) {
+  body .today .dash-head,
+  body .page-head {
+    padding-inline: 0;
+  }
+}
