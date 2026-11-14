@@ -233,11 +233,15 @@ def correct(
         food = foods.get(current.match.fdc_id) if current.match else None
         alternatives = current.alternatives
     if servings is not None and dish is not None:
-        item = item.model_copy(
-            update={"servings_low": servings, "servings_likely": servings, "servings_high": servings}
-        )
+        update = {"servings_low": servings, "servings_likely": servings, "servings_high": servings}
         if dish.serving_grams is not None:
             grams = round(servings * dish.serving_grams)
+        elif item.servings_likely:
+            # A counted serving: the gram range follows the new count, keeping its shape, so the
+            # micronutrients (USDA per gram) track the correction while staying an estimate range.
+            factor = servings / item.servings_likely
+            update |= {k: round(getattr(item, k) * factor) for k in ("grams_low", "grams_likely", "grams_high")}
+        item = item.model_copy(update=update)
     if grams is not None:
         item = item.model_copy(update={"grams_low": grams, "grams_likely": grams, "grams_high": grams})
         if dish is not None and dish.serving_grams is None:

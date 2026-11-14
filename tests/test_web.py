@@ -243,7 +243,12 @@ def test_servings_and_grams_corrections_on_campus_items(home):
     kcal = res.json()["totals"]["energy_kcal"]
     assert kcal["low"] == kcal["likely"] == kcal["high"] == pytest.approx(424)
     assert res.json()["items"][0]["source"] == "campus"
-    assert res.json()["items"][0]["item"]["servings_likely"] == 2
+    counted = res.json()["items"][0]["item"]
+    assert counted["servings_likely"] == 2
+    # The gram range follows the count (1.5 slices were 100/120/150 g) so the micros track it.
+    assert (counted["grams_low"], counted["grams_likely"], counted["grams_high"]) == (133, 160, 200)
+    assert res.json()["items"][0]["nutrients"]["vitamin_d_ug"]["likely"] == pytest.approx(0.2 * 1.6)
+    assert app.get(f"/api/meals/{meal['id']}").json() == res.json()  # the diary keeps the same pair
 
     res = app.patch(url, json={"grams": 100})
     assert res.status_code == 200

@@ -475,7 +475,18 @@ def test_corrections_on_campus_items(food_db, campus_meal):
     assert (two_slices.source, two_slices.dish.name, two_slices.match.fdc_id) == ("campus", "Cheese Pizza", 6)
     assert flat(two_slices.nutrients["energy_kcal"]) and two_slices.nutrients["energy_kcal"].likely == 424
     assert (two_slices.item.servings_low, two_slices.item.servings_likely, two_slices.item.servings_high) == (2, 2, 2)
-    assert not flat(two_slices.nutrients["vitamin_d_ug"])  # micros still follow the model's gram range
+    # The gram range follows the count (model: 1.5 slices = 100/120/150 g), keeping its shape, so
+    # the micronutrients track the correction and stay an estimate range.
+    grams = lambda r: (r.item.grams_low, r.item.grams_likely, r.item.grams_high)  # noqa: E731
+    assert grams(two_slices) == (133, 160, 200)
+    assert not flat(two_slices.nutrients["vitamin_d_ug"])
+    one_slice = correct(result, 1, food_db, servings=1).items[1]
+    assert grams(one_slice) == (67, 80, 100)
+    assert one_slice.nutrients["energy_kcal"].likely == 212
+    one_d, two_d = bounds(one_slice.nutrients["vitamin_d_ug"]), bounds(two_slices.nutrients["vitamin_d_ug"])
+    assert one_d == pytest.approx((0.2 * 0.67, 0.2 * 0.8, 0.2 * 1.0))
+    assert two_d[1] == pytest.approx(2 * one_d[1])
+    assert two_d == pytest.approx(tuple(2 * v for v in one_d), rel=0.02)  # low/high differ only by rounding
 
     weighed_rice = correct(result, 0, food_db, grams=200).items[0]
     assert (weighed_rice.source, weighed_rice.dish.name) == ("campus", "Jasmine Rice")
