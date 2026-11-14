@@ -775,11 +775,14 @@ class AuthRouteGuard:
         await self.app(scope, receive_limited, send_uncached)
 
 
-class HideLinkTokens(logging.Filter):
-    """Hides the tokens of email links (/?verify=..., /?reset=...) in uvicorn's access log,
-    which prints every request's path and query."""
+class HideQueryValues(logging.Filter):
+    """Hides query values in uvicorn's access log, which prints every request's path and query:
+    the tokens of email links (/?verify=..., /?reset=...) and device coordinates
+    (POST /api/meals?lat=...&lon=..., GET /api/dining/nearest?lat=...&lon=...), which must never
+    be stored."""
 
-    PATTERN = re.compile(rf"([?&](?:{'|'.join(LINK_PARAM.values())})=)[^&#\s]+")
+    PARAMS = (*LINK_PARAM.values(), "lat", "lon")
+    PATTERN = re.compile(rf"([?&](?:{'|'.join(PARAMS)})=)[^&#\s]+")
 
     def filter(self, record: logging.LogRecord) -> bool:
         if isinstance(record.args, tuple):
@@ -789,19 +792,19 @@ class HideLinkTokens(logging.Filter):
         return True
 
 
-_hide_link_tokens = HideLinkTokens()
+_hide_query_values = HideQueryValues()
 
 
 def install_auth(app: FastAPI, service: AuthService) -> None:
     """Add the /api/auth routes and their request checks, the cross-site write check, the auth
-    error format, and the access-log filter for email link tokens."""
+    error format, and the access-log filter for link tokens and coordinates."""
     app.state.auth = service
     app.include_router(router)
     app.add_exception_handler(AuthError, _auth_error)
     app.add_exception_handler(RequestValidationError, _validation_error)
     app.add_middleware(SameOriginWrites, public_host=urlsplit(service.settings.public_url).netloc)
     app.add_middleware(AuthRouteGuard)
-    logging.getLogger("uvicorn.access").addFilter(_hide_link_tokens)  # added once, however many apps
+    logging.getLogger("uvicorn.access").addFilter(_hide_query_values)  # added once, however many apps
 
 
 async def _auth_error(request: Request, exc: AuthError) -> JSONResponse:

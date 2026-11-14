@@ -629,6 +629,20 @@ def test_access_log_hides_email_link_tokens(make_app, caplog):
     assert '"GET /?reset=[hidden]&next=1 HTTP/1.1" 200' in caplog.text
 
 
+def test_access_log_hides_coordinates(make_app, caplog):
+    """The app sends the device location as ?lat=&lon= on POST /api/meals and GET /api/dining/nearest."""
+    make_app()
+    access = logging.getLogger("uvicorn.access")
+    with caplog.at_level(logging.INFO, logger="uvicorn.access"):
+        for method, path in (
+            ("POST", "/api/meals?lat=42.389123&lon=-72.528456"),
+            ("GET", "/api/dining/nearest?lon=-72.528456&lat=42.389123"),
+        ):
+            access.info('%s - "%s %s HTTP/%s" %d', "203.0.113.9:50000", method, path, "1.1", 200)
+    assert "42.38" not in caplog.text and "72.52" not in caplog.text
+    assert '"POST /api/meals?lat=[hidden]&lon=[hidden] HTTP/1.1" 200' in caplog.text
+
+
 def test_the_dummy_hash_is_ready_before_the_first_sign_in(make_app, monkeypatch):
     """Made at startup, so the first sign-in with an unknown email after a restart isn't the slow one."""
     foodsmart.auth._dummy_hash.cache_clear()

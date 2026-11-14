@@ -61,8 +61,14 @@ class NominatimPlaces:
             )
             resp.raise_for_status()
             data = resp.json()
+        # The message ends up in the meal's notes, which are stored. httpx puts the request URL,
+        # coordinates included, in its error text, so the message is built without it.
+        except httpx.HTTPStatusError as exc:
+            raise PlaceLookupError(f"HTTP {exc.response.status_code}") from exc
+        except httpx.TimeoutException as exc:
+            raise PlaceLookupError("timed out") from exc
         except (httpx.HTTPError, ValueError) as exc:
-            raise PlaceLookupError(str(exc) or type(exc).__name__) from exc
+            raise PlaceLookupError(type(exc).__name__) from exc
         return place_from_nominatim(data)
 
 
