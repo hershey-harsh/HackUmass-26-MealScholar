@@ -7876,3 +7876,80 @@ body[data-drop="on"]::after {
     display: none;
   }
 }
+
+body .week-view .micro-card {
+  padding-inline: 4px;
+}
+
+.week-view .micro-card__title {
+  font-size: 1rem;
+}
+
+/* ---- pass 3: the open score and nutrient grid line up with the panel's edge on laptops too */
+body[data-prefs="on"] .today .dash-col .score {
+  padding: 12px 4px;
+}
+
+body[data-prefs="on"] .today .dash-col .stat {
+  padding: 10px 12px 12px;
+}
+
+@container stats (min-width: 20rem) {
+  body[data-prefs="on"] .today .dash-col .stat:nth-child(3n + 1) {
+    padding-left: 4px;
+  }
+}
+
+@container stats (max-width: 19.99rem) {
+  body .today .stat {
+    padding-inline: 4px;
+    border-left: 0;
+  }
+}
+
+/* The narrowest phones: the meal rows give the thumbnail's room to the words. */
+@media (max-width: 22.49em) {
+  .recent-card {
+    grid-template-columns: minmax(0, 1fr) auto 18px;
+    column-gap: 10px;
+  }
+
+  .recent-card__photo {
+    display: none;
+  }
+
+  .recent-card__when,
+  .recent-card__foods {
+    grid-column: 1;
+  }
+
+  .recent-card__kcal {
+    grid-column: 2;
+  }
+
+  .recent-card .meal__chev {
+    grid-column: 3;
+  }
+}
+
+/* Laptops up to 80em: beside the 240px sidebar, two columns. The day on the left; the scans and,
+   under them, the upcoming meal on the right. */
+@media (min-width: 64em) and (max-width: 79.99em) {
+  body[data-prefs="on"] .dash-grid,
+  body[data-prefs="on"][data-dining="on"] .dash-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "main mid"
+      "main side";
+    gap: 24px 28px;
+    align-items: start;
+  }
+
+  body[data-prefs="on"] .dash-col--side {
+    position: static;
+  }
+
+  body[data-prefs="on"] .dash-col--side .upcoming {
+    max-height: none;
+  }
+}
