@@ -300,6 +300,6 @@ uv run python bench/report.py --rematch --check   # same, exit 1 if worse than R
 uv run python bench/report.py --overlays 'gemini-4-hydrogen|low|default'
 ```
 
-The meal photos are not committed because they carry GPS EXIF. Copy them into `test_pictures/` to call Gemini again or draw overlays; `--rematch` needs only the recorded results and the USDA database. The non-meal photos for phase n are committed in `bench/nonfood/` (no GPS tags). To rerun from scratch, delete `bench/results/runs.jsonl`.
+The meal photos are in `test_pictures/` (IMG_0579–IMG_0583, IMG_0587, IMG_2164 and IMG_2165). The committed copies have EXIF and XMP removed, including GPS; the camera originals still have location, so don't commit those. `bench/run.py` reads only `*.jpeg`, so IMG_2164.jpg (omelette, home fries, avocado) and IMG_2165.jpg (ramen and a dark soda) aren't in benchmark runs. `--rematch` needs only the recorded results and the USDA database. The non-meal photos for phase n are committed in `bench/nonfood/` (no GPS tags). To rerun from scratch, delete `bench/results/runs.jsonl`.
 
 The **Lookup regression** workflow (`.github/workflows/lookup-regression.yml`) runs `--rematch --check` on pull requests that touch the lookup (`nutrition.py`, `nutrients.py`, `compute.py`, `pipeline.py`, `schemas.py`), `bench/`, or dependencies. Limits as of 2026-11-14: kcal in band ≥ 230/275, powder/concentrate matches ≤ 4, pepperoni ≥ 50/54. When a lookup change beats them, raise `REMATCH_LIMITS` in `bench/report.py` in the same PR so the gain is kept.

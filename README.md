@@ -6,7 +6,7 @@
 
 # MealScholar
 
-**Nutrition from a photo. Honest ranges, not fake precision.**
+**Study your plate. Be a MealScholar.**
 
 A HackUMass XIV project, piloting at UMass.
 

@@ -123,6 +123,7 @@ FORGOT_PER_IP = Rule("forgot-ip", 5, 60 * 60)
 FORGOT_PER_EMAIL = Rule("forgot-email", 3, 60 * 60)
 RESEND_PER_USER = Rule("resend", 3, 60 * 60)
 CHANGE_PASSWORD_PER_USER = Rule("change-password", 10, 15 * 60)
+DELETE_ACCOUNT_PER_USER = Rule("delete-account", 10, 15 * 60)
 
 
 class RateLimiter:
@@ -333,6 +334,17 @@ class AuthService:
             raise AuthError(401, "Your current password is incorrect.", field="current_password")
         return self._new_password(user, new, client)
 
+    def delete_account(self, user: User, password: str, erase: Callable[[str], object] | None = None) -> None:
+        """Checks the password, runs `erase` with the user id (the app's own data for this user:
+        meals, preferences), then deletes the account and signs it out everywhere. A wrong
+        password deletes nothing."""
+        self._limit((DELETE_ACCOUNT_PER_USER, user.id))
+        if _length(password) > MAX_PASSWORD or not verify_password(password, user.password_hash):
+            raise AuthError(401, "That password is incorrect.", field="password")
+        if erase is not None:
+            erase(user.id)
+        self.store.delete_user(user.id)
+
     def recent_emails(self, limit: int = 20) -> list[OutboxEmail]:
         return self.store.recent_emails(limit)
 
@@ -506,6 +518,10 @@ class PasswordReset(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
+
+
+class AccountDeletion(BaseModel):
+    password: str
 
 
 class UserInfo(BaseModel):
@@ -683,6 +699,15 @@ def change_password(
     signed_in = auth.change_password(user, body.current_password, body.new_password, _client(request))
     _start_session(request, response, auth, signed_in)
     return UserReply(user=UserInfo.of(signed_in.user))
+
+
+@router.post("/delete-account", status_code=204)
+def delete_account(body: AccountDeletion, request: Request, user: CurrentUser, auth: Auth) -> Response:
+    """Deletes the account and everything kept for it (meals, preferences), then signs out."""
+    auth.delete_account(user, body.password, getattr(request.app.state, "erase_user_data", None))
+    response = Response(status_code=204)
+    response.delete_cookie(SESSION_COOKIE, path="/", secure=auth.settings.cookie_secure, httponly=True, samesite="lax")
+    return response
 
 
 @router.get("/dev/outbox", include_in_schema=False)

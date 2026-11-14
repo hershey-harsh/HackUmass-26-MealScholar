@@ -31,7 +31,6 @@
 <script src="app.js?v=__COMMIT__" defer></script>
 </head>
 <body>
-<div class="page-bg" aria-hidden="true"><div class="page-bg__img"></div><div class="page-bg__tint"></div></div>
 <a class="skip" href="#main">Skip to content</a>
 
 <svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
@@ -87,7 +86,7 @@
         <label class="theme__opt" title="Light"><input type="radio" name="theme" value="light"><svg aria-hidden="true"><use href="#i-sun"/></svg><span class="theme__lbl">Light</span></label>
         <label class="theme__opt" title="Dark"><input type="radio" name="theme" value="dark"><svg aria-hidden="true"><use href="#i-moon"/></svg><span class="theme__lbl">Dark</span></label>
       </div>
-      <a class="cta cta--sm" href="https://mealscholar.mannava.org">
+      <a class="cta cta--sm" href="https://app.mealscholar.health">
         <span class="cta__pill">Open the app</span>
         <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
       </a>
@@ -101,7 +100,7 @@
           <a href="#nutrients">What it tracks<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
           <a href="#faq">FAQ<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
         </nav>
-        <a class="cta cta--block" href="https://mealscholar.mannava.org">
+        <a class="cta cta--block" href="https://app.mealscholar.health">
           <span class="cta__pill">Open the app</span>
           <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
         </a>
@@ -115,41 +114,194 @@
   </div>
 </header>
 
-<nav class="nav-chips" aria-label="Sections">
-  <span class="nav-chips__label" aria-hidden="true">Jump to</span>
-  <a href="#how">How it works</a>
-  <a href="#features">Features</a>
-  <a href="#videos">Videos</a>
-  <a href="#nutrients">Nutrients</a>
-  <a href="#umass">Pilot</a>
-  <a href="#faq">FAQ</a>
-</nav>
+<main id="main">
 
-<main id="main" class="wrap">
+  <!-- Hero: the plates photo is the background of the whole first screen, under the header. -->
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero__bg" aria-hidden="true">
+      <img src="img/hero-plates-1408.jpg" srcset="img/hero-plates-900.jpg 900w, img/hero-plates-1408.jpg 1408w" sizes="100vw" width="1408" height="768" alt="" fetchpriority="high" decoding="async">
+    </div>
 
-  <!-- Hero -->
-  <section class="hero-shell" aria-labelledby="hero-title">
-    <div class="hero">
-      <div class="hero__copy">
-        <a class="umass-badge" href="#umass">
-          <img src="brand/umass-m.svg" alt="" width="26" height="22">
-          <span>Piloting at UMass</span>
+    <nav class="nav-chips" aria-label="Sections">
+      <span class="nav-chips__label" aria-hidden="true">Jump to</span>
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#videos">Videos</a>
+      <a href="#nutrients">Nutrients</a>
+      <a href="#umass">Pilot</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+
+    <div class="hero__copy wrap">
+      <h1 id="hero-title" class="h1 hero__title">Nutrition from a&nbsp;photo,<br class="h1-br"> in <span class="hl">real ranges<svg class="hl__mark" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M9 21c38-7 93-9 150-10 61-1 128-5 186-3 21 1 37 2 47 5 4 6 1 12-3 15 5 6 8 13 4 20-46 4-120 7-196 8-63 1-121 2-176 0-9-4-12-11-7-17-5-6-6-13-5-18z"/><path class="hl__pass" d="M20 37c57-5 141-8 228-8 52 0 97 1 132 4 4 3 3 7-1 9-42 3-112 4-196 5-58 1-106 1-151-1-6-3-6-7-1-9z"/></svg></span></h1>
+      <p class="hero__lede">Snap your meal. It works out what’s on the plate and <em>how much</em>, checks the campus dining menu first, and shows the nutrients as real ranges.</p>
+      <div class="hero__actions">
+        <a class="cta" href="https://app.mealscholar.health/?install=1" data-hero-cta>
+          <span class="cta__pill"><span class="lbl-desktop">Open the app</span><span class="lbl-phone">Add to Home Screen</span></span>
+          <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
         </a>
-        <h1 id="hero-title" class="h1">Nutrition from a photo, in <span class="hl">honest ranges</span></h1>
-        <p class="hero__lede">
-          <svg class="hero__lede-arrow" aria-hidden="true"><use href="#i-arrow-se"/></svg>
-          <span>Snap your meal. It works out what’s on the plate and how much, checks the campus dining menu first, and shows the nutrients as honest ranges.</span>
-        </p>
-        <div class="hero__actions">
-          <a class="cta cta--light" href="https://mealscholar.mannava.org/?install=1" data-hero-cta>
-            <span class="cta__pill"><span class="lbl-desktop">Open the app</span><span class="lbl-phone">Add to Home Screen</span></span>
-            <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
-          </a>
-          <p class="hero__hint">Works in your phone’s browser. No app store download.</p>
-        </div>
+        <a class="pill-link hero__more" href="#how">See how it works<svg aria-hidden="true"><use href="#i-arrow-se"/></svg></a>
+      </div>
+      <ul class="facts" aria-label="At a glance">
+        <li>Campus menu first</li>
+        <li>USDA as a backup</li>
+        <li>Easy upload</li>
+        <li>No weighing</li>
+        <li>Location optional</li>
+      </ul>
+    </div>
+
+    <!-- The app's screens, fanned out. Without JavaScript this is a plain sideways row. -->
+    <div class="fan" data-fan aria-roledescription="carousel" aria-label="Screens from the app" role="region">
+      <div class="fan__track" data-fan-track>
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="1 of 7: The lunch photo, in ranges">
+          <div class="fan-card__vis fv-lunch" aria-hidden="true">
+            <div class="fv-lunch__photo"><img src="img/meal-pizza-640.jpg" alt="" width="640" height="400" loading="lazy" decoding="async"><span class="ps-pin">1</span></div>
+            <div class="ps-total">
+              <span class="ps-total__k">Calories</span>
+              <span class="ps-total__s">most likely</span>
+              <span class="ps-total__v">1,197<small>kcal</small></span>
+              <span class="ps-total__r">range 1,011–1,436 kcal</span>
+              <span class="band band--kcal band--dark"></span>
+            </div>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">The lunch photo, in ranges</p>
+            <p class="fan-card__text">One pizza, 380–540 g, and 1,011–1,436 kcal. No weighing.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://app.mealscholar.health">Open the app</a>
+              <a class="fan-btn" href="#how">Learn more</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="2 of 7: One question, at most">
+          <div class="fan-card__vis fv-ask" aria-hidden="true">
+            <span class="mini__label">One question</span>
+            <span class="fv-ask__q">Is the sauce creamy, or tomato/BBQ?</span>
+            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>Creamy</span><span class="opt">Tomato/BBQ</span></span>
+            <span class="fv-ask__toast"><svg><use href="#i-check"/></svg>Now butter chicken pizza</span>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">One question, at most</p>
+            <p class="fan-card__text">If a photo is unclear, it asks you one thing, then recomputes.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://app.mealscholar.health">Open the app</a>
+              <a class="fan-btn" href="#how">Learn more</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="3 of 7: Today, at a glance">
+          <div class="fan-card__vis fv-today" aria-hidden="true">
+            <div class="ps-card">
+              <div class="ps-row"><span class="ps-label">Calories today</span><span class="ps-label">likely</span></div>
+              <div class="ps-big"><b>737</b><span>kcal</span></div>
+              <div class="band band--day"></div>
+              <div class="ps-row ps-ends"><span>616</span><span>858</span></div>
+            </div>
+            <div class="ps-card ps-meals">
+              <div class="ps-meal"><span class="ps-meal__t">Breakfast</span><span class="ps-meal__d">Oatmeal, banana</span><span class="ps-meal__k">275 kcal</span></div>
+              <div class="ps-meal"><span class="ps-meal__t">Lunch</span><span class="ps-meal__d">Chicken, rice, broccoli</span><span class="ps-meal__k">462 kcal</span></div>
+            </div>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">Today, at a glance</p>
+            <p class="fan-card__text">Every meal, with the day’s calories as a range from 616 to 858.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://app.mealscholar.health">Open the app</a>
+              <a class="fan-btn" href="#phone">Learn more</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="4 of 7: 19 nutrients">
+          <div class="fan-card__vis fv-nutr" aria-hidden="true">
+            <div class="mini mini--nutr">
+              <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>1,197</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">1,011–1,436</small></div>
+              <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>51.3</b> g</span><span class="band band--prot"></span><small class="nrow__r">87–123% DV</small></div>
+              <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>149.8</b> g</span><span class="band band--carb"></span><small class="nrow__r">46–65% DV</small></div>
+            </div>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">19 nutrients</p>
+            <p class="fan-card__text">The main nine as ranges. Vitamins and minerals are labeled as estimates.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://app.mealscholar.health">Open the app</a>
+              <a class="fan-btn" href="#nutrients">Learn more</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="5 of 7: Campus menu first">
+          <div class="fan-card__vis fv-menu" aria-hidden="true">
+            <span class="chip chip--white"><svg><use href="#i-clock"/></svg>Every hour</span>
+            <span class="fv-menu__n">2,236</span>
+            <span class="fv-menu__k">campus dishes, each with its own nutrition facts</span>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">Campus menu first</p>
+            <p class="fan-card__text">Dining hall food is checked against the menu, then USDA as a backup.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://app.mealscholar.health">Open the app</a>
+              <a class="fan-btn" href="#data">Learn more</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="6 of 7: On your Home Screen">
+          <div class="fan-card__vis fv-home" aria-hidden="true">
+            <span class="fv-home__grid"><i></i><i></i><i></i><b><svg><use href="#mark"/></svg></b><i></i><i></i><i></i><i></i></span>
+            <span class="fv-home__step"><svg><use href="#i-share"/></svg>Share, then Add to Home Screen</span>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">On your Home Screen</p>
+            <p class="fan-card__text">It works in your phone’s browser. No app store download.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://app.mealscholar.health">Open the app</a>
+              <a class="fan-btn" href="#phone">Learn more</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="7 of 7: See it in action">
+          <div class="fan-card__vis fv-video" aria-hidden="true">
+            <div class="video-ph video-ph--b"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play"><svg><use href="#i-play"/></svg></span></div>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">See it in action</p>
+            <p class="fan-card__text">Short recordings of the real app, from photo to ranges.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://app.mealscholar.health">Open the app</a>
+              <a class="fan-btn" href="#videos">Learn more</a>
+            </div>
+          </div>
+        </article>
       </div>
 
-      <div class="hero__visual">
+      <div class="fan__ctrl" data-fan-ctrl hidden>
+        <div class="fan__dots" role="group" aria-label="Choose a screen" data-fan-dots></div>
+        <button type="button" class="fan__pause" data-fan-pause aria-label="Pause the screens" hidden>
+          <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5v11M15 6.5v11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <svg class="i-resume" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play"/></svg>
+        </button>
+      </div>
+      <p class="sr-only" aria-live="polite" data-fan-live></p>
+    </div>
+  </section>
+
+<div class="wrap">
+
+  <!-- Why -->
+  <section class="section" id="features" aria-labelledby="why-title">
+    <div class="why">
+      <div class="why__intro">
+        <p class="eyebrow">Why MealScholar</p>
+        <h2 id="why-title" class="h2">Honest about what a photo can tell you</h2>
+        <p class="section-sub">Eight choices that keep the numbers honest and the app easy to check.</p>
+        <a class="pill-link" href="#how">See how it works<svg aria-hidden="true"><use href="#i-arrow-se"/></svg></a>
+      </div>
+      <div class="why__visual">
         <div class="phone" role="img" aria-label="The app on a phone, showing the result for the lunch photo: 1 food found, chicken and red onion pizza, 380 to 540 grams, likely 450. Calories 1,011 to 1,436, likely 1,197.">
           <div class="phone__screen">
             <div class="ps-status"><span>9:41</span><span class="ps-sig"><i></i><i></i><i></i><b></b></span></div>
@@ -181,29 +333,6 @@
           <span class="opts"><span class="opt opt--on">Creamy</span><span class="opt">Tomato/BBQ</span></span>
         </div>
       </div>
-
-      <p class="hero__note">Nutrients come from the campus menu first and USDA as a backup, never from the AI.</p>
-      <span class="watermark" aria-hidden="true">MEALSCHOLAR</span>
-    </div>
-
-    <ul class="trust" aria-label="At a glance">
-      <li><svg aria-hidden="true"><use href="#i-check"/></svg>Campus menu first</li>
-      <li><svg aria-hidden="true"><use href="#i-check"/></svg>USDA as a backup</li>
-      <li><svg aria-hidden="true"><use href="#i-check"/></svg>Ranges, not fake precision</li>
-      <li><svg aria-hidden="true"><use href="#i-check"/></svg>No weighing</li>
-      <li><svg aria-hidden="true"><use href="#i-check"/></svg>Location optional</li>
-    </ul>
-  </section>
-
-  <!-- Why -->
-  <section class="card section" id="features" aria-labelledby="why-title">
-    <div class="why">
-      <div class="why__intro">
-        <p class="eyebrow">Why MealScholar</p>
-        <h2 id="why-title" class="h2">Honest about what a photo can tell you</h2>
-        <p class="section-sub">Eight choices that keep the numbers honest and the app easy to check.</p>
-        <a class="pill-link" href="#how">See how it works<svg aria-hidden="true"><use href="#i-arrow-se"/></svg></a>
-      </div>
       <ol class="why__list">
         <li class="why__item"><span class="why__num" aria-hidden="true">01</span><h3>Ranges, not fake precision</h3><p>It estimates how much of each food is there as a low, likely and high amount, so you can see how sure it is.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">02</span><h3>The AI never makes up nutrients</h3><p>The AI names the foods and works out how much is there. The nutrients come from real data and plain arithmetic.</p></li>
@@ -218,8 +347,8 @@
   </section>
 
   <!-- How it works -->
-  <section class="card section" id="how" aria-labelledby="how-title">
-    <div class="section-head section-head--split section-head--rule">
+  <section class="section" id="how" aria-labelledby="how-title">
+    <div class="section-head section-head--split">
       <div>
         <p class="eyebrow">How it works</p>
         <h2 id="how-title" class="h2">From photo to nutrients</h2>
@@ -228,12 +357,14 @@
     </div>
     <ol class="steps">
       <li class="step">
-        <span class="step__num">01</span>
-        <h3>Snap your meal</h3>
-        <p>Take a photo of your plate. That’s all you do.</p>
+        <div class="step__text">
+          <span class="step__num">01</span>
+          <h3>Snap your meal</h3>
+          <p>Take a photo of your plate. That’s all you do.</p>
+        </div>
         <div class="mock" role="img" aria-label="Camera screen with a real photo: three slices of chicken and red onion pizza on a white plate, and a button to take or choose a photo.">
           <div class="vf">
-            <img src="img/meal-pizza-640.jpg" srcset="img/meal-pizza-640.jpg 640w, img/meal-pizza-1280.jpg 1280w" sizes="(max-width: 700px) 92vw, 400px" width="640" height="400" alt="" loading="lazy" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+            <img src="img/meal-pizza-640.jpg" srcset="img/meal-pizza-640.jpg 640w, img/meal-pizza-1280.jpg 1280w" sizes="(max-width: 899px) 92vw, 640px" width="640" height="400" alt="" loading="lazy" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
             <i class="vf__c vf__c--tl"></i><i class="vf__c vf__c--tr"></i><i class="vf__c vf__c--bl"></i><i class="vf__c vf__c--br"></i>
           </div>
           <div class="mini mini--bar">
@@ -243,9 +374,11 @@
         </div>
       </li>
       <li class="step">
-        <span class="step__num">02</span>
-        <h3>Foods and how much</h3>
-        <p>The AI names each food and works out how much is there, as a low, likely and high amount. No weighing.</p>
+        <div class="step__text">
+          <span class="step__num">02</span>
+          <h3>Foods and how much</h3>
+          <p>The AI names each food and works out how much is there, as a low, likely and high amount. No weighing.</p>
+        </div>
         <div class="mock" role="img" aria-label="1 food found: chicken and red onion pizza, about 380 to 540 grams, likely 450, sized against the dinner plate. Checked against today's campus menu first, then USDA.">
           <div class="mini mini--foods">
             <div class="ml-head"><span>1 food found</span><span>low · likely · high</span></div>
@@ -255,9 +388,11 @@
         </div>
       </li>
       <li class="step">
-        <span class="step__num">03</span>
-        <h3>One question, if needed</h3>
-        <p>If the photo is unclear, it asks you one thing, then recomputes.</p>
+        <div class="step__text">
+          <span class="step__num">03</span>
+          <h3>One question, if needed</h3>
+          <p>If the photo is unclear, it asks you one thing, then recomputes.</p>
+        </div>
         <div class="mock" role="img" aria-label="The question it asked about this photo: Is the sauce on the pizza a creamy or butter sauce, or a tomato or BBQ sauce? Creamy or butter is picked, and the food becomes butter chicken and red onion pizza.">
           <div class="mini mini--q">
             <span class="mini__label">One question</span>
@@ -267,7 +402,7 @@
           <div class="toast"><svg><use href="#i-check"/></svg>Now butter chicken pizza</div>
         </div>
       </li>
-      <li class="step step--wide step--tint">
+      <li class="step step--wide">
         <div class="step__text">
           <span class="step__num">04</span>
           <h3>Nutrients as ranges</h3>
@@ -285,9 +420,11 @@
         </div>
       </li>
       <li class="step step--fix">
-        <span class="step__num">05</span>
-        <h3>Check it, log it</h3>
-        <p>If it got a food wrong, swap it with one tap. Then log it to your day.</p>
+        <div class="step__text">
+          <span class="step__num">05</span>
+          <h3>Check it, log it</h3>
+          <p>If it got a food wrong, swap it with one tap. Then log it to your day.</p>
+        </div>
         <div class="mock" role="img" aria-label="Check and log: butter chicken pizza, about 380 to 540 grams, likely 450, estimated from the photo. Not on today's campus menu, so it's matched to USDA: Pizza, cheese, from restaurant or fast food, with a Swap button. Then Log to Today.">
           <div class="mini mini--fix">
             <div class="fx-head"><span class="pin">1</span><b>Butter chicken pizza</b><span class="fx-chg"><span class="fx-new">~450 g</span></span></div>
@@ -301,20 +438,21 @@
   </section>
 
   <!-- Videos -->
-  <section class="card section" id="videos" aria-labelledby="videos-title">
-    <div class="section-head section-head--split section-head--rule">
-      <div>
-        <p class="eyebrow">Screen recordings</p>
-        <h2 id="videos-title" class="h2">See it in action</h2>
-      </div>
+  <section class="section" id="videos" aria-labelledby="videos-title">
+    <div class="split">
+    <div class="split__text split__text--stick">
+      <p class="eyebrow">Screen recordings</p>
+      <h2 id="videos-title" class="h2">See it in action</h2>
+      <p class="section-sub">Three short recordings of the real app: a photo becoming ranges, the one question, and the day’s totals.</p>
       <div class="head-actions">
-        <a class="pill-link" href="https://mealscholar.mannava.org">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <a class="pill-link" href="https://app.mealscholar.health">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
         <div class="rail-ctrl" data-rail-controls="video-rail">
           <button type="button" class="round-btn" data-dir="-1" aria-label="Previous video"><svg aria-hidden="true"><use href="#i-chev-l"/></svg></button>
           <button type="button" class="round-btn" data-dir="1" aria-label="Next video"><svg aria-hidden="true"><use href="#i-chev-r"/></svg></button>
         </div>
       </div>
     </div>
+    <div class="split__visual">
     <div class="rail rail--videos" id="video-rail" data-rail role="region" aria-label="Screen recordings, scroll sideways" tabindex="0">
       <div class="videos">
         <figure class="video-card" data-video="snap-to-nutrients">
@@ -341,18 +479,20 @@
       </div>
     </div>
     <div class="rail-dots" data-rail-dots="video-rail" aria-hidden="true"></div>
+    </div>
+    </div>
   </section>
 
   <!-- Nutrients -->
-  <section class="card section" id="nutrients" aria-labelledby="nutrients-title">
-    <div class="section-head section-head--split section-head--rule">
-      <div>
-        <p class="eyebrow">What it tracks</p>
-        <h2 id="nutrients-title" class="h2">19 nutrients, from the campus menu and USDA</h2>
-      </div>
+  <section class="section" id="nutrients" aria-labelledby="nutrients-title">
+    <div class="split split--flip">
+    <div class="split__text split__text--stick">
+      <p class="eyebrow">What it tracks</p>
+      <h2 id="nutrients-title" class="h2">19 nutrients, from the campus menu and USDA</h2>
       <p class="section-sub">Calories, protein, carbs, fat, fiber, sugar, sodium and cholesterol come from the campus menu when the food is on it. Vitamins and minerals come from USDA and are labeled as estimates. % Daily Value is shown where one exists.</p>
+      <p class="fineprint">Daily Value is the amount US food labels use to work out % DV. It is not a goal.</p>
     </div>
-    <div class="ntables" id="nutrient-rail">
+    <div class="ntables split__visual" id="nutrient-rail">
       <div class="ntable">
         <div class="ntable__head">
           <h3>Main nutrients<small>Nine, from the campus menu first</small></h3>
@@ -389,11 +529,11 @@
         </ul>
       </div>
     </div>
-    <p class="fineprint">Daily Value is the amount US food labels use to work out % DV. It is not a goal.</p>
+    </div>
   </section>
 
   <!-- Data -->
-  <section class="card section" id="data" aria-labelledby="data-title">
+  <section class="section" id="data" aria-labelledby="data-title">
     <div class="data">
       <div class="data__main">
         <p class="eyebrow">The data</p>
@@ -414,12 +554,12 @@
   </section>
 
   <!-- Phone -->
-  <section class="card section promo" id="phone" aria-labelledby="phone-title">
+  <section class="section promo" id="phone" aria-labelledby="phone-title">
     <div class="promo__copy">
       <span class="chip chip--white">No app store download</span>
       <h2 id="phone-title" class="h2">Made for your phone</h2>
       <p class="section-sub">MealScholar works in the browser on any phone. Open the link, snap your meal, see the ranges.</p>
-      <a class="cta" href="https://mealscholar.mannava.org">
+      <a class="cta" href="https://app.mealscholar.health">
         <span class="cta__pill">Open on your phone</span>
         <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
       </a>
@@ -431,7 +571,7 @@
         </ul>
       </div>
       <div class="qr">
-        <img src="brand/qr-mealscholar.svg" alt="QR code that opens mealscholar.mannava.org" width="120" height="120">
+        <img src="brand/qr-app-mealscholar-health.svg" alt="QR code that opens app.mealscholar.health" width="120" height="120">
         <p><b>On a computer?</b> Scan this with your phone’s camera to open MealScholar there.</p>
       </div>
     </div>
@@ -465,7 +605,7 @@
   </section>
 
   <!-- UMass -->
-  <section class="card section" id="umass" aria-labelledby="umass-title">
+  <section class="section" id="umass" aria-labelledby="umass-title">
     <div class="umass">
       <div class="umass__main">
         <p class="eyebrow">On campus</p>
@@ -490,12 +630,12 @@
   </section>
 
   <!-- FAQ -->
-  <section class="card section" id="faq" aria-labelledby="faq-title">
+  <section class="section" id="faq" aria-labelledby="faq-title">
     <div class="faq">
       <div class="faq__intro">
         <p class="eyebrow">FAQ</p>
         <h2 id="faq-title" class="h2">Questions, plainly answered</h2>
-        <a class="pill-link" href="https://mealscholar.mannava.org">Open the app<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <a class="pill-link" href="https://app.mealscholar.health">Open the app<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
       </div>
       <div class="faq__list">
         <details open>
@@ -539,11 +679,11 @@
         <p class="section-sub">Open MealScholar in your phone’s browser and snap a photo.</p>
       </div>
       <div class="band-cta__action">
-        <a class="cta cta--lg cta--invert" href="https://mealscholar.mannava.org">
+        <a class="cta cta--lg cta--invert" href="https://app.mealscholar.health">
           <span class="cta__pill">Open the app</span>
           <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
         </a>
-        <p class="band-cta__url">mealscholar.mannava.org</p>
+        <p class="band-cta__url">app.mealscholar.health</p>
       </div>
     </div>
     <div class="band-cta__chip" aria-hidden="true">
@@ -552,10 +692,11 @@
       <span class="band band--kcal"></span>
     </div>
   </section>
+</div>
 </main>
 
-<footer class="site-footer wrap">
-  <div class="footer-card">
+<footer class="site-footer">
+  <div class="wrap footer-inner">
     <div class="footer-top">
       <div class="footer-brand">
         <a class="brand" href="#top" aria-label="MealScholar, back to top">
@@ -568,7 +709,7 @@
         <div>
           <h2>Product</h2>
           <ul>
-            <li><a href="https://mealscholar.mannava.org">Open the app</a></li>
+            <li><a href="https://app.mealscholar.health">Open the app</a></li>
             <li><a href="#how">How it works</a></li>
             <li><a href="#nutrients">What it tracks</a></li>
             <li><a href="#faq">FAQ</a></li>
@@ -602,7 +743,7 @@
 </footer>
 
 <aside class="dock" aria-label="Open MealScholar">
-  <a class="dock__cta" href="https://mealscholar.mannava.org/?install=1">
+  <a class="dock__cta" href="https://app.mealscholar.health/?install=1">
     <span class="dock__pill"><span class="dock__label">Add to Home Screen</span><span class="dock__sub">Free, no app store needed</span></span>
     <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
   </a>

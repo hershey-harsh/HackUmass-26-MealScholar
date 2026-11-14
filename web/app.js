@@ -124,24 +124,195 @@
   });
 })();
 
-// Page backdrop: --p runs from 0 at the top to 1 at the bottom for the scroll effects,
-// and sections rise in as they come into view. Skipped when reduced motion is on.
+// The hero's facts line: hide the middle dot in front of an item that starts a wrapped line.
+(function () {
+  var d = document, w = window;
+  var list = d.querySelector('.facts');
+  if (!list) return;
+  var items = [].slice.call(list.children);
+  function mark() {
+    var top = null;
+    items.forEach(function (li) { li.classList.remove('is-line-start'); });
+    items.forEach(function (li, i) {
+      var t = li.offsetTop;
+      if (i > 0 && t > top + 2) li.classList.add('is-line-start');
+      top = t;
+    });
+  }
+  w.addEventListener('resize', mark);
+  if (d.fonts && d.fonts.ready) d.fonts.ready.then(mark);
+  mark();
+})();
+
+// The hero's screens. From 760px they fan out: the active one in front, the others tucked
+// behind on both sides (each card gets --o, its place from the front, and --a, how far that is).
+// They move on every few seconds unless reduced motion is on; hovering, focusing or the pause
+// button stops that. Below 760px it is a sideways row that snaps, and the dots follow it.
+(function () {
+  var d = document, w = window;
+  var fan = d.querySelector('[data-fan]');
+  if (!fan) return;
+  var track = fan.querySelector('[data-fan-track]');
+  var cards = [].slice.call(fan.querySelectorAll('[data-slide]'));
+  var ctrl = fan.querySelector('[data-fan-ctrl]');
+  var dotsBox = fan.querySelector('[data-fan-dots]');
+  var pauseBtn = fan.querySelector('[data-fan-pause]');
+  var live = fan.querySelector('[data-fan-live]');
+  var n = cards.length, half = Math.floor(n / 2);
+  var wide = w.matchMedia('(min-width: 760px)');
+  var reduce = w.matchMedia('(prefers-reduced-motion: reduce)');
+  var active = 0, timer = 0, held = false, userPaused = false, inView = true, lastO = [];
+  var DELAY = 6000;
+
+  function title(i) { var t = cards[i].querySelector('.fan-card__title'); return t ? t.textContent : ''; }
+
+  var dots = cards.map(function (card, i) {
+    var b = d.createElement('button');
+    b.type = 'button';
+    b.className = 'fan__dot';
+    b.setAttribute('aria-label', 'Show ' + (i + 1) + ' of ' + n + ': ' + title(i));
+    b.addEventListener('click', function () { go(i, true); });
+    dotsBox.appendChild(b);
+    return b;
+  });
+  ctrl.hidden = false;
+
+  function setDots() {
+    dots.forEach(function (b, i) {
+      if (i === active) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+    });
+  }
+  function announce() { if (live) live.textContent = 'Showing ' + (active + 1) + ' of ' + n + ': ' + title(active); }
+
+  // Fanned layout: place every card around the active one, wrapping around the ends.
+  function layout() {
+    cards.forEach(function (card, i) {
+      var o = ((i - active + half + n) % n) - half;
+      var jump = lastO[i] !== undefined && Math.abs(o - lastO[i]) > half;
+      if (jump) card.classList.add('is-jump');
+      card.style.setProperty('--o', o);
+      card.style.setProperty('--a', Math.abs(o));
+      card.classList.toggle('is-active', o === 0);
+      card.querySelectorAll('a').forEach(function (a) {
+        if (o === 0) a.removeAttribute('tabindex'); else a.tabIndex = -1;
+      });
+      lastO[i] = o;
+      if (jump) w.requestAnimationFrame(function () { w.requestAnimationFrame(function () { card.classList.remove('is-jump'); }); });
+    });
+  }
+  function clearLayout() {
+    cards.forEach(function (card) {
+      card.style.removeProperty('--o');
+      card.style.removeProperty('--a');
+      card.classList.remove('is-active', 'is-jump');
+      card.querySelectorAll('a').forEach(function (a) { a.removeAttribute('tabindex'); });
+    });
+    lastO = [];
+  }
+
+  function go(i, byUser) {
+    active = (i + n) % n;
+    setDots();
+    if (wide.matches) layout();
+    else {
+      var card = cards[active];
+      track.scrollTo({ left: card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2, behavior: reduce.matches ? 'auto' : 'smooth' });
+    }
+    if (byUser) { announce(); restart(); }
+  }
+
+  // Auto-advance, only while fanned, in view, not held by hover or focus, and not paused.
+  function canPlay() { return wide.matches && !reduce.matches && !userPaused && !held && inView && !d.hidden; }
+  function restart() {
+    w.clearTimeout(timer);
+    if (canPlay()) timer = w.setTimeout(function () { go(active + 1, false); restart(); }, DELAY);
+  }
+  function syncPause() {
+    var show = wide.matches && !reduce.matches;
+    pauseBtn.hidden = !show;
+    pauseBtn.setAttribute('aria-pressed', userPaused ? 'true' : 'false');
+    pauseBtn.setAttribute('aria-label', userPaused ? 'Play the screens' : 'Pause the screens');
+  }
+  pauseBtn.addEventListener('click', function () { userPaused = !userPaused; syncPause(); restart(); });
+  fan.addEventListener('mouseenter', function () { held = true; restart(); });
+  fan.addEventListener('mouseleave', function () { held = false; restart(); });
+  fan.addEventListener('focusin', function () { held = true; restart(); });
+  fan.addEventListener('focusout', function (e) { if (!fan.contains(e.relatedTarget)) { held = false; restart(); } });
+  d.addEventListener('visibilitychange', restart);
+  if ('IntersectionObserver' in w) {
+    new IntersectionObserver(function (es) { inView = es[0].isIntersecting; restart(); }, { threshold: 0.2 }).observe(fan);
+  }
+
+  // A card behind the front one comes forward when clicked.
+  cards.forEach(function (card, i) {
+    card.addEventListener('click', function (e) {
+      if (!wide.matches || i === active) return;
+      e.preventDefault();
+      go(i, true);
+    });
+  });
+
+  // Arrow keys while focus is inside the screens.
+  fan.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    go(active + (e.key === 'ArrowRight' ? 1 : -1), true);
+    var dot = dots[active];
+    if (fan.contains(d.activeElement) && d.activeElement.classList.contains('fan__dot')) dot.focus();
+  });
+
+  // Swipe (touch, pen or a mouse drag) when fanned.
+  var sx = null, sy = 0, moved = false;
+  track.addEventListener('pointerdown', function (e) { if (wide.matches) { sx = e.clientX; sy = e.clientY; moved = false; } });
+  track.addEventListener('pointermove', function (e) { if (sx !== null && Math.abs(e.clientX - sx) > 8) moved = true; });
+  track.addEventListener('pointerup', function (e) {
+    if (sx === null) return;
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    sx = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) go(active + (dx < 0 ? 1 : -1), true);
+  });
+  track.addEventListener('pointercancel', function () { sx = null; });
+  // A drag should not also count as a click on a link.
+  track.addEventListener('click', function (e) { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
+
+  // The row on phones: the dot follows the card nearest the middle.
+  var q = false;
+  track.addEventListener('scroll', function () {
+    if (wide.matches || q) return;
+    q = true;
+    w.requestAnimationFrame(function () {
+      q = false;
+      var mid = track.scrollLeft + track.clientWidth / 2, best = 0, bestD = Infinity;
+      cards.forEach(function (c, i) {
+        var dd = Math.abs(c.offsetLeft + c.offsetWidth / 2 - mid);
+        if (dd < bestD) { bestD = dd; best = i; }
+      });
+      if (best !== active) { active = best; setDots(); }
+    });
+  }, { passive: true });
+
+  function mode() {
+    fan.classList.toggle('is-fan', wide.matches);
+    if (wide.matches) { track.removeAttribute('tabindex'); layout(); }
+    else { clearLayout(); track.tabIndex = 0; track.scrollLeft = 0; active = 0; }
+    setDots();
+    syncPause();
+    restart();
+  }
+  wide.addEventListener('change', mode);
+  reduce.addEventListener('change', function () { syncPause(); restart(); });
+  mode();
+})();
+
+// Sections rise in as they come into view. Skipped when reduced motion is on.
 // Sections are fully visible by default; the short entrance animation plays only when a
 // section scrolls into view, never right after a resize, so nothing is left half-faded.
 (function () {
-  var d = document, w = window, root = d.documentElement;
+  var d = document, w = window;
   if (w.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  var queued = false, resizedAt = 0;
-  function set() {
-    queued = false;
-    var max = root.scrollHeight - w.innerHeight;
-    root.style.setProperty('--p', max > 0 ? Math.min(1, Math.max(0, w.scrollY / max)).toFixed(4) : '0');
-  }
-  function queue() { if (!queued) { queued = true; w.requestAnimationFrame(set); } }
-  w.addEventListener('scroll', queue, { passive: true });
-  w.addEventListener('resize', function () { resizedAt = Date.now(); queue(); });
-  set();
   if (!('IntersectionObserver' in w)) return;
+  var resizedAt = 0;
+  w.addEventListener('resize', function () { resizedAt = Date.now(); });
   var io = new IntersectionObserver(function (entries) {
     entries.forEach(function (e) {
       if (!e.isIntersecting) return;
@@ -149,5 +320,5 @@
       if (Date.now() - resizedAt > 500) e.target.classList.add('is-in');
     });
   }, { rootMargin: '0px 0px -6% 0px', threshold: 0.06 });
-  d.querySelectorAll('main > section:not(.hero-shell)').forEach(function (el) { io.observe(el); });
+  d.querySelectorAll('main .section').forEach(function (el) { io.observe(el); });
 })();

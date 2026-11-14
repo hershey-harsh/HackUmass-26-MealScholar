@@ -896,8 +896,14 @@ def test_cross_site_writes_are_refused(make_app):
         res = client.post("/api/auth/register", json=body, headers={"Origin": origin})
         assert res.status_code == 403
         assert res.json() == {"detail": "Cross-site requests are not allowed."}
-    res = client.patch("/api/meals/1/items/0", json={"grams": 5}, headers={"Origin": "https://evil.example"})
-    assert res.status_code == 403
+    evil = {"Origin": "https://evil.example"}
+    for res in (
+        client.patch("/api/meals/1/items/0", json={"grams": 5}, headers=evil),
+        client.delete("/api/meals", headers=evil),
+        client.delete("/api/me", headers=evil),
+        client.post("/api/auth/delete-account", json={"password": PASSWORD}, headers=evil),
+    ):
+        assert res.status_code == 403
 
     assert client.post("/api/auth/register", json=body, headers={"Origin": "https://testserver"}).status_code == 201
     assert client.get("/api/auth/me", headers={"Origin": "https://evil.example"}).status_code == 200  # reads pass
@@ -914,6 +920,9 @@ def test_meal_and_diary_routes_need_a_session(make_app):
         client.post("/api/meals/1/answer", json={"answer": "yes"}),
         client.patch("/api/meals/1/items/0", json={"grams": 100}),
         client.delete("/api/meals/1"),
+        client.delete("/api/meals"),
+        client.delete("/api/me"),
+        client.post("/api/auth/delete-account", json={"password": PASSWORD}),
         client.get("/api/days/2026-11-14"),
     ):
         assert res.status_code == 401
@@ -960,6 +969,68 @@ def test_users_only_see_their_own_meals(make_app, home):
     assert (deleted.status_code, deleted.content) == (204, b"")
     assert sam.get(f"/api/meals/{meal_id}").json() == missing
     assert sam.get(f"/api/days/{day}").json()["meals"] == []
+
+
+def test_clear_history_deletes_only_your_meals_and_keeps_settings(make_app, home):
+    app = make_app()
+    sam, alex = browser(app), browser(app)
+    sam_id = register(sam, email="sam@example.com").json()["user"]["id"]
+    register(alex, email="alex@example.com")
+    first = sam.post("/api/meals", content=photo(), headers=JPEG).json()
+    assert sam.patch(f"/api/meals/{first['id']}/items/0", json={"grams": 300}).status_code == 200
+    sam.post("/api/meals", content=photo(), headers=JPEG)
+    kept = alex.post("/api/meals", content=photo(), headers=JPEG).json()
+    assert sam.patch("/api/me/prefs", json={"onboarded": True}).status_code == 200
+    day = first["context"]["taken_at"][:10]
+
+    assert sam.delete("/api/meals").json() == {"meals": 2}
+    assert sam.get(f"/api/meals/{first['id']}").status_code == 404
+    assert sam.get(f"/api/days/{day}").json()["meals"] == []
+    with closing(Diary(home / "diary.sqlite", sam_id)) as diary:
+        assert diary.usual_portions() == {}  # learned from the deleted meals, so gone too
+    assert sam.get("/api/me/prefs").json()["onboarded"] is True  # settings stay
+    assert alex.get(f"/api/meals/{kept['id']}").json() == kept  # nobody else's meals go
+    assert sam.delete("/api/meals").json() == {"meals": 0}
+
+
+def test_erasing_without_an_account_starts_over(make_app):
+    client = browser(make_app(MEALSCHOLAR_AUTH_REQUIRED="0"))
+    meal = client.post("/api/meals", content=photo(), headers=JPEG).json()
+    assert client.patch("/api/me/prefs", json={"onboarded": True, "calorie_goal": 2200}).status_code == 200
+
+    assert client.delete("/api/me").json() == {"meals": 1}
+    assert client.get(f"/api/meals/{meal['id']}").status_code == 404
+    prefs = client.get("/api/me/prefs").json()
+    assert (prefs["onboarded"], prefs["calorie_goal"], prefs["updated_at"]) == (False, None, None)
+
+
+def test_delete_account_needs_the_password_and_then_removes_everything(make_app, home):
+    app = make_app()
+    sam, phone, alex = browser(app), browser(app), browser(app)
+    sam_id = register(sam).json()["user"]["id"]
+    login(phone)
+    register(alex, email="alex@example.com")
+    meal = sam.post("/api/meals", content=photo(), headers=JPEG).json()
+    kept = alex.post("/api/meals", content=photo(), headers=JPEG).json()
+    assert sam.patch("/api/me/prefs", json={"onboarded": True}).status_code == 200
+
+    wrong = sam.post("/api/auth/delete-account", json={"password": "not my password"})
+    assert (wrong.status_code, wrong.json()) == (401, {"detail": "That password is incorrect.", "field": "password"})
+    assert sam.get(f"/api/meals/{meal['id']}").json() == meal  # a wrong password deletes nothing
+
+    res = sam.post("/api/auth/delete-account", json={"password": PASSWORD})
+    assert (res.status_code, res.content) == (204, b"")
+    assert session_cookie(res).value == ""
+    assert sam.get("/api/auth/me").status_code == 401
+    assert phone.get("/api/auth/me").status_code == 401  # signed out everywhere
+    assert app.state.auth.store.user_by_id(sam_id) is None
+    assert app.state.auth.store.user_by_email("sam@example.com") is None
+    assert app.state.prefs.store.get(sam_id) is None
+    with closing(Diary(home / "diary.sqlite", sam_id)) as diary:
+        assert diary.get(meal["id"]) is None
+    assert login(sam).json() == BAD_LOGIN
+    assert alex.get(f"/api/meals/{kept['id']}").json() == kept
+    assert register(sam).status_code == 201  # the email can sign up again
 
 
 def test_usual_portions_are_per_user(make_app, home):

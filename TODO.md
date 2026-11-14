@@ -14,7 +14,7 @@ The chain is merged: #7 at 8:10 AM, then #11, #13 and #15 at 8:18–8:19 AM. Eve
 - [x] **Joseph**: the rest of Harsh's #7 review. Coordinates are kept out of the access log and meal notes (#30). Photos that won't decode get 413/415 instead of 500, and error replies no longer show server paths or Gemini's raw errors (#32).
 - [x] **Joseph**: landing page dark mode (#16), regenerated after Harsh's landing rework. Merged as #45, with a System, Light, Dark toggle.
 - [ ] **Harsh**: apply the app dark mode patch (#16) once #48 merges. If it no longer applies on top of #48, Joseph regenerates it.
-- [x] **Joseph**: add `test_pictures/` to `.gitignore`. The photos carry GPS EXIF (see `BENCHMARK.md`). Done in #62.
+- [x] **Joseph**: add `test_pictures/` to `.gitignore`. The photos carry GPS EXIF (see `BENCHMARK.md`). Done in #62. Reversed: the six photos are committed with EXIF stripped, and the gitignore line is gone.
 - [ ] **Harsh, then Joseph**: land the rename to `mealscholar` (#41) after #48 and the app dark mode patch. It's ready: tests, Ruff and the lookup check pass, and main + #48 + #41 merge cleanly (git moves #48's files into `src/mealscholar/site/`). The Mac's `.env` copies and launchd switch script are in place. Waiting on Harsh himself to approve the changed `deploy-site.yml` on the deploy runner. Then Joseph merges, and Harsh runs the launchd switch once the deploy finishes (the app is down under a minute). Not during the 7:00–8:30 PM recording freeze. Until then, keep #41 up to date with `main`.
 
 ## 2. Make the app do what the landing page says (before the Sat 2 PM checkpoint)
@@ -77,6 +77,7 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
 - [ ] **Joseph or Harsh**: put the numeric Gemini project number in `submissions/devpost.md`. We only have the project ID (`gen-lang-client-…`). The draft explains where to find the number.
 - [ ] **Harsh**: if campus menu matching (section 2) isn't live when you submit, submit the story as written. If it is, make the two swaps in `submissions/devpost.md`.
 - [ ] **Gabby**: add the video link (YouTube, Vimeo or Youku) and the gallery images to the Devpost form.
+- [x] **Joseph**: improve the Devpost thumbnail's gallery-size hierarchy (#100). Use `brand/devpost-thumbnail.png` (1800×1200, 3:2); its editable HTML keeps the real salad result and makes the calorie range the primary number.
 - [ ] The final deadline is 9:00 AM on hackumass.com but 10:00 AM on Devpost. Go by 9:00 AM.
 - [ ] A demo account with a few days already logged, so Today and This week aren't empty.
 - [ ] Set `MEALSCHOLAR_DEMO_VERIFY_LINK` on the demo server, so sign-up works without a real email service. Only needed once the sign-in screens are on. It lets anyone confirm whatever address they type, so the favorites digest could go to someone else's email (#11 review).

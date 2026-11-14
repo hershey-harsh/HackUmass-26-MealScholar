@@ -63,7 +63,7 @@
   <script type="module" src="/app.js?v=__COMMIT__"></script>
   <script src="/install.js?v=__COMMIT__" defer></script>
 </head>
-<body data-view="analyze" data-screen="boot">
+<body data-view="today" data-screen="boot">
   <svg class="sprite" aria-hidden="true" focusable="false">
     <symbol id="i-camera" viewBox="0 0 24 24"><path d="M3.75 9A2.25 2.25 0 0 1 6 6.75h1.7l1.3-2h6l1.3 2H18A2.25 2.25 0 0 1 20.25 9v8.25A2.25 2.25 0 0 1 18 19.5H6a2.25 2.25 0 0 1-2.25-2.25z"/><circle cx="12" cy="13" r="3.4"/></symbol>
     <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.75" y="4.75" width="16.5" height="14.5" rx="3"/><circle cx="9" cy="9.75" r="1.6"/><path d="M20.25 15.25l-4.4-4.4a1.5 1.5 0 0 0-2.12 0L5.5 19.1"/></symbol>
@@ -93,10 +93,27 @@
     <symbol id="i-avoid" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.25"/><path d="M6.2 6.2l11.6 11.6"/></symbol>
     <symbol id="i-gear" viewBox="0 0 24 24"><path d="M10.37 5.71L10.58 3.52A8.6 8.6 0 0 1 13.42 3.52L13.63 5.71A6.5 6.5 0 0 1 15.3 6.4L16.99 5A8.6 8.6 0 0 1 19 7.01L17.6 8.7A6.5 6.5 0 0 1 18.29 10.37L20.48 10.58A8.6 8.6 0 0 1 20.48 13.42L18.29 13.63A6.5 6.5 0 0 1 17.6 15.3L19 16.99A8.6 8.6 0 0 1 16.99 19L15.3 17.6A6.5 6.5 0 0 1 13.63 18.29L13.42 20.48A8.6 8.6 0 0 1 10.58 20.48L10.37 18.29A6.5 6.5 0 0 1 8.7 17.6L7.01 19A8.6 8.6 0 0 1 5 16.99L6.4 15.3A6.5 6.5 0 0 1 5.71 13.63L3.52 13.42A8.6 8.6 0 0 1 3.52 10.58L5.71 10.37A6.5 6.5 0 0 1 6.4 8.7L5 7.01A8.6 8.6 0 0 1 7.01 5L8.7 6.4A6.5 6.5 0 0 1 10.37 5.71Z"/><circle cx="12" cy="12" r="2.75"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+    <symbol id="i-week" viewBox="0 0 24 24"><path d="M4.75 19.25h14.5"/><rect x="6" y="11" width="2.75" height="5.5" rx="1"/><rect x="10.63" y="6.5" width="2.75" height="10" rx="1"/><rect x="15.25" y="9" width="2.75" height="7.5" rx="1"/></symbol>
     <symbol id="i-fork" viewBox="0 0 24 24"><path d="M7.5 3.75v6.5a2.5 2.5 0 0 0 5 0v-6.5M10 3.75v16.5M16.5 3.75c-1.5 1.5-2 3.5-2 6.5h2v10"/></symbol>
   </svg>
 
   <a class="skip" href="#main">Skip to content</a>
+
+  <aside class="rail" aria-label="MealScholar">
+    <a class="brand rail__brand" href="/">
+      <svg class="brand__mark rail__mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="128" fill="#1C1C1C"/><circle cx="256" cy="292" r="140" fill="#FAFAFF"/><circle cx="256" cy="292" r="124" fill="none" stroke="#1C1C1C" stroke-width="8" stroke-opacity=".18"/><g fill="#1C1C1C" stroke="#1C1C1C" stroke-linejoin="round" stroke-linecap="round"><path d="M176 174v52q80 44 160 0v-52Z" stroke-width="20"/><path d="M256 80 420 146 256 212 92 146Z" stroke-width="20"/><path d="M197 272v18c0 9 8 16 17 16s17-7 17-16v-18m-17 0v58" fill="none" stroke-width="12"/><path d="M287 266c16 8 26 24 26 40 0 3-3 6-6 6h-11v18a6 6 0 0 1-12 0V270q0-6 3-4Z" stroke="none"/><path d="M204 360C216 398 296 398 308 360" fill="none" stroke-width="14"/><path d="M412 148v100" fill="none" stroke-width="28"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" stroke-width="12"/></g><path d="M176 174v52q80 44 160 0v-52Z" fill="#FAFAFF"/><path d="M256 80 420 146 256 212 92 146Z" fill="#1C1C1C" stroke="#1C1C1C" stroke-width="16" stroke-linejoin="round"/><path d="M256 80 420 146 256 212 92 146Z" fill="#FAFAFF" stroke="#FAFAFF" stroke-width="6" stroke-linejoin="round"/><path d="M412 148v100" fill="none" stroke="#E9B44C" stroke-width="11" stroke-linecap="round"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" fill="#E9B44C" stroke="#E9B44C" stroke-width="2" stroke-linejoin="round"/></svg>
+      <span class="rail__name">MealScholar</span>
+    </a>
+    <nav class="rail__nav" aria-label="Views">
+      <a class="tab" href="#today" data-view="today"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span class="tab__label">Today</span></a>
+      <a class="tab" href="#menu" data-view="menu"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-fork"/></svg><span class="tab__label">Menu</span></a>
+      <a class="tab" href="#week" data-view="week"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-week"/></svg><span class="tab__label">Week</span></a>
+    </nav>
+    <div class="rail__foot">
+      <button id="rail-alerts" class="tab rail__btn" type="button" aria-haspopup="dialog" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bell"/></svg><span class="tab__label">Alerts</span><span class="bell__dot rail__dot" hidden></span></button>
+      <button id="rail-settings" class="tab rail__btn" type="button" aria-haspopup="dialog" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg><span class="tab__label">Settings</span></button>
+    </div>
+  </aside>
 
   <header class="topbar">
     <div class="topbar__inner">
@@ -104,16 +121,11 @@
         <svg class="brand__mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="128" fill="#1C1C1C"/><circle cx="256" cy="292" r="140" fill="#FAFAFF"/><circle cx="256" cy="292" r="124" fill="none" stroke="#1C1C1C" stroke-width="8" stroke-opacity=".18"/><g fill="#1C1C1C" stroke="#1C1C1C" stroke-linejoin="round" stroke-linecap="round"><path d="M176 174v52q80 44 160 0v-52Z" stroke-width="20"/><path d="M256 80 420 146 256 212 92 146Z" stroke-width="20"/><path d="M197 272v18c0 9 8 16 17 16s17-7 17-16v-18m-17 0v58" fill="none" stroke-width="12"/><path d="M287 266c16 8 26 24 26 40 0 3-3 6-6 6h-11v18a6 6 0 0 1-12 0V270q0-6 3-4Z" stroke="none"/><path d="M204 360C216 398 296 398 308 360" fill="none" stroke-width="14"/><path d="M412 148v100" fill="none" stroke-width="28"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" stroke-width="12"/></g><path d="M176 174v52q80 44 160 0v-52Z" fill="#FAFAFF"/><path d="M256 80 420 146 256 212 92 146Z" fill="#1C1C1C" stroke="#1C1C1C" stroke-width="16" stroke-linejoin="round"/><path d="M256 80 420 146 256 212 92 146Z" fill="#FAFAFF" stroke="#FAFAFF" stroke-width="6" stroke-linejoin="round"/><path d="M412 148v100" fill="none" stroke="#E9B44C" stroke-width="11" stroke-linecap="round"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" fill="#E9B44C" stroke="#E9B44C" stroke-width="2" stroke-linejoin="round"/></svg>
         <span>MealScholar</span>
       </a>
-      <nav class="topnav" aria-label="Views">
-        <a class="tab" href="#today" data-view="today"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span>Today</span></a>
-        <a class="tab" href="#capture" data-view="analyze"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg><span>Analyze</span><span class="tab__badge" hidden><span class="visually-hidden">, new result</span></span></a>
-      </nav>
       <div class="topbar__end">
         <p class="pilot">
           <svg class="pilot__m" viewBox="0 0 108.6 92.1" aria-hidden="true" focusable="false"><path d="M106.77,90.5h-33.9l.29-37.62c-4.63,7.03-17.63,26.48-17.63,26.48l-2.41.03s-13.09-19.47-17.72-26.51l.29,37.62H1.78l-.06-22.14h4.56l-.34-43.92H1.49l-.12-22.93h31.48l21.42,34.73L75.69,1.5h31.48l-.12,22.93h-4.44l-.34,43.92h4.56l-.06,22.14Z" fill="#fff"/><path d="M108.26,92h-36.91l.26-34.07c-5.64,8.5-14.74,22.11-14.84,22.27l-.44.66-4.01.05-.45-.67c-.11-.16-9.28-13.8-14.94-22.31l.26,34.08H.28v-25.14h4.48l-.31-40.92H0V0h33.69l20.58,33.38L74.85,0h33.69v25.93h-4.45l-.31,40.92h4.48v25.14ZM74.38,89h30.9v-19.14h-4.51l.36-46.92h4.44V3h-29.03l-22.26,36.09L32.01,3H2.98v19.93h4.44l.36,46.92H3.27v19.14h30.9l-.32-41.18,2.79,4.24c4.09,6.21,14.92,22.33,17.26,25.82h.81c2.31-3.47,13.09-19.61,17.19-25.82l2.79-4.24-.32,41.18Z"/><path d="M78.06,85.34h23.56v-11.82h-4.55l.42-54.24h4.43V6.66h-23.35l-24.3,39.4L29.97,6.66H6.62v12.62h4.43l.42,54.24h-4.55v11.82h23.56l-.38-49.99,4.81,7.38c5,7.68,11.51,17.5,19.37,29.23,7.86-11.73,14.36-21.55,19.37-29.23l4.81-7.38-.38,49.99Z" fill="#840028"/></svg>
           <span class="pilot__text">Piloting at UMass</span>
         </p>
-        <button class="snap snap--bar" type="button" data-action="snap"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg>Snap a meal</button>
         <button id="alerts-button" class="icon-btn bell" type="button" aria-haspopup="dialog" aria-label="Alerts" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bell"/></svg><span class="bell__dot" hidden></span></button>
         <button id="account-button" class="avatar" type="button" aria-haspopup="dialog" aria-label="Account" hidden></button>
       </div>
@@ -122,10 +134,11 @@
 
   <div class="dock">
     <nav class="tabbar" aria-label="Views">
-      <a class="tab" href="#today" data-view="today"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span>Today</span></a>
-      <a class="tab" href="#capture" data-view="analyze"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg><span>Analyze</span><span class="tab__badge" hidden><span class="visually-hidden">, new result</span></span></a>
+      <a class="tab" href="#today" data-view="today"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span class="tab__label">Today</span></a>
+      <a class="tab" href="#menu" data-view="menu"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-fork"/></svg><span class="tab__label">Menu</span></a>
+      <a class="tab" href="#week" data-view="week"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-week"/></svg><span class="tab__label">Week</span></a>
     </nav>
-    <button class="snap snap--dock" type="button" data-action="snap" aria-label="Snap a meal" title="Snap a meal"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg></button>
+    <button class="snap snap--dock" type="button" data-action="snap" aria-label="Snap a meal" title="Snap a meal"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg></button>
   </div>
 
   <main id="main" class="shell" tabindex="-1">
@@ -134,15 +147,12 @@
 
     <section id="today" class="view today" aria-labelledby="today-title">
       <div id="today-banner" class="today__banner"></div>
-      <header class="dash-head">
-        <p id="today-greeting" class="dash-head__greeting">Hello</p>
-        <div class="dash-head__row">
-          <div class="dash-head__titles">
-            <h1 id="today-title" class="view-title" tabindex="-1">Today</h1>
-            <p id="today-date" class="dash-head__date"></p>
-          </div>
-          <div id="dash-strip" class="strip" role="group" aria-label="This week" hidden></div>
-          <div class="datenav" role="group" aria-label="Choose a day">
+      <header class="page-head dash-head">
+        <p id="today-date" class="page-head__label"></p>
+        <h1 id="today-title" class="view-title" tabindex="-1">Today</h1>
+        <div class="intro">
+          <p id="today-greeting" class="intro__text">Hello</p>
+          <div class="datenav intro__actions" role="group" aria-label="Choose a day">
             <button id="day-today" class="datenav__today" type="button" data-day="today" hidden>Today</button>
             <button id="day-prev" class="icon-btn datenav__btn" type="button" data-day="prev" aria-label="Previous day"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-left"/></svg></button>
             <button id="day-next" class="icon-btn datenav__btn" type="button" data-day="next" aria-label="Next day" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-right"/></svg></button>
@@ -150,60 +160,57 @@
         </div>
         <p id="day-status" class="visually-hidden" role="status" aria-live="polite"></p>
       </header>
+      <div id="dash-strip" class="strip" role="group" aria-label="This week" hidden></div>
       <div id="today-body" class="dash">
+        <div id="setup" class="setup" hidden></div>
+        <div id="locate-ask" class="locate-ask" hidden></div>
         <div id="dash-notice" class="dash__notice"></div>
         <div class="dash-grid">
           <div id="dash-day" class="dash-region dash-col dash-col--main"></div>
           <div id="dash-mid" class="dash-region dash-col dash-col--mid">
             <div id="dash-recent" class="dash-recent"></div>
-            <section id="dash-week" class="block week-block" aria-labelledby="week-title"></section>
           </div>
           <div id="dash-side" class="dash-region dash-col dash-col--side"></div>
-          <div id="dash-micro" class="dash-region"></div>
         </div>
       </div>
     </section>
 
-    <section id="capture" class="view capture" aria-labelledby="capture-title">
-      <header class="view-head">
-        <p class="eyebrow">Meal photo <span aria-hidden="true">&rarr;</span><span class="visually-hidden">to</span> foods <span aria-hidden="true">&rarr;</span><span class="visually-hidden">to</span> USDA nutrients</p>
-        <h1 id="capture-title" class="view-title" tabindex="-1">What&rsquo;s on your plate?</h1>
-        <p class="lede">Snap a photo of your meal. It works out the foods and how much is there, then shows the nutrients as honest ranges, not one fake-precise number.</p>
-      </header>
-
-      <div class="capture__main">
-        <div id="viewfinder" class="viewfinder" data-state="empty">
-          <span class="corner corner--tl" aria-hidden="true"></span>
-          <span class="corner corner--tr" aria-hidden="true"></span>
-          <span class="corner corner--bl" aria-hidden="true"></span>
-          <span class="corner corner--br" aria-hidden="true"></span>
-
-          <div class="viewfinder__empty">
-            <span class="viewfinder__icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-camera"/></svg></span>
-            <p class="viewfinder__title"><span class="if-fine">Drop a meal photo here</span><span class="if-coarse">Photograph your plate</span></p>
-            <div class="viewfinder__actions">
-              <button id="choose" class="cta cta--block" type="button" data-pick="library" aria-describedby="photo-hint">
-                <span class="cta__pill"><span class="if-fine">Choose a photo</span><span class="if-coarse">Take or choose a photo</span></span>
-                <span class="cta__dot" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-arrow"/></svg></span>
-              </button>
-              <button class="btn btn--secondary btn--block if-coarse" type="button" data-pick="camera"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg>Open camera</button>
-            </div>
-            <input id="photo" class="visually-hidden" type="file" accept="image/*,.heic,.heif" tabindex="-1" aria-hidden="true">
-            <input id="camera" class="visually-hidden" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
-            <p id="photo-hint" class="viewfinder__hint">JPEG, PNG or HEIC, up to 25&nbsp;MB</p>
-          </div>
-
-          <div id="preview" class="viewfinder__preview" hidden>
-            <img alt="The meal photo being analyzed">
-            <span class="scan" aria-hidden="true"></span>
-            <p class="viewfinder__working" aria-hidden="true"><span class="spinner"></span><span>Identifying foods &middot; estimating grams</span></p>
-          </div>
+    <section id="menu" class="view menu-view" aria-labelledby="menu-title">
+      <header class="page-head">
+        <p class="page-head__label">Dining</p>
+        <h1 id="menu-title" class="view-title" tabindex="-1">Menu</h1>
+        <div class="intro">
+          <p id="menu-sub" class="intro__text">The next meal at your dining halls, dish by dish.</p>
+          <div id="menu-actions" class="intro__actions"></div>
         </div>
-        <div id="setup" class="setup" hidden></div>
-        <p id="capture-status" class="status" role="status" aria-live="polite"></p>
+      </header>
+      <div id="menu-halls" class="halls-bar" role="group" aria-label="Dining halls"></div>
+      <div id="menu-body" class="menu-body" aria-live="polite" aria-busy="false"></div>
+    </section>
 
-        <div class="card setting">
-          <label class="switch-row">
+    <section id="week" class="view week-view" aria-labelledby="week-page-title">
+      <header class="page-head">
+        <p id="week-sub" class="page-head__label">Last 7 days</p>
+        <h1 id="week-page-title" class="view-title" tabindex="-1">This week</h1>
+        <div class="intro">
+          <p class="intro__text">Calories by day, and the day's vitamins and minerals, all as ranges.</p>
+        </div>
+      </header>
+      <div class="week-grid">
+        <section id="dash-week" class="block week-block" aria-labelledby="week-title"></section>
+        <div id="dash-micro" class="dash-region week-micro"></div>
+      </div>
+    </section>
+
+    <section id="capture" class="view capture" aria-labelledby="capture-title">
+      <div class="result__nav"><button class="back" type="button" data-action="leave-capture"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-left"/></svg>Today</button></div>
+      <div id="snap-tools-home" class="snap-tools-home">
+        <section id="snap-tools" class="snap-tools" aria-label="Photo options">
+          <div class="snap-tools__picks">
+            <button id="choose" class="pill-btn" type="button" data-pick="library" aria-describedby="photo-hint"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-image"/></svg><span class="if-fine">Choose a photo</span><span class="if-coarse">Take or choose a photo</span></button>
+            <button class="pill-btn if-coarse" type="button" data-pick="camera"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg>Open camera</button>
+          </div>
+          <label class="switch-row snap-tools__loc">
             <span class="switch-row__icon" aria-hidden="true"><svg class="icon" focusable="false"><use href="#i-pin"/></svg></span>
             <span class="switch-row__text">
               <span id="location-title" class="switch-row__title">Use my location to name the place</span>
@@ -212,17 +219,29 @@
             <input id="use-location" class="switch" type="checkbox" role="switch" aria-labelledby="location-title" aria-describedby="location-hint">
           </label>
           <p id="location-status" class="status setting__status" role="status" aria-live="polite"></p>
-        </div>
+          <p id="photo-hint" class="visually-hidden">JPEG, PNG or HEIC, up to 25 MB</p>
+        </section>
       </div>
-
-      <section class="how" aria-labelledby="how-title">
-        <h2 id="how-title" class="eyebrow how__title">How it works</h2>
-        <ol class="how__list">
-          <li class="card"><span class="how__n" aria-hidden="true">01</span><span class="how__text"><strong>Photo</strong> That’s all you do. Location only if you switch it on.</span></li>
-          <li class="card"><span class="how__n" aria-hidden="true">02</span><span class="how__text"><strong>Foods and how much</strong> The AI names each food and estimates how much is there as a low, likely and high amount. No weighing.</span></li>
-          <li class="card"><span class="how__n" aria-hidden="true">03</span><span class="how__text"><strong>Nutrients</strong> From the campus menu when the food is on it, otherwise USDA. The AI never makes up nutrient numbers.</span></li>
-        </ol>
-      </section>
+      <div class="capture__work">
+        <header class="capture__head">
+          <p class="eyebrow">New meal</p>
+          <h1 id="capture-title" class="view-title" tabindex="-1">Reading your plate</h1>
+        </header>
+        <div id="viewfinder" class="viewfinder" data-state="empty" hidden>
+          <span class="corner corner--tl" aria-hidden="true"></span>
+          <span class="corner corner--tr" aria-hidden="true"></span>
+          <span class="corner corner--bl" aria-hidden="true"></span>
+          <span class="corner corner--br" aria-hidden="true"></span>
+          <div id="preview" class="viewfinder__preview">
+            <img alt="The meal photo being analyzed">
+            <span class="scan" aria-hidden="true"></span>
+            <p class="viewfinder__working" aria-hidden="true"><span class="spinner"></span><span>Identifying foods &middot; estimating amounts</span></p>
+          </div>
+        </div>
+        <p id="capture-status" class="status" role="status" aria-live="polite"></p>
+      </div>
+      <input id="photo" class="visually-hidden" type="file" accept="image/*,.heic,.heif" tabindex="-1" aria-hidden="true">
+      <input id="camera" class="visually-hidden" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
     </section>
 
     <section id="result" class="view result" aria-labelledby="result-title" hidden></section>
@@ -233,7 +252,7 @@
     <p id="footer-note">Information, not medical advice. Any goal is one you set yourself; no insulin or carb dosing advice.</p>
   </footer>
 
-  <button id="plus-button" class="plus" type="button" aria-label="Analyze a meal" title="Analyze a meal" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg></button>
+  <button id="plus-button" class="plus" type="button" aria-label="Snap a meal" title="Snap a meal" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg></button>
 
   <dialog id="sheet" class="sheet" aria-labelledby="sheet-kicker sheet-title">
     <div class="sheet__inner">
@@ -242,6 +261,7 @@
         <div class="sheet__titles">
           <p id="sheet-kicker" class="eyebrow"></p>
           <h2 id="sheet-title" class="sheet__title" tabindex="-1"></h2>
+          <p id="sheet-intro" class="sheet__intro" hidden></p>
         </div>
         <button class="icon-btn" type="button" data-action="close-sheet" aria-label="Close"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
       </div>
@@ -256,6 +276,7 @@
         <div class="sheet__titles">
           <p id="account-kicker" class="eyebrow">Account</p>
           <h2 id="account-title" class="sheet__title" tabindex="-1"></h2>
+          <p id="account-intro" class="sheet__intro" hidden></p>
         </div>
         <button class="icon-btn" type="button" data-action="close-account" aria-label="Close"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
       </div>
@@ -270,6 +291,7 @@
         <div class="sheet__titles">
           <p id="panel-kicker" class="eyebrow"></p>
           <h2 id="panel-title" class="sheet__title" tabindex="-1"></h2>
+          <p id="panel-intro" class="sheet__intro" hidden></p>
         </div>
         <button class="icon-btn" type="button" data-action="close-panel" aria-label="Close"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
       </div>
