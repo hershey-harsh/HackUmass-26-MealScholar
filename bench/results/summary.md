@@ -14,7 +14,8 @@
 | `4-hydrogen` low · res medium | 15/15 | 6.3 | 8.2 | 1870 | 540 | 609 | 359 | 0.0101 | 10.07 |
 | `4-hydrogen` low | 15/15 | 5.9 | 9.3 | 2394 | 1064 | 435 | 375 | 0.0097 | 9.67 |
 | `4-hydrogen` low · prompt 0e460f6e | 15/15 | 5.4 | 14.4 | 2514 | 1064 | 488 | 360 | 0.0101 | 10.13 |
-| `4-hydrogen` low · prompt 56e180c6 (current) | 15/15 | 6.1 | 8.5 | 2394 | 1064 | 517 | 358 | 0.0102 | 10.15 |
+| `4-hydrogen` low · prompt 56e180c6 | 15/15 | 6.1 | 8.5 | 2394 | 1064 | 517 | 358 | 0.0102 | 10.15 |
+| `4-hydrogen` low · prompt e9181571 (current) | 15/15 | 5.4 | 7.5 | 2477 | 1064 | 478 | 368 | 0.0101 | 10.06 |
 | `4-hydrogen` low · res ultra_high | 15/15 | 5.9 | 9.7 | 3490 | 2160 | 447 | 378 | 0.0114 | 11.43 |
 | `4-hydrogen` medium | 15/15 | 8.4 | 12.9 | 2394 | 1064 | 1052 | 353 | 0.0141 | 14.12 |
 | `4-hydrogen` high | 15/15 | 8.7 | 16.9 | 2394 | 1064 | 1195 | 355 | 0.0152 | 15.22 |
@@ -40,7 +41,8 @@
 | `4-hydrogen` low · res medium | 95% | 33% / 33% | 100% / 100% | 100% | 0.00 | 80% | 11% | 50% | 67% | 100% | 0.97 | 3% |
 | `4-hydrogen` low | 97% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 8% | 100% | 83% | 100% | 0.96 | 7% |
 | `4-hydrogen` low · prompt 0e460f6e | 95% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 7% | 100% | 67% | 92% | 0.97 | 5% |
-| `4-hydrogen` low · prompt 56e180c6 (current) | 95% | 100% / 100% | 100% / 100% | 100% | 0.00 | 100% | 7% | 100% | 67% | 92% | 0.97 | 6% |
+| `4-hydrogen` low · prompt 56e180c6 | 95% | 100% / 100% | 100% / 100% | 100% | 0.00 | 100% | 7% | 100% | 67% | 92% | 0.97 | 6% |
+| `4-hydrogen` low · prompt e9181571 (current) | 100% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 4% | 83% | 100% | 100% | 0.96 | 5% |
 | `4-hydrogen` low · res ultra_high | 97% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 4% | 100% | 83% | 100% | 0.98 | 3% |
 | `4-hydrogen` medium | 97% | 100% / 100% | 100% / 100% | 100% | 0.00 | 100% | 6% | 100% | 83% | 83% | 0.97 | 4% |
 | `4-hydrogen` high | 100% | 100% / 100% | 100% / 100% | 100% | 0.00 | 100% | 7% | 83% | 100% | 75% | 0.97 | 4% |
@@ -66,7 +68,8 @@
 | `4-hydrogen` low · res medium | 100% | 27% | 0% | 67% | 18% | 0.67 | 20% |
 | `4-hydrogen` low | 100% | 20% | 0% | 73% | 15% | 0.88 | 27% |
 | `4-hydrogen` low · prompt 0e460f6e | 100% | 13% | 100% | 87% | 9% | 0.86 | 33% |
-| `4-hydrogen` low · prompt 56e180c6 (current) | 100% | 0% | 100% | 93% | 8% | 0.93 | 27% |
+| `4-hydrogen` low · prompt 56e180c6 | 100% | 0% | 100% | 93% | 8% | 0.93 | 27% |
+| `4-hydrogen` low · prompt e9181571 (current) | 100% | 0% | 100% | 87% | 7% | 0.81 | 27% |
 | `4-hydrogen` low · res ultra_high | 100% | 13% | 0% | 80% | 7% | 0.90 | 33% |
 | `4-hydrogen` medium | 100% | 20% | 0% | 80% | 10% | 0.95 | 33% |
 | `4-hydrogen` high | 100% | 20% | 0% | 80% | 11% | 0.94 | 40% |
@@ -97,7 +100,8 @@ contains the reference amount.
 | `4-hydrogen` low · res medium | −29% / +38% | 68% | 39% | 51% | 87% | 60% |
 | `4-hydrogen` low | −29% / +33% | 56% | 38% | 51% | 100% | 73% |
 | `4-hydrogen` low · prompt 0e460f6e | −32% / +40% | 68% | 40% | 53% | 100% | 87% |
-| `4-hydrogen` low · prompt 56e180c6 (current) | −30% / +38% | 65% | 39% | 54% | 100% | 87% |
+| `4-hydrogen` low · prompt 56e180c6 | −30% / +38% | 65% | 39% | 54% | 100% | 87% |
+| `4-hydrogen` low · prompt e9181571 (current) | −29% / +36% | 58% | 39% | 51% | 100% | 87% |
 | `4-hydrogen` low · res ultra_high | −29% / +36% | 58% | 38% | 49% | 100% | 80% |
 | `4-hydrogen` medium | −33% / +36% | 68% | 38% | 52% | 100% | 80% |
 | `4-hydrogen` high | −33% / +38% | 60% | 46% | 63% | 100% | 80% |
@@ -123,7 +127,8 @@ contains the reference amount.
 | `4-hydrogen` low · res medium | tea, iced, sweetened ×1, tea, iced, brewed, black, unsweetened ×1, soft drink, ginger ale ×1 | lemonade, pink ×2, lemonade, pink, prepared ×1 | salad dressing, honey mustard ×6, salad, arugula, with red onion, no dressing ×1, salad, vegetable, tossed, without dressing ×1 |
 | `4-hydrogen` low | soft drink, ginger ale ×2, tea, iced, brewed, black, unsweetened ×1 | lemonade, pink ×3 | salad dressing, honey mustard ×5, salad dressing, honey mustard, regular ×1, salad, mixed greens, with red onion, no dressing ×1 |
 | `4-hydrogen` low · prompt 0e460f6e | soft drink, ginger ale ×2, tea, iced, sweetened ×1 | lemonade, pink, prepared from frozen concentrate ×1, lemonade, pink ×1, lemonade, pink, prepared ×1 | salad dressing, honey mustard ×5, salad dressing, honey mustard, regular ×1, salad, mixed greens with red onion, no dressing ×1, salad, green, with red onion, no dressing ×1 |
-| `4-hydrogen` low · prompt 56e180c6 (current) | soft drink, ginger ale ×3 | lemonade, pink ×2, fruit juice drink, pink lemonade, with ice ×1 | salad dressing, honey mustard ×6, salad, green, with red onion, no dressing ×2 |
+| `4-hydrogen` low · prompt 56e180c6 | soft drink, ginger ale ×3 | lemonade, pink ×2, fruit juice drink, pink lemonade, with ice ×1 | salad dressing, honey mustard ×6, salad, green, with red onion, no dressing ×2 |
+| `4-hydrogen` low · prompt e9181571 (current) | soft drink, ginger ale ×2, tea, iced, brewed, unsweetened ×1 | lemonade, pink ×2, fruit juice drink, pink lemonade ×1 | salad dressing, honey mustard ×6 |
 | `4-hydrogen` low · res ultra_high | soft drink, ginger ale ×2, tea, iced, brewed, sweetened ×1 | lemonade, pink ×2, fruit juice drink, pink lemonade ×1 | salad dressing, honey mustard ×4, salad dressing, honey mustard, regular ×2, salad, green, with red onion, no dressing ×1 |
 | `4-hydrogen` medium | soft drink, ginger ale ×3 | lemonade, pink ×3 | salad dressing, honey mustard, regular ×3, salad dressing, honey mustard ×3, arugula, raw, with red onion, no dressing ×1 |
 | `4-hydrogen` high | soft drink, ginger ale ×3 | lemonade, pink ×2, lemonade, pink, prepared from powder or concentrate ×1 | salad dressing, honey mustard, regular ×4, salad dressing, honey mustard ×2 |
@@ -146,16 +151,16 @@ contains the reference amount.
 
 | fdc_query from Gemini | USDA match | kcal/100 g | Times |
 |---|---|---|---|
-| Pizza, cheese, from restaurant or fast food, thin crust | Pizza, cheese, from restaurant or fast food, thin crust | 266 | 78 |
-| Salad dressing, honey mustard | Salad dressing, honey mustard, regular | 464 | 61 |
-| Cheese, cheddar, shredded | Cheese, Cheddar | 409 | 46 |
+| Pizza, cheese, from restaurant or fast food, thin crust | Pizza, cheese, from restaurant or fast food, thin crust | 266 | 84 |
+| Salad dressing, honey mustard | Salad dressing, honey mustard, regular | 464 | 67 |
+| Cheese, cheddar, shredded | Cheese, Cheddar | 409 | 52 |
+| Egg, whole, boiled | Egg, whole, cooked, hard-boiled | 155 | 48 |
 | Cheese, cheddar | Cheese, Cheddar | 409 | 45 |
-| Egg, whole, boiled | Egg, whole, cooked, hard-boiled | 155 | 42 |
-| Onions, red, raw | Onions, red, raw | 44 | 34 |
-| Arugula, raw | Arugula, raw | 25 | 33 |
+| Onions, red, raw | Onions, red, raw | 44 | 37 |
+| Arugula, raw | Arugula, raw | 25 | 35 |
 | Lemonade, pink | Lemonade, frozen concentrate, pink ⚠ | 192 | 32 |
+| Soft drink, ginger ale | Soft drink, ginger ale | 34 | 30 |
 | Egg, whole, boiled or poached | Egg, whole, boiled or poached | 143 | 29 |
-| Soft drink, ginger ale | Soft drink, ginger ale | 34 | 28 |
 | Pizza, pepperoni, from restaurant or fast food, thin crust | Pizza, cheese, from restaurant or fast food, thin crust | 266 | 27 |
 | Salad dressing, honey mustard, regular | Salad dressing, honey mustard, regular | 464 | 26 |
 | Egg, whole, cooked, hard-boiled | Egg, whole, cooked, hard-boiled | 155 | 21 |
@@ -164,19 +169,22 @@ contains the reference amount.
 | Water, tap | Water, tap | 0 | 17 |
 | Pizza, cheese, thin crust | Pizza, extra cheese, thin crust | 268 | 15 |
 | Egg, whole, hard-boiled | Egg, whole, cooked, hard-boiled | 155 | 14 |
+| Pizza, pepperoni, from restaurant or fast food, thin crust | Pizza with pepperoni, from restaurant or fast food, thin crust | 282 | 9 |
 | Beverage, iced tea, sweetened | Beverages, tea, instant, lemon, sweetened, powder ⚠ | 401 | 8 |
 | Lettuce, salad greens, raw | Lettuce, leaf, green, raw | 18 | 8 |
 | Pizza, pepperoni, from restaurant or fast food, regular crust | Pizza, cheese, from restaurant or fast food, NS as to type of crust | 266 | 8 |
 | Cheese, Cheddar | Cheese, Cheddar | 409 | 7 |
+| Lettuce, arugula, raw | Lettuce, arugula, raw | 25 | 7 |
 | Pizza, cheese, from restaurant or fast food | Pizza, cheese, from restaurant or fast food, NS as to type of crust | 266 | 7 |
 | Pizza, pepperoni, thin crust | Pizza, extra cheese, thin crust | 268 | 7 |
 | Salad dressing, honey mustard, commercial | Salad dressing, honey mustard, regular | 464 | 7 |
-| Lettuce, arugula, raw | Lettuce, arugula, raw | 25 | 6 |
-| Pizza, pepperoni, from restaurant or fast food, thin crust | Pizza with pepperoni, from restaurant or fast food, thin crust | 282 | 6 |
+| Arugula, raw, with red onion | Arugula, raw | 25 | 6 |
 | Tea, iced, brewed, sweetened | Tea, iced, brewed, black, pre-sweetened with sugar | 32 | 6 |
+| Lemonade, pink | Lemonade, fruit juice drink | 46 | 5 |
 | Salad dressing, creamy | Salad dressing, poppyseed, creamy | 399 | 5 |
 | Salad greens, raw | Mixed salad greens, raw | 21 | 5 |
 | Salad, vegetable, with cheese and dressing | Salad dressing, NFS, for salads | 430 | 5 |
+| Fruit juice drink, pink lemonade | Fruit juice drink | 10 | 4 |
 | Lemonade, fruit flavored drink | Lemonade, fruit flavored drink | 25 | 4 |
 | Lettuce, mixed greens, raw | Lettuce, leaf, green, raw | 18 | 4 |
 | Lettuce, salad, mixed greens, raw | Lettuce, leaf, green, raw | 18 | 4 |
@@ -184,10 +192,7 @@ contains the reference amount.
 | Salad, green, with red onion, no dressing | Cobb salad, no dressing | 93 | 4 |
 | Tea, iced, sweetened | Tea, iced, instant, black, pre-sweetened, dry ⚠ | 401 | 4 |
 | Alcoholic beverage, whiskey | Alcoholic beverage, whiskey sour | 149 | 3 |
-| Arugula, raw, with red onion | Arugula, raw | 25 | 3 |
 | Cheese, Mexican blend | Cheese, Mexican blend | 362 | 3 |
-| Fruit juice drink, pink lemonade | Fruit juice drink | 10 | 3 |
-| Lemonade, pink | Lemonade, fruit juice drink | 46 | 3 |
 | Onion, red, raw | Onions, red, raw | 44 | 3 |
 | Pizza, cheese and pepperoni, thin crust | Pizza, extra cheese, thin crust | 268 | 3 |
 | Pizza, cheese, regular crust | Pizza, cheese, stuffed crust | 274 | 3 |
@@ -196,6 +201,8 @@ contains the reference amount.
 | Salad, mixed greens, raw | Mixed salad greens, raw | 21 | 3 |
 | Salad, vegetable, with dressing | Salad dressing, NFS, for salads | 430 | 3 |
 | Tea, iced, brewed | Tea, iced, brewed, black, unsweetened | 1 | 3 |
+| Tea, iced, brewed, unsweetened | Tea, iced, brewed, black, unsweetened | 1 | 3 |
+| Tea, iced, sweetened | Tea, iced, brewed, black, pre-sweetened with sugar | 32 | 3 |
 | Alcoholic beverage, wine, table, white | Alcoholic beverage, wine, table, white | 82 | 2 |
 | Beer, light | Beer, light | 29 | 2 |
 | Beverage, lemonade, pink | Beverages, lemonade, frozen concentrate, pink, prepared with water ⚠ | 43 | 2 |
@@ -214,8 +221,6 @@ contains the reference amount.
 | Salad, vegetable, other than lettuce or tomato, without dressing | Lettuce, salad with egg, tomato, and/or carrots, with or without other vegetables, no dressing | 50 | 2 |
 | Soft drink, cola | Soft drink, cola | 42 | 2 |
 | Tea, iced, brewed, black, unsweetened | Tea, iced, brewed, black, unsweetened | 1 | 2 |
-| Tea, iced, brewed, unsweetened | Tea, iced, brewed, black, unsweetened | 1 | 2 |
-| Tea, iced, sweetened | Tea, iced, brewed, black, pre-sweetened with sugar | 32 | 2 |
 | Tea, iced, unsweetened | Tea, iced, brewed, black, unsweetened | 1 | 2 |
 | Tea, sweetened, iced | Tea, iced, instant, black, pre-sweetened, dry ⚠ | 401 | 2 |
 | Water, municipal | Water, NFS | 0 | 2 |
@@ -331,7 +336,7 @@ Median meal kcal range on the 12 answered runs: 65% of likely before the answer,
 | IMG_0583.jpeg r1 | What kind of dressing is on the salad? | 526 (439–645) | 595 (520–686) | hard-boiled eggs 150 g (130–170), mixed greens and red onion salad 60 g (40–90), shredded cheddar cheese 15 g (10–25), honey mustard dressing 45 g (38–52), iced drink 250 g (180–320) |
 | IMG_0583.jpeg r2 | What kind of dressing is on the salad? | 494 (380–621) | 563 (465–664) | hard-boiled eggs 140 g (100–165), arugula and red onion salad 60 g (40–85), shredded cheddar cheese 20 g (12–32), honey mustard dressing 45 g (40–52) |
 
-#### `gemini-4-hydrogen|low|default`, prompt 56e180c6 (current)
+#### `gemini-4-hydrogen|low|default`, prompt 56e180c6
 
 Median meal kcal range on the 12 answered runs: 55% of likely before the answer, 55% after.
 
@@ -352,3 +357,57 @@ Median meal kcal range on the 12 answered runs: 55% of likely before the answer,
 | IMG_0583.jpeg r0 | What is the drink in the glass on the right? | 538 (411–667) | 688 (558–818) | boiled eggs 130 g (100–160), mixed greens salad with red onion 60 g (40–90), shredded cheddar cheese 25 g (15–35), honey mustard dressing 35 g (20–50), honey mustard dressing 45 g (40–50) |
 | IMG_0583.jpeg r1 | What kind of dressing is on the salad? | 590 (473–727) | 613 (531–696) | hard-boiled eggs 150 g (130–170), mixed greens and red onion salad 75 g (50–100), shredded cheddar cheese 25 g (15–35), honey mustard dressing 45 g (40–50) |
 | IMG_0583.jpeg r2 | What kind of dressing is on the salad? | 523 (438–641) | 593 (525–675) | hard-boiled eggs 150 g (130–170), mixed greens and red onion salad 75 g (50–100), shredded cheddar cheese 20 g (15–30), honey mustard salad dressing 45 g (40–50) |
+
+#### `gemini-4-hydrogen|low|default`, prompt e9181571 (current)
+
+Median meal kcal range on the 12 answered runs: 50% of likely before the answer, 50% after.
+
+| Photo | Question | kcal before (low–high) | kcal after answer (low–high) | Items after |
+|---|---|---|---|---|
+| IMG_0579.jpeg r0 | (none asked) | 686 (553–818) | – |  |
+| IMG_0579.jpeg r1 | (none asked) | 658 (548–769) | – |  |
+| IMG_0579.jpeg r2 | (none asked) | 644 (534–767) | – |  |
+| IMG_0580.jpeg r0 | What kind of drink is in the glass (e.g., ginger ale, iced tea, or alcoholic)? | 348 (233–491) | 361 (250–499) | amber iced drink 280 g (240–320), cheese pizza 100 g (60–150) |
+| IMG_0580.jpeg r1 | What kind of drink is in the glass (e.g., ginger ale, iced tea, or a mixed drink)? | 301 (198–431) | 321 (223–447) | ginger ale with ice 280 g (240–330), cheese pizza 85 g (50–130) |
+| IMG_0580.jpeg r2 | What is the drink in the glass (e.g., iced tea, soda, or an alcoholic beverage)? | 322 (215–428) | 421 (309–535) | ginger ale 300 g (250–355), cheese pizza 120 g (80–160) |
+| IMG_0581.jpeg r0 | What drink is this, and is it sweetened? | 110 (83–138) | 110 (83–138) | pink lemonade 240 g (180–300) |
+| IMG_0581.jpeg r1 | What kind of drink is this, and does it contain alcohol or added sugar? | 24 (18–30) | 24 (18–30) | pink iced drink 240 g (180–300) |
+| IMG_0581.jpeg r2 | What is this drink, and does it contain sugar or alcohol? | 110 (83–138) | 110 (83–138) | pink lemonade 240 g (180–300) |
+| IMG_0582.jpeg r0 | What kind of dressing is on the salad (e.g., honey mustard, creamy mustard, or plain mustard)? | 502 (431–609) | 549 (496–619) | hard-boiled eggs 150 g (135–165), mixed salad greens 50 g (35–70), red onion 30 g (20–45), shredded cheddar cheese 20 g (15–30), yellow salad dressing 45 g (40–50) |
+| IMG_0582.jpeg r1 | What kind of dressing is on the salad? | 570 (465–677) | 570 (501–641) | hard-boiled eggs 150 g (135–165), mixed salad greens 55 g (35–75), red onion 30 g (20–45), shredded cheddar cheese 25 g (15–35), honey mustard dressing 45 g (40–50) |
+| IMG_0582.jpeg r2 | What kind of dressing is on the salad? | 574 (463–719) | 574 (499–667) | boiled eggs 150 g (130–170), arugula salad 60 g (40–85), red onion 35 g (20–50), shredded cheddar cheese 25 g (15–40), honey mustard dressing 45 g (40–50) |
+| IMG_0583.jpeg r0 | What kind of dressing is on the salad? | 474 (385–622) | 543 (472–661) | hard-boiled eggs 100 g (75–150), arugula and red onion salad 70 g (50–90), shredded cheddar cheese 20 g (15–30), honey mustard dressing 45 g (40–50), iced drink 250 g (200–300) |
+| IMG_0583.jpeg r1 | What kind of dressing is on the salad? | 492 (388–600) | 538 (471–611) | hard-boiled eggs 150 g (135–170), arugula and red onion salad 60 g (40–80), shredded cheddar cheese 20 g (10–30), honey mustard dressing 45 g (40–50) |
+| IMG_0583.jpeg r2 | What kind of dressing is on the salad? | 481 (363–634) | 528 (443–629) | hard-boiled eggs 130 g (100–160), arugula and red onion salad 60 g (40–90), shredded cheddar cheese 25 g (15–40), honey mustard dressing 45 g (40–50) |
+
+### Photos that are not a meal (phase n)
+
+#### `gemini-4-hydrogen|low|default`, prompt 56e180c6
+
+Not logged: 18/24 runs.
+
+| Photo | Shows | Not logged | Logged instead (likely kcal) |
+|---|---|---|---|
+| black-frame.jpg | an all-black frame, as from a camera that fired in a pocket | 3/3 | – |
+| keyboard.jpg | a laptop keyboard | 3/3 | – |
+| houseplant.jpg | an amaryllis flower | 3/3 | – |
+| empty-plate.jpg | a clean plate with a fork and knife | 3/3 | – |
+| menu-board.jpg | a chalkboard menu, with seafood on ice below it | 3/3 | – |
+| dog-food.jpg | dry dog food in a bowl | 3/3 | – |
+| food-replicas.jpg | plastic food replicas in a restaurant's display case | 0/3 | crepe, vanilla ice cream, orange slices, crepe, tiramisu ice cream, caprese salad, caesar salad (1833); crepe, vanilla ice cream, orange segments, tiramisu crepe, caprese salad, caesar salad (1707); crepe, vanilla ice cream, orange slices, crepe, tiramisu cream, caprese salad, caesar salad (1957) |
+| finished-plate.jpg | a finished breakfast plate: half a grilled tomato and a few beans left | 0/3 | grilled tomato, baked beans (105); grilled tomato, baked beans (86); grilled tomato half, baked beans (96) |
+
+#### `gemini-4-hydrogen|low|default`, prompt e9181571 (current)
+
+Not logged: 24/24 runs.
+
+| Photo | Shows | Not logged | Logged instead (likely kcal) |
+|---|---|---|---|
+| black-frame.jpg | an all-black frame, as from a camera that fired in a pocket | 3/3 | – |
+| keyboard.jpg | a laptop keyboard | 3/3 | – |
+| houseplant.jpg | an amaryllis flower | 3/3 | – |
+| empty-plate.jpg | a clean plate with a fork and knife | 3/3 | – |
+| menu-board.jpg | a chalkboard menu, with seafood on ice below it | 3/3 | – |
+| dog-food.jpg | dry dog food in a bowl | 3/3 | – |
+| food-replicas.jpg | plastic food replicas in a restaurant's display case | 3/3 | – |
+| finished-plate.jpg | a finished breakfast plate: half a grilled tomato and a few beans left | 3/3 | – |

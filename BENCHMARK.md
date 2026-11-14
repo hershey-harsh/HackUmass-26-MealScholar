@@ -1,6 +1,6 @@
 # Gemini benchmark: meal photo → foods → grams
 
-HackUMass XIV, 2026-11-14. 284 Gemini calls: 275 sweep runs (5 real meal photos × 19 configurations × 3 repeats; `xhigh` ran only one repeat) plus 9 calls in one run of the question → answer loop. Later that day, 54 more calls in phase d checked prompt changes for range width (see [Range width](#range-width)). Every call went through the production pipeline: `vision.py` prompt and schema → USDA lookup → totals, same as `foodsmart analyze --no-log`.
+HackUMass XIV, 2026-11-14. 284 Gemini calls: 275 sweep runs (5 real meal photos × 19 configurations × 3 repeats; `xhigh` ran only one repeat) plus 9 calls in one run of the question → answer loop. Later that day, 54 more calls in phase d checked prompt changes for range width (see [Range width](#range-width)), and 75 more checked photos that aren't a meal (phases n and d, see [Photos that aren't a meal](#photos-that-arent-a-meal)). Every call went through the production pipeline: `vision.py` prompt and schema → USDA lookup → totals, same as `foodsmart analyze --no-log`.
 
 Raw data: `bench/results/runs.jsonl`. All tables: `bench/results/summary.md`. Harness: `bench/` (see [Rerun](#rerun)).
 
@@ -20,6 +20,7 @@ Raw data: `bench/results/runs.jsonl`. All tables: `bench/results/summary.md`. Ha
   - **Both lookup bugs are fixed on this branch** (see [Lookup fixes](#lookup-fixes)). Replayed on the same Gemini output: kcal in band 179 → 230 of 275 runs, runs with a powder/concentrate match 54 → 4 (the 4 are prepared forms or explicitly requested), pepperoni 1/54 → 50/54. Hydrogen `low` goes from 73% to 93% kcal in band.
 - **Gemini's bounding boxes are accurate** (IoU 0.95–0.98 against hand-drawn boxes on every model). Drawing them on the photo costs nothing extra and makes a strong demo moment.
 - **Meal ranges were wider than they need to be** (#54). Every food's low and every food's high were added up, as if all the foods on a plate were off in the same direction at once. They now combine as partly correlated errors. On Hydrogen `low` photos with several foods, the kcal range shrinks from 51% to 38% of likely, and every reference amount is still inside. Telling Gemini that low and high are the 10th and 90th percentile changed nothing measurable.
+- **Photos that aren't a meal are no longer logged** (#49). Plastic display food used to be logged as 6–7 dishes at 1,700–1,960 kcal, and a finished plate as its scraps. A prompt rule fixed both: 24/24 non-meal runs are now not logged (18/24 before), and no real meal photo lost its foods.
 
 ## What was tested
 
@@ -38,6 +39,8 @@ All photos: iPhone 16 Pro, Nov 13 23:45–23:51, UMass Amherst dining hall. The 
 - **Phase B:** media resolution `low` / `medium` / `ultra_high` for Hydrogen `low` and Flash-Lite `minimal`.
 - 3 repeats each. `xhigh` ran 1 repeat and was stopped at about 100 s per call.
 - **Phase C:** the clarifying question → answer → recompute loop, Hydrogen `low`, 1 repeat.
+- **Phase D:** phase C rerun after a prompt change, Hydrogen `low`, 3 repeats.
+- **Phase N:** 8 photos that are not a meal (`bench/nonfood/`), Hydrogen `low`, 3 repeats, analyze only.
 - Models: `gemini-4-argon`, `gemini-4-hydrogen`, `gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`.
 
 **Scoring** (labels and regexes in `bench/ground_truth.py`)
@@ -235,6 +238,25 @@ The percentile prompt lands within 3 points of the control. The same prompt, rer
 
 **Still open:** only weighed meals can show whether a narrower range is still honest (see [Limitations](#limitations)).
 
+## Photos that aren't a meal
+
+Phase n runs 8 photos the app must not log (#49). They are committed in `bench/nonfood/`, with sources and licenses in its README, and labeled in `NON_MEALS` in `bench/ground_truth.py`. A run passes when the result has no items, because the app logs only results with items. Hydrogen `low`, 3 repeats per prompt.
+
+| Photo | Prompt on `main` (`56e180c6`) | New rule (`e9181571`) |
+|---|---|---|
+| Keyboard, houseplant, black frame, clean plate, chalkboard menu, dog food | 18/18 not logged | 18/18 |
+| Plastic food replicas in a display case | 0/3: logged as 6–7 dishes, 1,707–1,957 kcal | 3/3 |
+| Finished breakfast plate with a few scraps left | 0/3: logged as tomato and beans, 86–105 kcal | 3/3 |
+
+The rule (the last bullet of `SYSTEM_PROMPT`): only real food or drink that is about to be eaten or drunk counts. Food models or replicas, food on display in a shop window or display case, pictures of food (a menu, a screen, a poster), pet food, and a plate eaten down to scraps return `is_food=false`. On the replicas, the old prompt asked "Which of these items from the display case are you eating?" but still counted every dish. When Gemini says a photo isn't a meal, the pipeline now drops its question too; the CLI used to ask it, and answering re-ran Gemini.
+
+**Real meals still count.** Phase d reran the 5 meal photos (analyze and answer, 3 repeats) on the new rule, compared with the phase d control from earlier the same day (`56e180c6`). Every run kept its foods: recall was 100% (95% for the control). The other differences are one run either way, within the noise for 15 runs:
+- ginger ale named exactly in 2 of 3 runs (control 3/3; the sweep also had 2/3);
+- kcal in band 87% (control 93%);
+- useful question 100% (control 92%).
+
+**Not tested:** food on a screen or a poster, a buffet line, and someone else's plate. A photo of a partly eaten meal still counts what is left on the plate.
+
 ## Recommendations
 
 ### Configuration
@@ -271,12 +293,13 @@ uv run foodsmart fdc-import                                   # once
 uv run --env-file .env python bench/run.py --phase a --phase b   # sweep (resumable; this whole benchmark cost $2.40)
 uv run --env-file .env python bench/run.py --phase c --config 'gemini-4-hydrogen|low|default' --reps 1
 uv run --env-file .env python bench/run.py --phase d --config 'gemini-4-hydrogen|low|default'   # after a prompt change
+uv run --env-file .env python bench/run.py --phase n --config 'gemini-4-hydrogen|low|default'   # photos that aren't a meal
 uv run python bench/report.py              # recorded results -> bench/results/summary.md
 uv run python bench/report.py --rematch    # redo the USDA lookup with current code -> summary-rematched.md
 uv run python bench/report.py --rematch --check   # same, exit 1 if worse than REMATCH_LIMITS (what CI runs)
 uv run python bench/report.py --overlays 'gemini-4-hydrogen|low|default'
 ```
 
-The photos are not committed because they carry GPS EXIF. Copy them into `test_pictures/` to call Gemini again or draw overlays; `--rematch` needs only the recorded results and the USDA database. To rerun from scratch, delete `bench/results/runs.jsonl`.
+The meal photos are not committed because they carry GPS EXIF. Copy them into `test_pictures/` to call Gemini again or draw overlays; `--rematch` needs only the recorded results and the USDA database. The non-meal photos for phase n are committed in `bench/nonfood/` (no GPS tags). To rerun from scratch, delete `bench/results/runs.jsonl`.
 
 The **Lookup regression** workflow (`.github/workflows/lookup-regression.yml`) runs `--rematch --check` on pull requests that touch the lookup (`nutrition.py`, `nutrients.py`, `compute.py`, `pipeline.py`, `schemas.py`), `bench/`, or dependencies. Limits as of 2026-11-14: kcal in band ≥ 230/275, powder/concentrate matches ≤ 4, pepperoni ≥ 50/54. When a lookup change beats them, raise `REMATCH_LIMITS` in `bench/report.py` in the same PR so the gain is kept.

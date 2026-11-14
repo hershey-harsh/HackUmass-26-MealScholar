@@ -71,6 +71,13 @@ class Diary:
         ).fetchone()
         return _meal(row[0]) if row else None
 
+    def delete(self, meal_id: int) -> bool:
+        """Remove one of this user's meals. False when they have no meal with that id. Usual portions
+        learned from its corrections stay: they are kept as running totals, not per meal."""
+        with self._con:
+            cur = self._con.execute("DELETE FROM meals WHERE id = ? AND user_id = ?", (meal_id, self._user))
+        return cur.rowcount > 0
+
     def meals_between(self, first: date, last: date) -> list[MealResult]:
         rows = self._con.execute(
             "SELECT result FROM meals WHERE user_id = ? AND local_date BETWEEN ? AND ? ORDER BY local_date, taken_at",

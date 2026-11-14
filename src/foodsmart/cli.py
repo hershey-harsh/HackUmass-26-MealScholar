@@ -76,6 +76,10 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true")
     p.set_defaults(run=cmd_fix)
 
+    p = sub.add_parser("delete", help="remove a logged meal from the diary")
+    p.add_argument("meal_id", type=int)
+    p.set_defaults(run=cmd_delete)
+
     p = sub.add_parser("day", help="totals for one day")
     p.add_argument("day", nargs="?", type=date.fromisoformat, default=None)
     p.set_defaults(run=cmd_day)
@@ -165,6 +169,12 @@ def cmd_fix(args: argparse.Namespace, settings: Settings) -> None:
     if args.grams is not None:
         diary.remember_portion(result.items[args.item - 1].item.name, args.grams)
     print(result.model_dump_json(indent=2) if args.json else _format_meal(result))
+
+
+def cmd_delete(args: argparse.Namespace, settings: Settings) -> None:
+    if not Diary(settings.diary_db).delete(args.meal_id):
+        raise ValueError(f"No meal #{args.meal_id}.")
+    print(f"Deleted meal #{args.meal_id}.")
 
 
 def cmd_day(args: argparse.Namespace, settings: Settings) -> None:

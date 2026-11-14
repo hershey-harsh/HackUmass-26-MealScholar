@@ -193,6 +193,13 @@ def create_app(
         with closing(Diary(settings.diary_db, owner)) as diary:
             return logged(diary, meal_id)
 
+    @app.delete("/api/meals/{meal_id}", status_code=204)
+    def delete(meal_id: int, owner: DiaryOwner) -> None:
+        """Remove a meal from the diary, such as one logged from the wrong photo. 404 unless it's yours."""
+        with closing(Diary(settings.diary_db, owner)) as diary:
+            if not diary.delete(meal_id):
+                raise HTTPException(404, f"No meal #{meal_id}.")
+
     @app.post("/api/meals/{meal_id}/answer")
     def answer(meal_id: int, body: Answer, owner: DiaryOwner) -> MealResult:
         """Answer the clarifying question: Gemini revises the analysis and everything is recomputed."""

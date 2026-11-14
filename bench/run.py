@@ -7,10 +7,12 @@ exactly as `foodsmart analyze --no-log`, with latency and token usage recorded p
     uv run --env-file .env python bench/run.py --phase b      # media resolution sweep
     uv run --env-file .env python bench/run.py --phase c --config 'gemini-4-hydrogen|low|default'   # answer loop
     uv run --env-file .env python bench/run.py --phase d --config 'gemini-4-hydrogen|low|default'   # prompt change
+    uv run --env-file .env python bench/run.py --phase n --config 'gemini-4-hydrogen|low|default'   # non-meal photos
 
 Phase d reruns one config after a prompt change (analyze and answer, like c, 3 reps), so the report
-can compare it with the same config in phases a and c. Each run records a fingerprint of the prompts
-and output schema it used.
+can compare it with the same config in phases a and c. Phase n runs bench/nonfood/: photos that must
+not be logged as a meal (analyze only, 3 reps). Each run records a fingerprint of the prompts and
+output schema it used.
 
 Photos go in test_pictures/ (not committed: they carry GPS EXIF). Results append to
 bench/results/runs.jsonl; runs already there for the same prompt are skipped, so it is resumable.
@@ -37,6 +39,7 @@ from foodsmart.vision import REFINE_PROMPT, SYSTEM_PROMPT, GeminiVision, VisionE
 
 ROOT = Path(__file__).resolve().parent.parent
 PHOTOS = sorted((ROOT / "test_pictures").glob("*.jpeg"))
+NON_MEAL_PHOTOS = sorted((ROOT / "bench" / "nonfood").glob("*.jpg"))
 RESULTS = ROOT / "bench" / "results" / "runs.jsonl"
 _RETRY_STATUS = {429, 500, 502, 503, 504}
 PROMPT = hashlib.sha256(
@@ -154,7 +157,7 @@ class _Sink:
 def run_config(phase: str, cfg: Config, reps: int, api_key: str, food_db: Path, sink: _Sink) -> None:
     workflow, recorder = _workflow(cfg, api_key, food_db)
     for rep in range(reps):
-        for photo in PHOTOS:
+        for photo in NON_MEAL_PHOTOS if phase == "n" else PHOTOS:
             if (phase, cfg.key, photo.name, rep, PROMPT) in sink.done:
                 continue
             record = {
@@ -188,9 +191,11 @@ def run_config(phase: str, cfg: Config, reps: int, api_key: str, food_db: Path, 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--phase", choices=("a", "b", "c", "d"), action="append", required=True)
+    parser.add_argument("--phase", choices=("a", "b", "c", "d", "n"), action="append", required=True)
     parser.add_argument("--reps", type=int, default=3)
-    parser.add_argument("--config", action="append", help="model|thinking|resolution (phase c, or to narrow a/b)")
+    parser.add_argument(
+        "--config", action="append", help="model|thinking|resolution (phases c, d, n, or to narrow a/b)"
+    )
     args = parser.parse_args()
 
     settings = load_settings()

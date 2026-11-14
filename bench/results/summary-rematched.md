@@ -14,7 +14,8 @@
 | `4-hydrogen` low · res medium | 15/15 | 6.3 | 8.2 | 1870 | 540 | 609 | 359 | 0.0101 | 10.07 |
 | `4-hydrogen` low | 15/15 | 5.9 | 9.3 | 2394 | 1064 | 435 | 375 | 0.0097 | 9.67 |
 | `4-hydrogen` low · prompt 0e460f6e | 15/15 | 5.4 | 14.4 | 2514 | 1064 | 488 | 360 | 0.0101 | 10.13 |
-| `4-hydrogen` low · prompt 56e180c6 (current) | 15/15 | 6.1 | 8.5 | 2394 | 1064 | 517 | 358 | 0.0102 | 10.15 |
+| `4-hydrogen` low · prompt 56e180c6 | 15/15 | 6.1 | 8.5 | 2394 | 1064 | 517 | 358 | 0.0102 | 10.15 |
+| `4-hydrogen` low · prompt e9181571 (current) | 15/15 | 5.4 | 7.5 | 2477 | 1064 | 478 | 368 | 0.0101 | 10.06 |
 | `4-hydrogen` low · res ultra_high | 15/15 | 5.9 | 9.7 | 3490 | 2160 | 447 | 378 | 0.0114 | 11.43 |
 | `4-hydrogen` medium | 15/15 | 8.4 | 12.9 | 2394 | 1064 | 1052 | 353 | 0.0141 | 14.12 |
 | `4-hydrogen` high | 15/15 | 8.7 | 16.9 | 2394 | 1064 | 1195 | 355 | 0.0152 | 15.22 |
@@ -40,7 +41,8 @@
 | `4-hydrogen` low · res medium | 95% | 33% / 33% | 100% / 100% | 100% | 0.00 | 80% | 11% | 50% | 67% | 100% | 0.97 | 3% |
 | `4-hydrogen` low | 97% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 8% | 100% | 83% | 100% | 0.96 | 7% |
 | `4-hydrogen` low · prompt 0e460f6e | 95% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 7% | 100% | 67% | 92% | 0.97 | 5% |
-| `4-hydrogen` low · prompt 56e180c6 (current) | 95% | 100% / 100% | 100% / 100% | 100% | 0.00 | 100% | 7% | 100% | 67% | 92% | 0.97 | 6% |
+| `4-hydrogen` low · prompt 56e180c6 | 95% | 100% / 100% | 100% / 100% | 100% | 0.00 | 100% | 7% | 100% | 67% | 92% | 0.97 | 6% |
+| `4-hydrogen` low · prompt e9181571 (current) | 100% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 4% | 83% | 100% | 100% | 0.96 | 5% |
 | `4-hydrogen` low · res ultra_high | 97% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 4% | 100% | 83% | 100% | 0.98 | 3% |
 | `4-hydrogen` medium | 97% | 100% / 100% | 100% / 100% | 100% | 0.00 | 100% | 6% | 100% | 83% | 83% | 0.97 | 4% |
 | `4-hydrogen` high | 100% | 100% / 100% | 100% / 100% | 100% | 0.00 | 100% | 7% | 83% | 100% | 75% | 0.97 | 4% |
@@ -66,7 +68,8 @@
 | `4-hydrogen` low · res medium | 100% | 7% | 100% | 87% | 12% | 0.67 | 20% |
 | `4-hydrogen` low | 100% | 0% | 100% | 93% | 10% | 0.88 | 27% |
 | `4-hydrogen` low · prompt 0e460f6e | 100% | 13% | 100% | 87% | 9% | 0.86 | 33% |
-| `4-hydrogen` low · prompt 56e180c6 (current) | 100% | 0% | 100% | 93% | 8% | 0.93 | 27% |
+| `4-hydrogen` low · prompt 56e180c6 | 100% | 0% | 100% | 93% | 8% | 0.93 | 27% |
+| `4-hydrogen` low · prompt e9181571 (current) | 100% | 0% | 100% | 87% | 7% | 0.81 | 27% |
 | `4-hydrogen` low · res ultra_high | 100% | 0% | 100% | 93% | 7% | 0.90 | 33% |
 | `4-hydrogen` medium | 100% | 0% | 100% | 100% | 6% | 0.95 | 33% |
 | `4-hydrogen` high | 100% | 7% | 100% | 93% | 10% | 0.94 | 40% |
@@ -97,7 +100,8 @@ contains the reference amount.
 | `4-hydrogen` low · res medium | −29% / +38% | 68% | 39% | 51% | 87% | 80% |
 | `4-hydrogen` low | −29% / +33% | 56% | 38% | 51% | 100% | 93% |
 | `4-hydrogen` low · prompt 0e460f6e | −32% / +40% | 68% | 40% | 53% | 100% | 87% |
-| `4-hydrogen` low · prompt 56e180c6 (current) | −30% / +38% | 65% | 39% | 54% | 100% | 87% |
+| `4-hydrogen` low · prompt 56e180c6 | −30% / +38% | 65% | 39% | 54% | 100% | 87% |
+| `4-hydrogen` low · prompt e9181571 (current) | −29% / +36% | 58% | 39% | 51% | 100% | 87% |
 | `4-hydrogen` low · res ultra_high | −29% / +36% | 58% | 38% | 49% | 100% | 93% |
 | `4-hydrogen` medium | −33% / +36% | 68% | 38% | 52% | 100% | 100% |
 | `4-hydrogen` high | −33% / +38% | 60% | 46% | 63% | 100% | 93% |
@@ -123,7 +127,8 @@ contains the reference amount.
 | `4-hydrogen` low · res medium | tea, iced, sweetened ×1, tea, iced, brewed, black, unsweetened ×1, soft drink, ginger ale ×1 | lemonade, pink ×2, lemonade, pink, prepared ×1 | salad dressing, honey mustard ×6, salad, arugula, with red onion, no dressing ×1, salad, vegetable, tossed, without dressing ×1 |
 | `4-hydrogen` low | soft drink, ginger ale ×2, tea, iced, brewed, black, unsweetened ×1 | lemonade, pink ×3 | salad dressing, honey mustard ×5, salad dressing, honey mustard, regular ×1, salad, mixed greens, with red onion, no dressing ×1 |
 | `4-hydrogen` low · prompt 0e460f6e | soft drink, ginger ale ×2, tea, iced, sweetened ×1 | lemonade, pink, prepared from frozen concentrate ×1, lemonade, pink ×1, lemonade, pink, prepared ×1 | salad dressing, honey mustard ×5, salad dressing, honey mustard, regular ×1, salad, mixed greens with red onion, no dressing ×1, salad, green, with red onion, no dressing ×1 |
-| `4-hydrogen` low · prompt 56e180c6 (current) | soft drink, ginger ale ×3 | lemonade, pink ×2, fruit juice drink, pink lemonade, with ice ×1 | salad dressing, honey mustard ×6, salad, green, with red onion, no dressing ×2 |
+| `4-hydrogen` low · prompt 56e180c6 | soft drink, ginger ale ×3 | lemonade, pink ×2, fruit juice drink, pink lemonade, with ice ×1 | salad dressing, honey mustard ×6, salad, green, with red onion, no dressing ×2 |
+| `4-hydrogen` low · prompt e9181571 (current) | soft drink, ginger ale ×2, tea, iced, brewed, unsweetened ×1 | lemonade, pink ×2, fruit juice drink, pink lemonade ×1 | salad dressing, honey mustard ×6 |
 | `4-hydrogen` low · res ultra_high | soft drink, ginger ale ×2, tea, iced, brewed, sweetened ×1 | lemonade, pink ×2, fruit juice drink, pink lemonade ×1 | salad dressing, honey mustard ×4, salad dressing, honey mustard, regular ×2, salad, green, with red onion, no dressing ×1 |
 | `4-hydrogen` medium | soft drink, ginger ale ×3 | lemonade, pink ×3 | salad dressing, honey mustard, regular ×3, salad dressing, honey mustard ×3, arugula, raw, with red onion, no dressing ×1 |
 | `4-hydrogen` high | soft drink, ginger ale ×3 | lemonade, pink ×2, lemonade, pink, prepared from powder or concentrate ×1 | salad dressing, honey mustard, regular ×4, salad dressing, honey mustard ×2 |
@@ -146,17 +151,17 @@ contains the reference amount.
 
 | fdc_query from Gemini | USDA match | kcal/100 g | Times |
 |---|---|---|---|
-| Pizza, cheese, from restaurant or fast food, thin crust | Pizza, cheese, from restaurant or fast food, thin crust | 266 | 78 |
-| Salad dressing, honey mustard | Salad dressing, honey mustard, regular | 464 | 61 |
-| Cheese, cheddar, shredded | Cheese, Cheddar | 409 | 46 |
+| Pizza, cheese, from restaurant or fast food, thin crust | Pizza, cheese, from restaurant or fast food, thin crust | 266 | 84 |
+| Salad dressing, honey mustard | Salad dressing, honey mustard, regular | 464 | 67 |
+| Cheese, cheddar, shredded | Cheese, Cheddar | 409 | 52 |
+| Egg, whole, boiled | Egg, whole, cooked, hard-boiled | 155 | 48 |
 | Cheese, cheddar | Cheese, Cheddar | 409 | 45 |
-| Egg, whole, boiled | Egg, whole, cooked, hard-boiled | 155 | 42 |
-| Lemonade, pink | Lemonade, fruit juice drink | 46 | 35 |
-| Onions, red, raw | Onions, red, raw | 44 | 34 |
-| Arugula, raw | Arugula, raw | 25 | 33 |
-| Pizza, pepperoni, from restaurant or fast food, thin crust | Pizza with pepperoni, from restaurant or fast food, thin crust | 282 | 33 |
+| Lemonade, pink | Lemonade, fruit juice drink | 46 | 37 |
+| Onions, red, raw | Onions, red, raw | 44 | 37 |
+| Pizza, pepperoni, from restaurant or fast food, thin crust | Pizza with pepperoni, from restaurant or fast food, thin crust | 282 | 36 |
+| Arugula, raw | Arugula, raw | 25 | 35 |
+| Soft drink, ginger ale | Soft drink, ginger ale | 34 | 30 |
 | Egg, whole, boiled or poached | Egg, whole, boiled or poached | 143 | 29 |
-| Soft drink, ginger ale | Soft drink, ginger ale | 34 | 28 |
 | Salad dressing, honey mustard, regular | Salad dressing, honey mustard, regular | 464 | 26 |
 | Egg, whole, cooked, hard-boiled | Egg, whole, cooked, hard-boiled | 155 | 21 |
 | Onions, raw | Onions, raw | 38 | 19 |
@@ -168,24 +173,24 @@ contains the reference amount.
 | Lettuce, salad greens, raw | Lettuce, leaf, green, raw | 18 | 8 |
 | Pizza, pepperoni, from restaurant or fast food, regular crust | Pizza with pepperoni, from restaurant or fast food, NS as to type of crust | 282 | 8 |
 | Cheese, Cheddar | Cheese, Cheddar | 409 | 7 |
+| Lettuce, arugula, raw | Lettuce, arugula, raw | 25 | 7 |
 | Pizza, cheese, from restaurant or fast food | Pizza, cheese, from restaurant or fast food, NS as to type of crust | 266 | 7 |
 | Pizza, pepperoni, thin crust | Pizza with pepperoni, from frozen, thin crust | 274 | 7 |
 | Salad dressing, honey mustard, commercial | Salad dressing, honey mustard, regular | 464 | 7 |
-| Lettuce, arugula, raw | Lettuce, arugula, raw | 25 | 6 |
+| Tea, iced, sweetened | Tea, iced, brewed, black, pre-sweetened with sugar | 32 | 7 |
+| Arugula, raw, with red onion | Arugula, raw | 25 | 6 |
 | Tea, iced, brewed, sweetened | Tea, iced, brewed, black, pre-sweetened with sugar | 32 | 6 |
-| Tea, iced, sweetened | Tea, iced, brewed, black, pre-sweetened with sugar | 32 | 6 |
 | Salad dressing, creamy | Salad dressing, poppyseed, creamy | 399 | 5 |
 | Salad greens, raw | Mixed salad greens, raw | 21 | 5 |
 | Salad, vegetable, with cheese and dressing | Salad dressing, NFS, for salads | 430 | 5 |
+| Fruit juice drink, pink lemonade | Fruit juice drink | 10 | 4 |
 | Lemonade, fruit flavored drink | Lemonade, fruit flavored drink | 25 | 4 |
 | Lettuce, mixed greens, raw | Lettuce, leaf, green, raw | 18 | 4 |
 | Lettuce, salad, mixed greens, raw | Lettuce, leaf, green, raw | 18 | 4 |
 | Pizza, with pepperoni, from restaurant or fast food, thin crust | Pizza with pepperoni, from restaurant or fast food, thin crust | 282 | 4 |
 | Salad, green, with red onion, no dressing | Cobb salad, no dressing | 93 | 4 |
 | Alcoholic beverage, whiskey | Alcoholic beverage, whiskey sour | 149 | 3 |
-| Arugula, raw, with red onion | Arugula, raw | 25 | 3 |
 | Cheese, Mexican blend | Cheese, Mexican blend | 362 | 3 |
-| Fruit juice drink, pink lemonade | Fruit juice drink | 10 | 3 |
 | Onion, red, raw | Onions, red, raw | 44 | 3 |
 | Pizza, cheese and pepperoni, thin crust | Pizza, extra cheese, thin crust | 268 | 3 |
 | Pizza, cheese, regular crust | Pizza, cheese, stuffed crust | 274 | 3 |
@@ -194,6 +199,7 @@ contains the reference amount.
 | Salad, mixed greens, raw | Mixed salad greens, raw | 21 | 3 |
 | Salad, vegetable, with dressing | Salad dressing, NFS, for salads | 430 | 3 |
 | Tea, iced, brewed | Tea, iced, brewed, black, unsweetened | 1 | 3 |
+| Tea, iced, brewed, unsweetened | Tea, iced, brewed, black, unsweetened | 1 | 3 |
 | Alcoholic beverage, wine, table, white | Alcoholic beverage, wine, table, white | 82 | 2 |
 | Beer, light | Beer, light | 29 | 2 |
 | Beverage, lemonade, pink | Beverages, lemonade, frozen concentrate, pink, prepared with water ⚠ | 43 | 2 |
@@ -213,7 +219,6 @@ contains the reference amount.
 | Salad, vegetable, other than lettuce or tomato, without dressing | Lettuce, salad with egg, tomato, and/or carrots, with or without other vegetables, no dressing | 50 | 2 |
 | Soft drink, cola | Soft drink, cola | 42 | 2 |
 | Tea, iced, brewed, black, unsweetened | Tea, iced, brewed, black, unsweetened | 1 | 2 |
-| Tea, iced, brewed, unsweetened | Tea, iced, brewed, black, unsweetened | 1 | 2 |
 | Tea, iced, unsweetened | Tea, iced, brewed, black, unsweetened | 1 | 2 |
 | Tea, sweetened, iced | Tea, iced, brewed, black, pre-sweetened with sugar | 32 | 2 |
 | Water, municipal | Water, NFS | 0 | 2 |

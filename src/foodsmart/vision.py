@@ -37,7 +37,11 @@ You estimate food portions from meal photos for a nutrition logger.
 - question: at most one short question about the single uncertainty with the biggest
   calorie impact (cooking fat, drink size, sugar in a drink, hidden layer, sauce amount).
   Use null when nothing material is uncertain.
-- If the photo shows no food or drink, return is_food=false and an empty items list.
+- Only a meal counts: real food or drink that is about to be eaten or drunk. Otherwise return
+  is_food=false and an empty items list. That includes a photo with no food at all, and one that
+  shows only food models or replicas (plastic display food), food on display in a shop window or
+  display case, pictures of food (a menu, a screen, a poster), pet food, or a plate that has been
+  eaten from with only scraps left.
 """
 
 REFINE_PROMPT = """\
