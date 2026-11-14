@@ -51,6 +51,14 @@ FIXTURE_FOODS = {
         ),
         food(14, "Lemonade, fruit juice drink", kcal_protein_fat(46, 0, 0), wweia="Fruit drinks"),
         food(16, "Salad dressing, NFS, for salads", kcal_protein_fat(430, 0.9, 44), wweia="Salad dressing"),
+        food(18, "Egg, whole, fried with oil", kcal_protein_fat(192, 13.6, 14.8), wweia="Eggs and omelets"),
+        # FNDDS joins the main food and its first descriptor: "Egg omelet", not "Egg, omelet".
+        food(
+            19,
+            "Egg omelet or scrambled egg, with cheese, made with oil",
+            kcal_protein_fat(212, 13.4, 16.6),
+            wweia="Eggs and omelets",
+        ),
     ],
     "Foundation": [
         # Many Foundation foods carry only Atwater energy (958/957), no 208.

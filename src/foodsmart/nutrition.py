@@ -224,9 +224,9 @@ def _quoted(terms: list[str]) -> list[str]:
 @dataclass(frozen=True, slots=True)
 class _Scorer:
     """Orders candidates: everyday foods before brand/baby items, then foods whose name starts
-    with the query's main food (FNDDS names it first, as in "Pizza, cheese, ..." and
-    "Pizza with pepperoni, ..."), then by how well the description covers the query and
-    nothing more.
+    with the query's main food (FNDDS names it first, as in "Pizza, cheese, ...", "Pizza with
+    pepperoni, ..." and "Egg omelet or scrambled egg, ..."), then by how well the description
+    covers the query and nothing more.
 
     bm25 alone prefers the shortest description ("Rice, white, cooked, glutinous" over the
     generic "Rice, white, cooked, NS as to fat") and ranks "Topping from cheese pizza" above
@@ -235,13 +235,17 @@ class _Scorer:
 
     weights: dict[str, float]
     head_prefix: str
+    joined_prefix: str | None
+    """The main food and the first descriptor without the comma: "Egg, omelet, ..." -> "egg omelet"."""
 
     @classmethod
     def for_query(cls, query: str, hints: tuple[str, ...]) -> _Scorer:
-        head_text = query.split(",", 1)[0]
+        head_text, *descriptors = query.split(",", 2)
         weights = {_stem(t): 1.0 for t in _terms(" ".join((query, *hints)))}
         weights.update({_stem(t): 2.0 for t in _terms(head_text)})
-        return cls(weights, head_text.strip().lower())
+        first = descriptors[0].strip() if descriptors else ""
+        joined = f"{head_text.strip()} {first}".lower() if first else None
+        return cls(weights, head_text.strip().lower(), joined)
 
     def key(self, row: tuple) -> tuple[bool, bool, float, float, int]:
         _, description, data_type, _, category, bm25 = row
@@ -262,10 +266,15 @@ class _Scorer:
         )
         if _GENERIC_MARKER.search(description):
             score += 0.5
-        # FNDDS names "X with Y" foods X first ("Pizza with pepperoni"); any other word after the
-        # main food makes another food ("Salad dressing", "Onion dip").
+        # FNDDS names "X with Y" foods X first ("Pizza with pepperoni"), and sometimes joins the
+        # main food and its first descriptor ("Egg omelet or scrambled egg" for "Egg, omelet").
+        # Any other word after the main food makes another food ("Salad dressing", "Onion dip").
         lead = description.lower().split(",", 1)[0]
-        head_first = lead == self.head_prefix or lead.startswith(self.head_prefix + " with ")
+        head_first = (
+            lead == self.head_prefix
+            or lead.startswith(self.head_prefix + " with ")
+            or (self.joined_prefix is not None and (lead + " ").startswith(self.joined_prefix + " "))
+        )
         niche = bool(_NICHE_CATEGORY.match(category))
         return niche, not head_first, -score, bm25, len(description)
 
