@@ -52,6 +52,8 @@ class Status(BaseModel):
     food_db_ready: bool
     auth_required: bool
     email_provider: str
+    email_sending: bool
+    """Account emails really go out (SMTP, fully set up); otherwise they are only queued."""
 
 
 class NutrientInfo(BaseModel):
@@ -193,6 +195,7 @@ def create_app(
             food_db_ready=settings.food_db.exists(),
             auth_required=settings.auth_required,
             email_provider=settings.email_provider,
+            email_sending=settings.email_sending,
         )
 
     @app.get("/api/nutrients")

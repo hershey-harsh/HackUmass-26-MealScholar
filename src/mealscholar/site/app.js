@@ -103,8 +103,10 @@ const state = {
   // Accounts: only when GET /api/status says auth_required.
   authRequired: false,
   emailProvider: null,
+  emailSending: null, // GET /api/status email_sending; null from a server that doesn't say
   user: null,
   demoVerifyUrl: null,
+  resendUntil: 0, // ms timestamp: Resend link waits until then (after a send, or a 429)
   resetToken: null,
   authPath: [], // signed out: the account screens stacked on Welcome, e.g. ["signin", "forgot"]
   // Bumped whenever the account changes (sign in, sign out, session end). Work started under an
@@ -2437,15 +2439,18 @@ function openLogged(result) {
 // Only when GET /api/status says auth_required: true. The session is an HttpOnly cookie, so the
 // page never sees a token; GET /api/auth/me says who is signed in.
 
-/** Emails go out for real only with a provider that sends. "outbox" (the default) just queues them,
-    and "smtp" is still a placeholder on the server, so for now the app never claims an email went out. */
+/** Say "we sent a link" only when mail really goes out: GET /api/status email_sending (SMTP fully set
+    up on the server). A server that doesn't send that field falls back to the provider name, where
+    "outbox" (the default) only queues mail and "smtp" wasn't sending yet. */
 const NOT_SENDING = new Set(["outbox", "smtp"]);
-const emailSending = () => Boolean(state.emailProvider) && !NOT_SENDING.has(state.emailProvider);
+const emailSending = () =>
+  typeof state.emailSending === "boolean" ? state.emailSending : Boolean(state.emailProvider) && !NOT_SENDING.has(state.emailProvider);
 const NOT_SWITCHED_ON = "Email sending isn't switched on yet";
 
 function enableAccounts(status) {
   state.authRequired = true;
   state.emailProvider = status.email_provider ?? null;
+  state.emailSending = typeof status.email_sending === "boolean" ? status.email_sending : null;
   state.localUser = false;
   document.body.dataset.accounts = "on";
 }
@@ -2711,6 +2716,7 @@ function leaveAccount(screen, options = {}) {
   resetData();
   state.user = null;
   state.demoVerifyUrl = null;
+  state.resendUntil = 0;
   updateAccountUi();
   renderBanner();
   state.authPath = STACKED.has(screen) ? [screen] : [];
@@ -2799,7 +2805,7 @@ const AUTH_SCREENS = {
       <header class="view-head welcome__head">
         <p class="eyebrow">Meal photo <span aria-hidden="true">&rarr;</span><span class="visually-hidden">to</span> foods <span aria-hidden="true">&rarr;</span><span class="visually-hidden">to</span> USDA nutrients</p>
         <h1 class="view-title" tabindex="-1">Every meal is a range</h1>
-        <p class="lede">Snap a photo of your meal. It works out the foods and how much is there, then shows the nutrients as honest ranges, not one fake-precise number.</p>
+        <p class="lede">Photograph a meal to see its foods, how much is there and its nutrients, as honest ranges instead of one fake-precise number.</p>
       </header>
       ${sampleHtml()}
       <div class="welcome__actions">
@@ -2813,6 +2819,7 @@ const AUTH_SCREENS = {
     <div class="auth-screen">
       ${backHtml("welcome", "Back")}
       <header class="auth-head">
+        <p class="eyebrow">Account</p>
         <h1 class="view-title" tabindex="-1">Sign in</h1>
         <p class="lede">Welcome back. Your diary is where you left it.</p>
       </header>
@@ -2831,6 +2838,7 @@ const AUTH_SCREENS = {
     <div class="auth-screen">
       ${backHtml("welcome", "Back")}
       <header class="auth-head">
+        <p class="eyebrow">Account</p>
         <h1 class="view-title" tabindex="-1">Create your account</h1>
         <p class="lede">Your meals go into your own private diary.</p>
       </header>
@@ -2847,13 +2855,14 @@ const AUTH_SCREENS = {
   forgot: ({ email = "", sent = false } = {}) => {
     const note = emailSending() ? "" : EMAIL_NOTE;
     if (sent) {
+      const address = email ? `<strong>${esc(email)}</strong>` : "that email";
       return `
         <div class="auth-screen">
           ${backHtml("signin", "Sign in")}
-          <header class="auth-head"><h1 class="view-title" tabindex="-1">Check your email</h1></header>
+          <header class="auth-head"><p class="eyebrow">Password</p><h1 class="view-title" tabindex="-1">Check your email</h1></header>
           <div class="card sent" role="status">
             <span class="sent__icon" aria-hidden="true">${icon("mail")}</span>
-            <p>If there's an account for that email, we sent a reset link.</p>
+            <p>If there's an account for ${address}, ${emailSending() ? "we sent it a link" : "we made a link"} to set a new password. It works for 1 hour.</p>
           </div>
           ${note}
           <button class="btn btn--secondary btn--block" type="button" data-auth="signin">Back to sign in</button>
@@ -2863,6 +2872,7 @@ const AUTH_SCREENS = {
       <div class="auth-screen">
         ${backHtml("signin", "Sign in")}
         <header class="auth-head">
+          <p class="eyebrow">Password</p>
           <h1 class="view-title" tabindex="-1">Reset your password</h1>
           <p class="lede">Enter the email for your account. We'll send a link to set a new password.</p>
         </header>
@@ -2878,6 +2888,7 @@ const AUTH_SCREENS = {
   reset: () => `
     <div class="auth-screen">
       <header class="auth-head">
+        <p class="eyebrow">Password</p>
         <h1 class="view-title" tabindex="-1">Set a new password</h1>
         <p class="lede">Choose a new password. You'll be signed in right after.</p>
       </header>
@@ -2894,6 +2905,7 @@ const AUTH_SCREENS = {
       return `
         <div class="auth-screen">
           <header class="auth-head">
+            <p class="eyebrow">Email</p>
             <h1 class="view-title" tabindex="-1">Confirming your email</h1>
             <p class="lede auth-wait"><span class="spinner" aria-hidden="true"></span>One moment.</p>
           </header>
@@ -2912,17 +2924,17 @@ const AUTH_SCREENS = {
       return `
         <div class="auth-screen">
           <header class="auth-head">
-            <span class="auth-badge" aria-hidden="true">${icon("check")}</span>
+            <p class="eyebrow">Email</p>
             <h1 class="view-title" tabindex="-1">Email confirmed</h1>
             <p class="lede">${lede}</p>
           </header>
-          <button class="cta cta--block" type="button" data-auth="${next}"><span class="cta__pill">${label}</span><span class="cta__dot" aria-hidden="true">${icon("arrow")}</span></button>
+          <button class="btn btn--primary btn--block" type="button" data-auth="${next}">${label}</button>
         </div>`;
     }
     return `
       <div class="auth-screen">
         <header class="auth-head">
-          <span class="auth-badge" aria-hidden="true">${icon("mail")}</span>
+          <p class="eyebrow">Email</p>
           <h1 class="view-title" tabindex="-1">That link didn't work</h1>
           <p class="lede">You can ask for a new one after you sign in.</p>
         </header>
@@ -3104,9 +3116,36 @@ async function confirmEmail(token) {
 
 // ---- the unconfirmed-email banner and its actions
 
+/** Seconds until Resend link works again: a minute after each send, or what a 429 said. */
+const resendWait = () => Math.max(0, Math.ceil((state.resendUntil - Date.now()) / 1000));
+const resendLabel = (wait = resendWait()) =>
+  !wait ? "Resend link" : wait <= 60 ? `Resend in ${wait}s` : `Resend in ${Math.ceil(wait / 60)} min`;
+let resendTimer = null;
+
+/** Counts the Resend buttons down in place (aria-disabled, so focus stays on the button). */
+function startResendCooldown(seconds) {
+  state.resendUntil = Date.now() + seconds * 1000;
+  clearInterval(resendTimer);
+  const tick = () => {
+    const wait = resendWait();
+    for (const button of $$('[data-action="resend"]')) {
+      $(".resend__label", button).textContent = resendLabel(wait);
+      if (wait) button.setAttribute("aria-disabled", "true");
+      else button.removeAttribute("aria-disabled");
+    }
+    if (!wait) {
+      clearInterval(resendTimer);
+      resendTimer = null;
+    }
+  };
+  tick();
+  resendTimer = setInterval(tick, 1000);
+}
+
 function confirmActionsHtml() {
+  const wait = resendWait();
   return `
-    <button class="btn btn--soft" type="button" data-action="resend">${icon("mail")}Resend link</button>
+    <button class="btn btn--soft" type="button" data-action="resend"${wait ? ' aria-disabled="true"' : ""}>${icon("mail")}<span class="resend__label">${resendLabel(wait)}</span></button>
     ${state.demoVerifyUrl ? `<button class="btn btn--primary" type="button" data-action="demo-verify">${icon("check")}Confirm now (demo)</button>` : ""}`;
 }
 
@@ -3123,7 +3162,7 @@ function renderBanner() {
       <span class="banner__icon" aria-hidden="true">${icon("mail")}</span>
       <div class="banner__text">
         <p class="banner__title">Confirm your email</p>
-        <p>${emailSending() ? `Open the link we sent to ${email}.` : `${NOT_SWITCHED_ON}, so the link for ${email} may not arrive.`}</p>
+        <p>${emailSending() ? `We sent a link to ${email}. Open it to confirm.` : `${NOT_SWITCHED_ON}, so the link for ${email} may not arrive.`}</p>
       </div>
       <div class="banner__actions">${confirmActionsHtml()}</div>
       <p class="banner__status" role="status"></p>
@@ -3147,14 +3186,18 @@ function confirmStatus(box, message, { error = false } = {}) {
   out.classList.toggle("is-error", error);
 }
 
+const RESEND_COOLDOWN = 60;
+
 async function resendLink(button) {
   const where = button.closest("[data-confirm]")?.dataset.confirm;
+  if (resendWait()) return; // aria-disabled: still focusable, so say nothing new and send nothing
   await withBusy(button, async () => {
     try {
       const reply = await api("/api/auth/resend-verification", { method: "POST", session: true });
       if (reply?.demo_verify_url) state.demoVerifyUrl = reply.demo_verify_url;
+      startResendCooldown(RESEND_COOLDOWN);
       const said = emailSending()
-        ? "We sent a new link."
+        ? "New link sent. It works for 24 hours."
         : state.demoVerifyUrl
           ? `New link ready. ${NOT_SWITCHED_ON}, so use Confirm now (demo).`
           : `New link made. ${NOT_SWITCHED_ON}, so it may not arrive.`;
@@ -3168,6 +3211,7 @@ async function resendLink(button) {
         toast("Your email is already confirmed.");
         return;
       }
+      if (err.status === 429 && err.retryAfter) startResendCooldown(err.retryAfter);
       confirmStatus(button.closest("[data-confirm]"), err.message, { error: true });
     }
   });
@@ -5135,7 +5179,7 @@ function alertsFieldsHtml(prefs) {
   return `
     <div class="switches">
       ${row("in_app", "Tell me when my favorites are on the menu", "A bell in the top bar lists what's coming up this week.", prefs.notify.in_app)}
-      ${row("email", "Also email me", "Email isn't switched on yet, so nothing is sent for now.", prefs.notify.email)}
+      ${row("email", "Also email me", emailSending() ? "One short email when they're on, sent only to a confirmed address." : "Email isn't switched on yet, so nothing is sent for now.", prefs.notify.email)}
     </div>`;
 }
 
@@ -5446,7 +5490,7 @@ function accountIdHtml(user) {
       user.email_verified
         ? ""
         : `<div class="account__confirm" data-confirm="account">
-             <p>${emailSending() ? "Open the link we sent to confirm your email." : `${NOT_SWITCHED_ON}, so the confirmation link may not arrive.`}</p>
+             <p>${emailSending() ? `We sent a link to ${esc(user.email)}. Open it to confirm your email.` : `${NOT_SWITCHED_ON}, so the confirmation link may not arrive.`}</p>
              <div class="banner__actions">${confirmActionsHtml()}</div>
              <p class="banner__status" role="status"></p>
            </div>`

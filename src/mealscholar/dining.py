@@ -35,7 +35,7 @@ from pymongo.errors import PyMongoError
 from .auth_store import AuthStore, open_store, utc_now
 from .campus import serving_grams
 from .config import Settings
-from .mailer import Email, EmailSender, describe_error, mask_address
+from .mailer import Email, EmailSender, describe_error, html_email, mask_address
 from .prefs import ALLERGENS, DIETS, MAX_LOCATION_ID, MyPrefs, Prefs, PrefsStore, dish_key, no_store, open_prefs_store
 
 log = logging.getLogger(__name__)
@@ -987,19 +987,22 @@ FAVORITES_SUBJECT = "Your favorites are on the menu"
 def favorites_email(to: str, alerts: Sequence[Alert], public_url: str) -> Email:
     """The alerts by day, in plain text. Dish and location names come from the menus, never from
     what the user typed (see mailer.py)."""
-    lines = ["Some of your favorite dishes are on the UMass Dining menu:"]
-    for day, on_day in groupby(alerts, key=lambda alert: alert.date):
-        lines += ["", f"{day:%A, %B} {day.day}"]
-        for (label, place), same in groupby(on_day, key=lambda alert: (alert.label, alert.location_name)):
-            lines.append(f"  {label} at {place}: {', '.join(alert.name for alert in same)}")
-    lines += [
-        "",
-        f"See the menus: {public_url}/",
-        "",
+    lead = "Some of your favorite dishes are on the UMass Dining menu:"
+    footer = (
         "You get this email because email alerts are on in your MealScholar settings. "
-        "Turn them off there to stop these emails.",
-    ]
-    return Email(to=to, subject=FAVORITES_SUBJECT, text="\n".join(lines) + "\n", purpose="favorites_digest")
+        "Turn them off there to stop these emails."
+    )
+    lines = [lead]
+    sections: list[tuple[str, list[str]]] = []
+    for day, on_day in groupby(alerts, key=lambda alert: alert.date):
+        heading, found = f"{day:%A, %B} {day.day}", []
+        for (label, place), same in groupby(on_day, key=lambda alert: (alert.label, alert.location_name)):
+            found.append(f"{label} at {place}: {', '.join(alert.name for alert in same)}")
+        lines += ["", heading, *(f"  {line}" for line in found)]
+        sections.append((heading, found))
+    lines += ["", f"See the menus: {public_url}/", "", footer]
+    html = html_email(lead, details=sections, link=f"{public_url}/", button="See the menus", footer=footer)
+    return Email(to=to, subject=FAVORITES_SUBJECT, text="\n".join(lines) + "\n", purpose="favorites_digest", html=html)
 
 
 @dataclass(frozen=True, slots=True)
