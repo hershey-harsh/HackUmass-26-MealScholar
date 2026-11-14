@@ -11,6 +11,15 @@
 <meta property="og:title" content="MealScholar">
 <meta property="og:description" content="Snap a photo of your meal and get the foods, how much is there and the nutrients, shown as honest ranges.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<!-- Added to the Home Screen from this page: the app's name and logo, and opening it goes to the app. -->
+<meta name="apple-mobile-web-app-title" content="MealScholar">
+<meta name="application-name" content="MealScholar">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script>
+/* Opened from a Home Screen icon saved from this page (manifest start_url): go straight to the app. */
+if (/[?&]home=1(&|$)/.test(location.search)) location.replace('https://app.mealscholar.health/');
+</script>
 <script>
 /* Theme before first paint: the saved choice (mealscholar-theme), else the system setting. app.js runs the switch. */
 (function (d, w) {
