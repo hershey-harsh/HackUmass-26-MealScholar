@@ -2013,3 +2013,12 @@ html:not(.js) .rail-ctrl { display: none; }
 .fv-home--video { position: relative; padding: 0; overflow: hidden; }
 .fv-home--video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .fv-home--video .fv-home__step { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); white-space: nowrap; box-shadow: 0 4px 14px rgba(28, 28, 28, .16); }
+
+/* The Home Screen recording is portrait: its frame takes the video's own shape, so there are no
+   bars. From 640px it sits beside its caption instead of filling a wide frame. */
+.video-card--portrait .video-frame { aspect-ratio: 624 / 780; background: #17171a; box-shadow: none; }
+.video-card--portrait .video-frame > video { object-fit: cover; background: transparent; }
+@media (min-width: 640px) {
+  .video-card--portrait { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); column-gap: clamp(24px, 4vw, 56px); align-items: end; }
+  .video-card--portrait figcaption { margin-top: 0; padding-bottom: 4px; }
+}
