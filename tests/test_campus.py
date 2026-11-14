@@ -14,6 +14,7 @@ from mealscholar.campus import (
     servings_range,
 )
 from mealscholar.dining import MEALS, DishFacts
+from mealscholar.schemas import Range
 
 
 def dish(name, meal="lunch", serving=None, **per_serving):
@@ -149,10 +150,21 @@ def test_dish_nutrients_weight_and_count_paths():
     assert dish_nutrients(weighed, (120, 90, 60), None)["energy_kcal"] == found["energy_kcal"]
 
     counted = dish("Cheese Pizza", serving="1 Slice", energy_kcal=212, carbs_g=26)
-    found = dish_nutrients(counted, (100, 120, 150), (1, 1.5, 2))
+    found = dish_nutrients(counted, (100, 120, 150), (1, 1.5, 2))  # a count already wider than the grams
     assert bounds(found["energy_kcal"]) == (212, 318, 424)
     assert bounds(found["carbs_g"]) == (26, 39, 52)
-    assert dish_nutrients(counted, (100, 120, 150), None) is None  # the caller falls back to USDA
+    # The count goes through servings_range: 3/3/3 slices with 360/420/480 g is 2.571/3/3.429 slices,
+    # never one number (the README rule), and a negative low is clamped at 0.
+    found = dish_nutrients(counted, (360, 420, 480), (3, 3, 3))
+    assert bounds(found["energy_kcal"]) == pytest.approx((545.14, 636, 726.86), abs=0.01)
+    assert found["energy_kcal"].low < found["energy_kcal"].likely < found["energy_kcal"].high
+    assert bounds(found["carbs_g"]) == pytest.approx((66.86, 78, 89.14), abs=0.01)
+    assert bounds(dish_nutrients(counted, (100, 120, 150), (-1, 1, 1))["energy_kcal"]) == (0, 212, 212)
+    assert dish_nutrients(counted, (100, 120, 150), (2, 1, 3))["energy_kcal"] == Range(low=212, likely=424, high=636)
+    # No usable count: the caller falls back to USDA.
+    assert dish_nutrients(counted, (100, 120, 150), None) is None
+    assert dish_nutrients(counted, (100, 120, 150), (0, 0, 0)) is None
+    assert dish_nutrients(counted, (0, 0, 0), (1, 1, 1)) is None
 
 
 @pytest.mark.parametrize(

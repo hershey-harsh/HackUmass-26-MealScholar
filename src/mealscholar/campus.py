@@ -134,14 +134,16 @@ def dish_nutrients(
 ) -> dict[str, Range] | None:
     """The label scaled to the plate, a range per nutrient key: by weight when the serving is one
     (the model's gram range, unchanged, over the serving's grams), else by the model's serving
-    count (servings_range). None for a counted serving without a count; the caller then falls
-    back to USDA."""
+    count as servings_range widens and clamps it, so a count given as one number never gives one
+    number. None for a counted serving without a usable count; the caller then falls back to
+    USDA."""
     if dish.serving_grams is not None:
         low, likely, high = (g / dish.serving_grams for g in sorted(grams))
-    elif servings is not None:
-        low, likely, high = sorted(servings)
     else:
-        return None
+        counts = servings_range(servings, grams)
+        if counts is None:
+            return None
+        low, likely, high = counts
     return {key: Range(low=v * low, likely=v * likely, high=v * high) for key, v in dish.per_serving.items()}
 
 
