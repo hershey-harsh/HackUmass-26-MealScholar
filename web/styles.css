@@ -92,7 +92,7 @@
   --surface-rgb: 28, 28, 28;
   --ink-rgb: 238, 240, 242;
   --veil-rgb: 17, 17, 18;
-  --hero-scrim: rgba(17, 17, 18, .46);
+  --hero-scrim: rgba(17, 17, 18, .56);
   /* Mustard: the light ink on it is 4.6:1. */
   --marker: #806A1A;
 }
@@ -567,7 +567,7 @@ html:not(.js) .theme { display: none; }
   padding: 26px 20px 0;
   background:
     linear-gradient(var(--hero-scrim), var(--hero-scrim)),
-    linear-gradient(180deg, rgba(var(--veil-rgb), .9) 0%, rgba(var(--veil-rgb), .72) 52%, rgba(var(--veil-rgb), .12) 100%),
+    linear-gradient(180deg, rgba(var(--veil-rgb), .92) 0%, rgba(var(--veil-rgb), .84) 58%, rgba(var(--veil-rgb), .5) 100%),
     url("img/hero-plates-900.jpg") 50% 100% / cover no-repeat,
     var(--warm);
 }
@@ -678,6 +678,7 @@ html:not(.js) .theme { display: none; }
     background:
       linear-gradient(var(--hero-scrim), var(--hero-scrim)),
       linear-gradient(90deg, rgba(var(--veil-rgb), .9) 0%, rgba(var(--veil-rgb), .66) 46%, rgba(var(--veil-rgb), 0) 80%),
+      linear-gradient(180deg, rgba(var(--veil-rgb), 0) 50%, rgba(var(--veil-rgb), .84) 100%),
       url("img/hero-plates-1408.jpg") 50% 78% / cover no-repeat,
       var(--warm);
   }
@@ -716,7 +717,7 @@ html:not(.js) .theme { display: none; }
     text-align: right;
     font-size: 13.5px;
     line-height: 1.45;
-    color: var(--ink-2);
+    color: var(--ink);
   }
 }
 
