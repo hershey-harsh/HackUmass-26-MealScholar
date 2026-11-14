@@ -1,0 +1,29 @@
+[project]
+name = "foodsmart"
+version = "0.1.0"
+description = "Meal photo -> foods and grams (Gemini) -> nutrients (USDA FoodData Central)"
+requires-python = ">=3.12"
+dependencies = [
+    "google-genai>=3.3.0",
+    "httpx>=0.28.1",
+    "ijson>=3.6.0",
+    "pillow>=13.0.0",
+    "pillow-heif>=1.8.1",
+    "pydantic>=2.14.3",
+]
+
+[project.scripts]
+foodsmart = "foodsmart.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.8,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::SyntaxWarning"]
