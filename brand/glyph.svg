@@ -4,10 +4,11 @@
       <path d="M0 0h512v512H0Z" fill="#fff"/>
       <path d="M176 182v52q80 44 160 0v-52Z" fill="#000" stroke="#000" stroke-width="20" stroke-linejoin="round"/>
       <path d="M256 88 420 154 256 220 92 154Z" fill="#000" stroke="#000" stroke-width="20" stroke-linejoin="round"/>
-      <path d="M208 270v34c0 10 7 17 17 17s17-7 17-17v-34m-17 0v112" transform="translate(0 16)" fill="none" stroke="#000" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M292 266c18 10 28 32 28 57 0 5-4 9-9 9h-7v44a8 8 0 0 1-16 0V270q0-6 4-4Z" transform="translate(0 16)" fill="#000"/>
+      <path d="M197 280v18c0 9 8 16 17 16s17-7 17-16v-18m-17 0v58" fill="none" stroke="#000" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M287 274c16 8 26 24 26 40 0 3-3 6-6 6h-11v18a6 6 0 0 1-12 0V278q0-6 3-4Z" fill="#000"/>
+      <path d="M206 372Q256 414 306 372" fill="none" stroke="#000" stroke-width="14" stroke-linecap="round"/>
       <path d="M404 156v120" fill="none" stroke="#000" stroke-width="30" stroke-linecap="round"/>
-      <circle cx="256" cy="300" r="116" fill="none" stroke="#000" stroke-width="8" opacity="0.18"/>
+      <circle cx="256" cy="300" r="124" fill="none" stroke="#000" stroke-width="8" opacity="0.18"/>
     </mask>
     <mask id="ms-glyph-band" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
       <path d="M0 0h512v512H0Z" fill="#fff"/>
