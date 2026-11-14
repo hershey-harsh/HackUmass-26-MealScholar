@@ -15,7 +15,7 @@ from difflib import SequenceMatcher
 from typing import TYPE_CHECKING
 
 from .prefs import dish_key
-from .schemas import Range
+from .schemas import DishMatch, Range
 
 if TYPE_CHECKING:
     from .dining import DishFacts  # dining.py imports this module, so only the type is taken
@@ -142,17 +142,21 @@ def servings_range(
 
 
 def dish_nutrients(
-    dish: DishFacts, grams: tuple[int, int, int], servings: tuple[float, float, float] | None
+    dish: DishFacts | DishMatch,
+    grams: tuple[int, int, int],
+    servings: tuple[float, float, float] | None,
+    *,
+    widen: bool = True,
 ) -> dict[str, Range] | None:
     """The label scaled to the plate, a range per nutrient key: by weight when the serving is one
     (the model's gram range, unchanged, over the serving's grams), else by the model's serving
     count as servings_range widens and clamps it, so a count given as one number never gives one
-    number. None for a counted serving without a usable count; the caller then falls back to
-    USDA."""
+    number. `widen=False` takes the count as given: the user typed it, so it is exact. None for a
+    counted serving without a usable count; the caller then falls back to USDA."""
     if dish.serving_grams is not None:
         low, likely, high = (g / dish.serving_grams for g in sorted(grams))
     else:
-        counts = servings_range(servings, grams)
+        counts = servings_range(servings, grams if widen else (1, 1, 1))
         if counts is None:
             return None
         low, likely, high = counts
