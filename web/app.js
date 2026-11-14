@@ -323,3 +323,25 @@
   }, { rootMargin: '0px 0px -6% 0px', threshold: 0.06 });
   d.querySelectorAll('main .section').forEach(function (el) { io.observe(el); });
 })();
+
+// Recordings marked data-autoplay play (muted, looping) while at least half on screen and pause when
+// they leave; never by themselves under reduced motion (the rail's copy keeps its controls).
+(function () {
+  var d = document, w = window;
+  var vids = [].slice.call(d.querySelectorAll('video[data-autoplay]'));
+  if (!vids.length || !('IntersectionObserver' in w)) return;
+  var reduce = w.matchMedia('(prefers-reduced-motion: reduce)');
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      var v = e.target;
+      if (e.isIntersecting && !reduce.matches) {
+        v.preload = 'auto';
+        var p = v.play();
+        if (p && p.catch) p.catch(function () {});
+      } else {
+        v.pause();
+      }
+    });
+  }, { threshold: 0.5 });
+  vids.forEach(function (v) { io.observe(v); });
+})();
