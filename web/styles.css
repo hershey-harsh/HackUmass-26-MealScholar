@@ -455,7 +455,8 @@ main > * + * { margin-top: 16px; }
   border-radius: var(--radius);
   padding: 22px 18px 0;
   background:
-    radial-gradient(70% 42% at 50% 86%, rgba(250, 250, 255, .9) 0%, rgba(250, 250, 255, 0) 72%),
+    linear-gradient(180deg, rgba(236, 235, 228, .72) 0%, rgba(236, 235, 228, .62) 52%, rgba(236, 235, 228, 0) 72%, rgba(238, 240, 242, .5) 100%),
+    url("img/hero-plates-900.jpg") 50% 78% / cover no-repeat,
     linear-gradient(165deg, #ECEBE4 0%, #ECEBE4 38%, #EEF0F2 100%);
 }
 .hero__copy { position: relative; z-index: 2; order: 1; }
@@ -573,7 +574,8 @@ main > * + * { margin-top: 16px; }
     min-height: 580px;
     padding: 48px 40px 0;
     background:
-      radial-gradient(48% 62% at 76% 62%, rgba(250, 250, 255, .9) 0%, rgba(250, 250, 255, 0) 72%),
+      linear-gradient(90deg, rgba(236, 235, 228, .84) 0%, rgba(236, 235, 228, .64) 38%, rgba(236, 235, 228, 0) 62%),
+      url("img/hero-plates-1408.jpg") 50% 70% / cover no-repeat,
       linear-gradient(118deg, #ECEBE4 0%, #ECEBE4 34%, #EEF0F2 100%);
   }
   .hero__copy { display: flex; flex-direction: column; align-items: flex-start; padding-bottom: calc(clamp(120px, 17.6vw, 232px) * .74 + 6px); }
@@ -902,6 +904,12 @@ main > * + * { margin-top: 16px; }
 .vf svg { width: 100%; height: 100%; }
 .vf img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; }
 .ml-note { margin: 4px 0 0; font-size: 12.5px; color: var(--ink-2); }
+.menu-real { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 8px; }
+.menu-real li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.menu-real__n { font-weight: 500; }
+.menu-real__m { grid-column: 1; font-size: 13px; color: var(--ink-2); }
+.menu-real__k { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-family: var(--mono); font-size: 14px; white-space: nowrap; }
+.menu-real__note { margin: 10px 0 0; font-size: 12.5px; color: var(--label); }
 .vf__c { position: absolute; width: 22px; height: 22px; border: 0 solid var(--surface); }
 .vf__c--tl { top: 12px; left: 12px; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 8px; }
 .vf__c--tr { top: 12px; right: 12px; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 8px; }

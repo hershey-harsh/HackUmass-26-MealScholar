@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MealScholar · Nutrition from a photo, in honest ranges</title>
-<meta name="description" content="Snap a photo of your meal and get the foods, the grams and the nutrients, shown as honest ranges instead of one fake-precise number. Piloting at UMass.">
+<meta name="description" content="Snap a photo of your meal. MealScholar works out the foods and how much is there, checks the campus dining menu first, and shows the nutrients as honest ranges.">
 <meta name="theme-color" content="#EEF0F2">
 <meta name="color-scheme" content="light">
 <meta property="og:type" content="website">
 <meta property="og:title" content="MealScholar">
-<meta property="og:description" content="Snap a photo of your meal and get the foods, the grams and the nutrients, shown as honest ranges.">
+<meta property="og:description" content="Snap a photo of your meal and get the foods, how much is there and the nutrients, shown as honest ranges.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css?v=__COMMIT__">
@@ -92,7 +92,7 @@
   <a href="#features">Features</a>
   <a href="#videos">Videos</a>
   <a href="#nutrients">Nutrients</a>
-  <a href="#umass">UMass</a>
+  <a href="#umass">Pilot</a>
   <a href="#faq">FAQ</a>
 </nav>
 
@@ -109,7 +109,7 @@
         <h1 id="hero-title" class="h1">Nutrition from a photo, in <span class="hl">honest ranges</span></h1>
         <p class="hero__lede">
           <svg class="hero__lede-arrow" aria-hidden="true"><use href="#i-arrow-se"/></svg>
-          <span>Snap your meal and get the foods, the grams and the nutrients, each as a low to high range instead of one fake-precise number.</span>
+          <span>Snap your meal. It works out what’s on the plate and how much, checks the campus dining menu first, and shows the nutrients as honest ranges.</span>
         </p>
         <div class="hero__actions">
           <a class="cta cta--light" href="https://mealscholar.mannava.org" data-hero-cta>
@@ -159,16 +159,16 @@
         </div>
       </div>
 
-      <p class="hero__note">Nutrients come from USDA data, never from the AI.</p>
+      <p class="hero__note">Nutrients come from the campus menu first and USDA as a backup, never from the AI.</p>
       <span class="watermark" aria-hidden="true">MEALSCHOLAR</span>
     </div>
 
     <ul class="trust" aria-label="At a glance">
-      <li>USDA FoodData Central</li>
+      <li>Campus menu first</li>
+      <li>USDA as a backup</li>
       <li>Ranges, not fake precision</li>
-      <li>Photos never stored</li>
+      <li>No weighing</li>
       <li>Location optional</li>
-      <li>Piloting at UMass</li>
     </ul>
   </section>
 
@@ -182,13 +182,13 @@
         <a class="pill-link" href="#how">See how it works<svg aria-hidden="true"><use href="#i-arrow-se"/></svg></a>
       </div>
       <ol class="why__list">
-        <li class="why__item"><span class="why__num" aria-hidden="true">01</span><h3>Ranges, not fake precision</h3><p>Each food gets a low, likely and high weight, so you can see how sure the estimate is.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">02</span><h3>The AI never makes up nutrients</h3><p>Gemini names the foods and estimates grams. The nutrients come from USDA data and plain arithmetic.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">03</span><h3>13,648 USDA foods</h3><p>Matches come from USDA FoodData Central: Survey (FNDDS), Foundation and SR Legacy.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">01</span><h3>Ranges, not fake precision</h3><p>It estimates how much of each food is there as a low, likely and high amount, so you can see how sure it is.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">02</span><h3>The AI never makes up nutrients</h3><p>The AI names the foods and works out how much is there. The nutrients come from real data and plain arithmetic.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">03</span><h3>Campus menu first</h3><p>Food from the dining halls is checked against the campus menu and its own nutrition facts: 2,236 dishes, refreshed every hour.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">04</span><h3>One question, at most</h3><p>If a photo is unclear, it asks you one thing, then recomputes.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">05</span><h3>Your fixes stick</h3><p>Set an exact weight or swap the match. Corrections become your usual portions next time.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">05</span><h3>No weighing</h3><p>You just take the photo. It works out the amounts itself, and you can swap a food if it got one wrong.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">06</span><h3>Today and weekly views</h3><p>Every meal with the day’s totals and % Daily Value. Weekly averages count only the days you logged.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">07</span><h3>Photos are never stored</h3><p>They’re analyzed in memory. Location is optional and stays off unless you switch it on.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">07</span><h3>USDA as a backup</h3><p>Anything that isn’t on the campus menu is matched to USDA FoodData Central’s 13,648 foods.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">08</span><h3>Nothing to install</h3><p>It works in the browser on any phone. Add it to your Home Screen if you like.</p></li>
       </ol>
     </div>
@@ -205,27 +205,27 @@
       <li class="step">
         <span class="step__num">01</span>
         <h3>Snap your meal</h3>
-        <p>Take a photo of your plate. It’s analyzed in memory and never stored.</p>
-        <div class="mock" role="img" aria-label="Camera screen with a real photo: three slices of chicken and red onion pizza on a white plate, and a button to take or choose a photo, marked not stored.">
+        <p>Take a photo of your plate. That’s all you do.</p>
+        <div class="mock" role="img" aria-label="Camera screen with a real photo: three slices of chicken and red onion pizza on a white plate, and a button to take or choose a photo.">
           <div class="vf">
             <img src="img/meal-pizza-640.jpg" srcset="img/meal-pizza-640.jpg 640w, img/meal-pizza-1280.jpg 1280w" sizes="(max-width: 700px) 92vw, 400px" width="640" height="400" alt="" loading="lazy" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
             <i class="vf__c vf__c--tl"></i><i class="vf__c vf__c--tr"></i><i class="vf__c vf__c--bl"></i><i class="vf__c vf__c--br"></i>
           </div>
           <div class="mini mini--bar">
             <span class="shutter"></span>
-            <span class="mini__stack"><b>Take or choose a photo</b><small>Not stored</small></span>
+            <span class="mini__stack"><b>Take or choose a photo</b><small>No weighing</small></span>
           </div>
         </div>
       </li>
       <li class="step">
         <span class="step__num">02</span>
-        <h3>Foods and grams</h3>
-        <p>Gemini names each food and estimates its weight as a low, likely and high range.</p>
-        <div class="mock" role="img" aria-label="1 food found: chicken and red onion pizza, with a low, likely and high weight of 380, 450 and 540 grams, sized against the dinner plate.">
+        <h3>Foods and how much</h3>
+        <p>The AI names each food and works out how much is there, as a low, likely and high amount. No weighing.</p>
+        <div class="mock" role="img" aria-label="1 food found: chicken and red onion pizza, about 380 to 540 grams, likely 450, sized against the dinner plate. Checked against today's campus menu first, then USDA.">
           <div class="mini mini--foods">
             <div class="ml-head"><span>1 food found</span><span>low · likely · high</span></div>
             <div class="ml-row"><span class="pin">1</span><span class="ml-n">Chicken and red onion pizza</span><span class="ml-g">380 · <b>450</b> · 540 g</span><span class="band band--f2"></span></div>
-            <p class="ml-note">Sized against the dinner plate</p>
+            <p class="ml-note">Sized against the dinner plate · checked against today’s campus menu, then USDA</p>
           </div>
         </div>
       </li>
@@ -246,8 +246,8 @@
         <div class="step__text">
           <span class="step__num">04</span>
           <h3>Nutrients as ranges</h3>
-          <p>Nutrients come from USDA FoodData Central: grams times the values per 100 g. The AI never outputs nutrient numbers.</p>
-          <span class="dot-chip">USDA data · plain math</span>
+          <p>If the food is on today’s campus menu, the nutrients come from the dining hall’s own nutrition facts. If not, from USDA FoodData Central. The AI never outputs nutrient numbers.</p>
+          <span class="dot-chip">Campus menu first · USDA as a backup</span>
         </div>
         <div class="mock mock--side" role="img" aria-label="Nutrients for this pizza: calories 1,011 to 1,436 kcal, likely 1,197. Protein 51.3 grams, 87 to 123 percent of the Daily Value. Carbohydrate 149.8 grams, 46 to 65 percent. Worked example: pizza, 450 grams times 11.4 grams of protein per 100 grams, equals 51.3 grams of protein.">
           <div class="mini mini--nutr">
@@ -261,14 +261,14 @@
       </li>
       <li class="step step--fix">
         <span class="step__num">05</span>
-        <h3>Fix it, log it</h3>
-        <p>Set an exact weight or swap the USDA match. Your fixes become your usual portions.</p>
-        <div class="mock" role="img" aria-label="Example fix: the pizza changes from 380 to 540 grams to an exact 430 grams. The USDA match, Pizza, cheese, from restaurant or fast food, has a Swap button. Then Log to Today, saved as your usual portion.">
+        <h3>Check it, log it</h3>
+        <p>If it got a food wrong, swap it with one tap. Then log it to your day.</p>
+        <div class="mock" role="img" aria-label="Check and log: butter chicken pizza, about 380 to 540 grams, likely 450, estimated from the photo. Not on today's campus menu, so it's matched to USDA: Pizza, cheese, from restaurant or fast food, with a Swap button. Then Log to Today.">
           <div class="mini mini--fix">
-            <div class="fx-head"><span class="pin">1</span><b>Butter chicken pizza</b><span class="fx-chg"><s>380–540 g</s><svg><use href="#i-chev-r"/></svg><span class="fx-new">430 g</span></span></div>
-            <div class="fx-row"><span class="fx-k">Exact weight</span><span class="fx-in">430 g</span><span class="fx-btn">Set</span></div>
-            <div class="fx-row"><span class="fx-k">USDA match</span><span class="fx-food">Pizza, cheese, from restaurant or fast food</span><span class="fx-swap">Swap</span></div>
-            <div class="fx-foot"><span class="fx-log">Log to Today</span><span class="fx-ok"><svg><use href="#i-check"/></svg>Saved as your usual portion</span></div>
+            <div class="fx-head"><span class="pin">1</span><b>Butter chicken pizza</b><span class="fx-chg"><span class="fx-new">~450 g</span></span></div>
+            <div class="fx-row"><span class="fx-k">Amount</span><span class="fx-food">380–540 g, estimated from the photo</span></div>
+            <div class="fx-row"><span class="fx-k">Match</span><span class="fx-food">Not on today’s campus menu, so USDA: Pizza, cheese, from restaurant</span><span class="fx-swap">Swap</span></div>
+            <div class="fx-foot"><span class="fx-log">Log to Today</span><span class="fx-ok"><svg><use href="#i-check"/></svg>Added to today</span></div>
           </div>
         </div>
       </li>
@@ -311,7 +311,7 @@
             <!-- To add the recording, replace the next line with: <video src="videos/fix-and-today.mp4" poster="videos/fix-and-today.jpg" controls playsinline preload="none"></video> -->
             <div class="video-ph video-ph--c"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
           </div>
-          <figcaption><h3>Fix it, then see today</h3><p>Set a weight, swap a match, then check the day’s totals.</p></figcaption>
+          <figcaption><h3>Check it, then see today</h3><p>Swap a food if it got one wrong, then check the day’s totals.</p></figcaption>
         </figure>
       </div>
     </div>
@@ -328,8 +328,8 @@
       </div>
     </div>
     <div class="section-head section-head--center">
-      <h2 id="nutrients-title" class="h2">19 nutrients, from USDA data</h2>
-      <p class="section-sub">Nine main nutrients plus ten micronutrients, which are labeled as estimates. % Daily Value is shown where one exists.</p>
+      <h2 id="nutrients-title" class="h2">19 nutrients, from the campus menu and USDA</h2>
+      <p class="section-sub">Calories, protein, carbs, fat, fiber, sugar, sodium and cholesterol come from the campus menu when the food is on it. Vitamins and minerals come from USDA and are labeled as estimates. % Daily Value is shown where one exists.</p>
     </div>
     <div class="rail rail--nutrients" id="nutrient-rail" data-rail role="region" aria-label="Nutrient cards, scroll sideways" tabindex="0">
       <ul class="rail__list">
@@ -363,20 +363,18 @@
     <div class="data">
       <div class="data__main">
         <p class="eyebrow">The data</p>
-        <h2 id="data-title" class="h2 h2--sm">Every nutrient comes from USDA data</h2>
-        <p class="bignum">13,648</p>
+        <h2 id="data-title" class="h2 h2--sm">Built on the campus menu</h2>
+        <p class="bignum">2,236</p>
         <div class="bignum__rule" aria-hidden="true"><span></span></div>
-        <p class="data__text">foods in the app’s USDA database, all from FoodData Central and public domain (CC0).</p>
-        <a class="pill-link" href="https://fdc.nal.usda.gov/">Browse FoodData Central<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <p class="data__text">dishes on the campus dining menus, each with its own nutrition facts. Every dining hall, café and food court menu, refreshed every hour.</p>
       </div>
       <div class="data__side">
         <ul class="datasets">
-          <li class="dataset"><span class="dataset__k"><i class="sw sw--d1"></i>Survey (FNDDS)</span><span class="dataset__n">5,431</span><span class="dataset__p">39.8% of foods</span></li>
-          <li class="dataset"><span class="dataset__k"><i class="sw sw--d2"></i>Foundation</span><span class="dataset__n">424</span><span class="dataset__p">3.1% of foods</span></li>
-          <li class="dataset"><span class="dataset__k"><i class="sw sw--d3"></i>SR Legacy</span><span class="dataset__n">7,793</span><span class="dataset__p">57.1% of foods</span></li>
+          <li class="dataset"><span class="dataset__k"><i class="sw sw--d1"></i>Campus menu items</span><span class="dataset__n">24,191</span><span class="dataset__p">November 10 to 28</span></li>
+          <li class="dataset"><span class="dataset__k"><i class="sw sw--d2"></i>Campus dishes</span><span class="dataset__n">2,236</span><span class="dataset__p">with nutrition facts</span></li>
+          <li class="dataset"><span class="dataset__k"><i class="sw sw--d3"></i>USDA backup foods</span><span class="dataset__n">13,648</span><span class="dataset__p">for anything not on the menu</span></li>
         </ul>
-        <div class="stack" aria-hidden="true"><span class="stack__a"></span><span class="stack__b"></span><span class="stack__c"></span></div>
-        <div class="stack__axis" aria-hidden="true"><span>0</span><span>13,648 foods</span></div>
+        <a class="pill-link" href="https://fdc.nal.usda.gov/">USDA FoodData Central<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
       </div>
     </div>
   </section>
@@ -439,20 +437,21 @@
       <div class="umass__main">
         <p class="eyebrow">On campus</p>
         <h2 id="umass-title" class="h2">Piloting at UMass</h2>
-        <p class="section-sub">We built MealScholar at HackUMass XIV, at UMass Amherst, in November 2026. Now it’s piloting at UMass.</p>
+        <p class="section-sub">MealScholar is piloting with students at UMass Amherst, starting with every UMass Dining menu.</p>
         <div class="logo-tile">
           <img src="brand/umass-logo.svg" alt="University of Massachusetts Amherst" width="351" height="92">
         </div>
       </div>
       <article class="dining">
-        <span class="chip chip--white"><svg aria-hidden="true"><use href="#i-clock"/></svg>Coming soon</span>
-        <h3>UMass Dining menus</h3>
-        <p>Dining menus with full nutrition, right in MealScholar. We’re building it now.</p>
-        <div class="menu-skel" aria-hidden="true">
-          <div class="menu-skel__row"><i></i><span><b></b><em></em></span><u></u></div>
-          <div class="menu-skel__row"><i></i><span><b></b><em></em></span><u></u></div>
-          <div class="menu-skel__row"><i></i><span><b></b><em></em></span><u></u></div>
-        </div>
+        <span class="chip chip--white"><svg aria-hidden="true"><use href="#i-clock"/></svg>Refreshed every hour</span>
+        <h3>Every UMass Dining menu</h3>
+        <p>All the dining halls, cafés and food courts, with nutrition facts for every dish.</p>
+        <ul class="menu-real" aria-label="Three dishes from the November 14 dinner menus">
+          <li><span class="menu-real__n">Black Bean Burger</span><span class="menu-real__m">Worcester · dinner · 1 each</span><span class="menu-real__k">160 kcal</span></li>
+          <li><span class="menu-real__n">California Roll</span><span class="menu-real__m">Worcester · dinner · 1 roll</span><span class="menu-real__k">222 kcal</span></li>
+          <li><span class="menu-real__n">Sweet Potato Fries</span><span class="menu-real__m">Franklin · dinner · 3 oz</span><span class="menu-real__k">194 kcal</span></li>
+        </ul>
+        <p class="menu-real__note">From the November 14 menus.</p>
       </article>
     </div>
   </section>
@@ -468,19 +467,19 @@
       <div class="faq__list">
         <details open>
           <summary><span>How does MealScholar estimate my meal?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>Gemini looks at your photo, names each food and estimates its weight as a low, likely and high range. It never outputs nutrient numbers. Those come from USDA FoodData Central: the grams times the values per 100 g.</p></div>
+          <div class="faq__a"><p>The AI looks at your photo, names each food and works out how much is there as a low, likely and high amount. It never outputs nutrient numbers. Those come from the campus menu’s nutrition facts when the food is on it, and from USDA FoodData Central otherwise.</p></div>
         </details>
         <details>
           <summary><span>Why ranges instead of one number?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>A photo can’t show exactly how much food is on the plate, so one precise number would be a guess. The range shows how sure the estimate is. If you know a weight, set it and the range collapses to one number.</p></div>
+          <div class="faq__a"><p>A photo can’t show exactly how much food is on the plate, so one precise number would be a guess. The range shows how sure the estimate is.</p></div>
         </details>
         <details>
-          <summary><span>Does it store my photos?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>No. Photos are analyzed in memory and never stored. Location is optional and stays off unless you switch it on.</p></div>
+          <summary><span>Do I need to weigh my food?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>No. You just take the photo. It works out how much is on the plate by itself.</p></div>
         </details>
         <details>
           <summary><span>What if it gets a food wrong?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>Set an exact weight or swap the USDA match. Your corrections become your usual portions for next time.</p></div>
+          <div class="faq__a"><p>Swap it for the right food with one tap, from the campus menu or USDA.</p></div>
         </details>
         <details>
           <summary><span>Do I need to download an app?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
@@ -488,11 +487,11 @@
         </details>
         <details>
           <summary><span>Is this medical advice?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>No. MealScholar gives you information, not medical advice. It doesn’t set calorie targets or give insulin or carb dosing advice.</p></div>
+          <div class="faq__a"><p>No. MealScholar gives you information, not medical advice. Any goal is one you choose, and it never gives insulin or carb dosing advice.</p></div>
         </details>
         <details>
-          <summary><span>Does it have UMass Dining menus?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>Not yet. UMass Dining menus with full nutrition are coming soon. We’re building it now.</p></div>
+          <summary><span>Does it know the dining hall menus?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>Yes. It has every dining hall, café and food court menu on campus with nutrition facts, refreshed every hour.</p></div>
         </details>
       </div>
     </div>
@@ -530,11 +529,7 @@
           <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="10" fill="#1C1C1C"/><circle cx="16" cy="17.5" r="8" fill="none" stroke="#FAFAFF" stroke-width="2.4"/><path d="M16.2 4.8c2.9 1.4 4.2 3.9 3.7 6.9-2.9-.2-5-2-5.5-4.9.4-.8 1-1.5 1.8-2z" fill="#DADDD8"/></svg>
           <span>MealScholar</span>
         </a>
-        <p>Foods, grams and nutrients from one photo, as honest ranges.</p>
-        <a class="umass-badge umass-badge--sm" href="#umass">
-          <img src="brand/umass-m.svg" alt="" width="22" height="19">
-          <span>Piloting at UMass</span>
-        </a>
+        <p>Foods, amounts and nutrients from one photo, as honest ranges.</p>
       </div>
       <div class="footer-cols">
         <div>
@@ -551,12 +546,13 @@
           <ul>
             <li><a href="#features">Why MealScholar</a></li>
             <li><a href="#videos">See it in action</a></li>
-            <li><a href="#umass">Piloting at UMass</a></li>
+            <li><a href="#umass">The pilot</a></li>
           </ul>
         </div>
         <div>
           <h2>Data</h2>
           <ul>
+            <li><a href="#umass">Campus dining menus</a></li>
             <li><a href="https://fdc.nal.usda.gov/">USDA FoodData Central</a></li>
             <li><a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></li>
             <li><a href="fonts/OFL-Geist.txt">Geist font license</a></li>
@@ -564,7 +560,7 @@
         </div>
       </div>
     </div>
-    <p class="credits">Nutrient data: USDA FoodData Central (CC0). Place names © OpenStreetMap contributors (ODbL).</p>
+    <p class="credits">Nutrient data: campus dining menus first, then USDA FoodData Central (CC0) as a backup. Place names © OpenStreetMap contributors (ODbL).</p>
     <div class="footer-bottom">
       <p><b>Information, not medical advice.</b></p>
       <p class="stamp">Deployed from commit <code>__COMMIT__</code> on __DEPLOYED_AT__.</p>
