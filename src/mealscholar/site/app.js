@@ -3932,6 +3932,7 @@ function renderUpcoming() {
                 avoid: item.avoid === true,
                 off: item.fits_diet === false,
                 avoided: Array.isArray(item.allergens) ? item.allergens.filter((a) => avoid.has(a)) : [],
+                kinds: dietKinds(item),
                 ref,
               });
             })
@@ -3941,7 +3942,7 @@ function renderUpcoming() {
     .join("");
   const when = typeof meal.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(meal.date) ? dayTitle(meal.date) : null;
   const whenText = when ? (when.title === "Today" ? "Today" : `${when.title}, ${when.sub}`) : "";
-  const legend = dishLegendHtml(items.some((i) => favorites.has(dishKey(i.name))), items.some((i) => i.avoid === true), items.some((i) => i.fits_diet === false));
+  const legend = dishLegendHtml(items.some((i) => favorites.has(dishKey(i.name))), items.some((i) => i.avoid === true), items.some((i) => i.fits_diet === false), items.map(dietKinds));
   // "Dinner, usually 4:30 to 9 pm": the label is already the heading, so the hint keeps the hours.
   const label = typeof meal.label === "string" && meal.label ? meal.label : capitalize(String(meal.meal ?? "Meal"));
   const hint = typeof meal.starts_hint === "string" ? meal.starts_hint.replace(new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},\\s*`), "") : "";
@@ -3961,8 +3962,46 @@ function renderUpcoming() {
   fitSideCard();
 }
 
-function dishLegendHtml(fav, avoid, off) {
+// ---- What a dish is. Vegetarian, plant based, halal and local are UMass Dining's own labels.
+// Meat and pescatarian aren't labelled, so they come from the name and allergens, and only for a
+// dish UMass doesn't already call vegetarian or plant based.
+
+const KINDS = {
+  meat: ["Meat", "meat"],
+  fish: ["Pescatarian", "fish"],
+  plant: ["Plant based", "sprout"],
+  veg: ["Vegetarian", "leaf"],
+  halal: ["Halal", "halal"],
+  local: ["Local", "local"],
+};
+const MEAT_WORDS =
+  /\b(chicken|beef|pork|turkey|bacon|ham|sausages?|pepperoni|salami|prosciutto|chorizo|lamb|veal|steak|brisket|meatballs?|hot ?dogs?|carnitas|barbacoa|bulgogi|duck|kielbasa|pastrami|ribs|burgers?|cheeseburgers?)\b/i;
+const NOT_MEAT_WORDS = /\b(veggie|vegan|vegetarian|tofu|tempeh|seitan|impossible|beyond|plant|meatless|jackfruit|cauliflower)\b/i;
+const FISH_WORDS =
+  /\b(fish|salmon|tuna|cod|haddock|pollock|tilapia|shrimp|prawns?|crab|lobster|scallops?|clams?|mussels?|calamari|squid|anchov(?:y|ies)|sardines?|trout|halibut|swordfish|seafood|sushi|poke)\b/i;
+
+function dietKinds(item) {
+  const name = String(item?.name ?? "");
+  const diets = new Set(Array.isArray(item?.diets) ? item.diets : []);
+  const allergens = new Set(Array.isArray(item?.allergens) ? item.allergens : []);
+  const kinds = [];
+  if (diets.has("Plant Based")) kinds.push("plant");
+  else if (diets.has("Vegetarian")) kinds.push("veg");
+  else if (MEAT_WORDS.test(name) && !NOT_MEAT_WORDS.test(name)) kinds.push("meat");
+  else if (allergens.has("Fish") || allergens.has("Shellfish") || FISH_WORDS.test(name)) kinds.push("fish");
+  if (diets.has("Halal")) kinds.push("halal");
+  if (diets.has("Local")) kinds.push("local");
+  return kinds;
+}
+
+const kindIconHtml = (kind) => `<span class="kind kind--${kind}" title="${KINDS[kind][0]}">${icon(KINDS[kind][1])}</span>`;
+
+function dishLegendHtml(fav, avoid, off, kinds = []) {
+  const shown = new Set(kinds.flat());
   const parts = [
+    ...Object.keys(KINDS)
+      .filter((k) => shown.has(k))
+      .map((k) => `<span class="legend__item">${kindIconHtml(k)}${KINDS[k][0].toLowerCase()}</span>`),
     fav ? `<span class="legend__item">${icon("star")}favorite</span>` : "",
     avoid ? `<span class="legend__item">${icon("avoid")}has an allergen you avoid</span>` : "",
     off ? `<span class="legend__item"><span class="legend__off" aria-hidden="true"></span>not in your diet</span>` : "",
@@ -3971,13 +4010,13 @@ function dishLegendHtml(fav, avoid, off) {
 }
 
 /** One dish. With `ref` it's a button that opens the dish's sheet (its facts and the favorite toggle). */
-function dishRowHtml({ name, calories, fav, avoid, off, avoided, ref = null }) {
+function dishRowHtml({ name, calories, fav, avoid, off, avoided, kinds = [], ref = null }) {
   const kcal = typeof calories === "number" && Number.isFinite(calories) ? `${nf0.format(calories)} kcal` : "";
   const cls = `dish${fav ? " is-fav" : ""}${avoid ? " is-avoid" : ""}${off ? " is-off" : ""}${ref ? " has-btn" : ""}`;
   const inner = `
       <span class="dish__marks" aria-hidden="true">${fav ? icon("star") : ""}${avoid ? icon("avoid") : ""}</span>
       <span class="dish__text">
-        <span class="dish__name">${esc(name)}</span>${fav ? '<span class="visually-hidden">, a favorite</span>' : ""}
+        <span class="dish__name">${esc(name)}${kinds.length ? `<span class="dish__kinds" aria-hidden="true">${kinds.map(kindIconHtml).join("")}</span>` : ""}</span>${kinds.length ? `<span class="visually-hidden">, ${kinds.map((k) => KINDS[k][0].toLowerCase()).join(", ")}</span>` : ""}${fav ? '<span class="visually-hidden">, a favorite</span>' : ""}
         ${avoid ? `<span class="dish__warn">${SEP}Has ${esc(avoided.length ? avoided.join(", ") : "an allergen you avoid")}</span>` : ""}
         ${off ? `<span class="dish__off">${SEP}Not in your diet</span>` : ""}
       </span>
@@ -4203,6 +4242,7 @@ function menuCardHtml(id, meal, near) {
               avoid: item.avoid === true,
               off: item.fits_diet === false,
               avoided: allergens.filter((a) => avoid.has(a)),
+              kinds: dietKinds(item),
               ref,
             });
           })
@@ -4210,7 +4250,7 @@ function menuCardHtml(id, meal, near) {
       </section>`
     )
     .join("");
-  const legend = dishLegendHtml(items.some((i) => favorites.has(dishKey(i.name))), items.some((i) => i.avoid === true), items.some((i) => i.fits_diet === false));
+  const legend = dishLegendHtml(items.some((i) => favorites.has(dishKey(i.name))), items.some((i) => i.avoid === true), items.some((i) => i.fits_diet === false), items.map(dietKinds));
   const nearNote = id === near && state.nearest?.note ? nearestNoteHtml(state.nearest.note, "side") : "";
   return `
     <article class="card menu-card" aria-labelledby="menu-meal-title">
@@ -4278,6 +4318,7 @@ function dishSheetHtml({ item, meal }) {
   const avoid = new Set(state.prefs?.avoid_allergens ?? []);
   const avoided = allergens.filter((a) => avoid.has(a));
   const tags = [
+    ...dietKinds(item).map((k) => `<span class="tag tag--kind">${kindIconHtml(k)}${KINDS[k][0]}</span>`),
     item.avoid === true ? `<span class="tag tag--avoid">${icon("avoid")}Has ${esc(avoided.length ? avoided.join(", ") : "an allergen you avoid")}</span>` : "",
     item.fits_diet === false ? '<span class="tag tag--off">Not in your diet</span>' : "",
   ].filter(Boolean);
@@ -4656,6 +4697,7 @@ function renderMenuPanel(menu, mealKey) {
       avoid: allergens.some((a) => avoid.has(a)),
       off: diets.length > 0 && !diets.every((d) => itemDiets.includes(d)),
       avoided: allergens.filter((a) => avoid.has(a)),
+      kinds: dietKinds(item),
     });
   };
   const sections = meals
