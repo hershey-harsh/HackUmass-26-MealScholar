@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import BinaryIO
 
 from .compute import item_nutrients, summarize
 from .context import PlaceLookup, build_context
@@ -41,7 +42,7 @@ class Workflow:
 
     def analyze(
         self,
-        photo: Path,
+        photo: Path | BinaryIO,
         *,
         device_time: datetime | None = None,
         device_location: tuple[float, float] | None = None,

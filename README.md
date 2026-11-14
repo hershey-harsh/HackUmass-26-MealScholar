@@ -25,9 +25,25 @@ Needs [uv](https://docs.astral.sh/uv/) (it installs Python 3.12 for you).
 
 ```sh
 uv sync
-export GEMINI_API_KEY=...            # https://aistudio.google.com/apikey
+# put your key in .env: GEMINI_API_KEY=...   https://aistudio.google.com/apikey
 uv run foodsmart fdc-import          # one-time: downloads ~17 MB from USDA, builds ~/.foodsmart/fdc.sqlite
 ```
+
+`foodsmart` reads `.env` from the directory you run it in (or a parent); variables already set in
+your shell win. `.env` is gitignored.
+
+## Web app
+
+```sh
+uv run foodsmart serve                    # http://127.0.0.1:8000
+uv run foodsmart serve --host 0.0.0.0     # reach it from a phone on the same Wi-Fi
+```
+
+Drop or take a photo, answer the one question, weigh a food to collapse its range, swap a USDA
+match, and see today's meals. The site is plain HTML/CSS/JS in `src/foodsmart/site/` (no build
+step) over a JSON API in `web.py`; API docs at `/api/docs`. Photos are sent as the request body
+and analyzed in memory. Browsers only share location over HTTPS or `localhost`, so the location
+switch needs one of those when testing from a phone.
 
 ## Use
 
@@ -49,9 +65,11 @@ uv run foodsmart week                                      # 7-day averages, mic
 
 ## Configuration
 
+Set these in `.env` or your shell.
+
 | Variable | Default | |
 |---|---|---|
-| `GEMINI_API_KEY` | — | Required for `analyze` |
+| `GEMINI_API_KEY` | — | Required for `analyze` and for photo analysis in `serve` |
 | `FOODSMART_MODEL` | `gemini-4-hydrogen` | e.g. `gemini-3.6-flash` (with `FOODSMART_THINKING=minimal`) for 4× cheaper, faster runs; see [BENCHMARK.md](BENCHMARK.md) |
 | `FOODSMART_THINKING` | `low` | Gemini thinking level: `low`, `medium`, `high`, `xhigh` on Gemini 4; `minimal` only on 3.x Flash / Flash-Lite (Gemini 4 rejects it) |
 | `FOODSMART_HOME` | `~/.foodsmart` | USDA database, downloads, diary |

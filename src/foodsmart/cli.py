@@ -9,6 +9,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import httpx
+import uvicorn
+from dotenv import find_dotenv, load_dotenv
 
 from .config import USER_AGENT, Settings, load_settings
 from .context import NominatimPlaces
@@ -19,12 +21,14 @@ from .nutrition import FoodDatabase, FoodDatabaseMissing, build_database
 from .pipeline import UnknownFood, Workflow, correct
 from .schemas import MealResult, Range
 from .vision import GeminiVision, VisionError
+from .web import create_app
 
 _TIME_SOURCE = {"exif": "photo time", "device": "device time", "upload": "upload time"}
 
 
 def main(argv: list[str] | None = None) -> None:
     args = _parser().parse_args(argv)
+    load_dotenv(find_dotenv(usecwd=True))  # .env never overrides variables already set
     settings = load_settings()
     try:
         args.run(args, settings)
@@ -77,6 +81,11 @@ def _parser() -> argparse.ArgumentParser:
     p = sub.add_parser("week", help="7-day averages and micronutrient trends")
     p.add_argument("--end", type=date.fromisoformat, default=None)
     p.set_defaults(run=cmd_week)
+
+    p = sub.add_parser("serve", help="run the web app")
+    p.add_argument("--host", default="127.0.0.1", help="0.0.0.0 to reach it from a phone on the same network")
+    p.add_argument("--port", type=int, default=8000)
+    p.set_defaults(run=cmd_serve)
     return parser
 
 
@@ -188,6 +197,10 @@ def cmd_week(args: argparse.Namespace, settings: Settings) -> None:
             line += f"  under {LOW_DV_PCT:.0f}% DV on {trend.low_days} of {report.days_logged} days"
         print(line)
     print("Micronutrients are photo-based estimates; use the trend, not a single day.")
+
+
+def cmd_serve(args: argparse.Namespace, settings: Settings) -> None:
+    uvicorn.run(create_app(settings), host=args.host, port=args.port)
 
 
 # --- formatting ---------------------------------------------------------------
