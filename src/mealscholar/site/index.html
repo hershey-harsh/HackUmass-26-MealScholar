@@ -147,15 +147,12 @@
 
     <section id="today" class="view today" aria-labelledby="today-title">
       <div id="today-banner" class="today__banner"></div>
-      <header class="dash-head">
-        <p id="today-greeting" class="dash-head__greeting">Hello</p>
-        <div class="dash-head__row">
-          <div class="dash-head__titles">
-            <h1 id="today-title" class="view-title" tabindex="-1">Today</h1>
-            <p id="today-date" class="dash-head__date"></p>
-          </div>
-          <div id="dash-strip" class="strip" role="group" aria-label="This week" hidden></div>
-          <div class="datenav" role="group" aria-label="Choose a day">
+      <header class="page-head dash-head">
+        <p id="today-date" class="page-head__label"></p>
+        <h1 id="today-title" class="view-title" tabindex="-1">Today</h1>
+        <div class="intro">
+          <p id="today-greeting" class="intro__text">Hello</p>
+          <div class="datenav intro__actions" role="group" aria-label="Choose a day">
             <button id="day-today" class="datenav__today" type="button" data-day="today" hidden>Today</button>
             <button id="day-prev" class="icon-btn datenav__btn" type="button" data-day="prev" aria-label="Previous day"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-left"/></svg></button>
             <button id="day-next" class="icon-btn datenav__btn" type="button" data-day="next" aria-label="Next day" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-right"/></svg></button>
@@ -163,6 +160,7 @@
         </div>
         <p id="day-status" class="visually-hidden" role="status" aria-live="polite"></p>
       </header>
+      <div id="dash-strip" class="strip" role="group" aria-label="This week" hidden></div>
       <div id="today-body" class="dash">
         <div id="setup" class="setup" hidden></div>
         <div id="locate-ask" class="locate-ask" hidden></div>
@@ -179,9 +177,12 @@
 
     <section id="menu" class="view menu-view" aria-labelledby="menu-title">
       <header class="page-head">
-        <p class="eyebrow">Dining</p>
+        <p class="page-head__label">Dining</p>
         <h1 id="menu-title" class="view-title" tabindex="-1">Menu</h1>
-        <p id="menu-sub" class="page-head__sub">The next meal at your dining halls</p>
+        <div class="intro">
+          <p id="menu-sub" class="intro__text">The next meal at your dining halls, dish by dish.</p>
+          <div id="menu-actions" class="intro__actions"></div>
+        </div>
       </header>
       <div id="menu-halls" class="halls-bar" role="group" aria-label="Dining halls"></div>
       <div id="menu-body" class="menu-body" aria-live="polite" aria-busy="false"></div>
@@ -189,9 +190,11 @@
 
     <section id="week" class="view week-view" aria-labelledby="week-page-title">
       <header class="page-head">
-        <p class="eyebrow">Last 7 days</p>
+        <p id="week-sub" class="page-head__label">Last 7 days</p>
         <h1 id="week-page-title" class="view-title" tabindex="-1">This week</h1>
-        <p id="week-sub" class="page-head__sub"></p>
+        <div class="intro">
+          <p class="intro__text">Calories by day, and the day's vitamins and minerals, all as ranges.</p>
+        </div>
       </header>
       <div class="week-grid">
         <section id="dash-week" class="block week-block" aria-labelledby="week-title"></section>
@@ -258,6 +261,7 @@
         <div class="sheet__titles">
           <p id="sheet-kicker" class="eyebrow"></p>
           <h2 id="sheet-title" class="sheet__title" tabindex="-1"></h2>
+          <p id="sheet-intro" class="sheet__intro" hidden></p>
         </div>
         <button class="icon-btn" type="button" data-action="close-sheet" aria-label="Close"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
       </div>
@@ -272,6 +276,7 @@
         <div class="sheet__titles">
           <p id="account-kicker" class="eyebrow">Account</p>
           <h2 id="account-title" class="sheet__title" tabindex="-1"></h2>
+          <p id="account-intro" class="sheet__intro" hidden></p>
         </div>
         <button class="icon-btn" type="button" data-action="close-account" aria-label="Close"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
       </div>
@@ -286,6 +291,7 @@
         <div class="sheet__titles">
           <p id="panel-kicker" class="eyebrow"></p>
           <h2 id="panel-title" class="sheet__title" tabindex="-1"></h2>
+          <p id="panel-intro" class="sheet__intro" hidden></p>
         </div>
         <button class="icon-btn" type="button" data-action="close-panel" aria-label="Close"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
       </div>
