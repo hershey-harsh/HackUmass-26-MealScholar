@@ -892,49 +892,42 @@ body[data-screen="auth"] .footer {
 }
 
 /* The signature call to action: a near-black pill next to a near-black circle with a north-east arrow. */
+/* The call to action: one ink pill with the arrow at its end (never a pill plus a separate dot). */
 .cta {
-  display: inline-flex;
-  align-items: stretch;
-  gap: 6px;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  cursor: pointer;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-.cta__pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   min-height: 56px;
-  padding: 0 22px;
+  padding: 0 22px 0 26px;
+  border: 0;
   border-radius: 999px;
   background: var(--ink);
   color: var(--on-ink);
   font: 500 1rem / 1.15 var(--font-sans);
   text-align: center;
-  text-wrap: balance;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
   transition: background-color var(--dur-1) linear, transform var(--dur-1) var(--ease-out);
+}
+
+.cta__pill {
+  min-width: 0;
+  text-wrap: balance;
 }
 
 .cta__dot {
-  display: grid;
+  display: inline-grid;
   place-items: center;
-  width: 56px;
   flex: none;
-  border-radius: 50%;
-  background: var(--ink);
-  color: var(--on-ink);
-  transition: background-color var(--dur-1) linear, transform var(--dur-1) var(--ease-out);
+  width: 20px;
+  height: 20px;
 }
 
 .cta__dot .icon {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   stroke-width: 2;
   transition: transform var(--dur-2) var(--ease-out);
 }
@@ -944,33 +937,18 @@ body[data-screen="auth"] .footer {
   width: 100%;
 }
 
-.cta--block .cta__pill {
-  flex: 1;
-  min-width: 0;
-}
-
-.cta:active:not(:disabled) .cta__pill,
-.cta:active:not(:disabled) .cta__dot {
+.cta:active:not(:disabled) {
   transform: scale(0.98);
 }
 
 .cta:disabled {
+  background: var(--line);
+  color: var(--ink-2);
   cursor: not-allowed;
 }
 
-.cta:disabled .cta__pill {
-  background: var(--line);
-  color: var(--ink-2);
-}
-
-.cta:disabled .cta__dot {
-  background: var(--line);
-  color: var(--label);
-}
-
 @media (hover: hover) {
-  .cta:hover:not(:disabled) .cta__pill,
-  .cta:hover:not(:disabled) .cta__dot {
+  .cta:hover:not(:disabled) {
     background: var(--ink-hover);
   }
 
@@ -8169,4 +8147,81 @@ body .recent .recent-card {
 .menu-card__head .busy,
 .upcoming__head .busy {
   margin-top: 2px;
+}
+
+/* ---- Phones: the six nutrients and the health score swipe sideways, a page at a time, with dots. */
+
+.swipe {
+  gap: 4px;
+}
+
+.swipe__track {
+  /* Positioned, so the absolutely placed bits inside (range ticks, screen-reader labels) scroll
+     and clip with their page instead of widening the whole page. */
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 100%;
+  align-items: start;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  border-radius: 4px;
+}
+
+.swipe__track::-webkit-scrollbar {
+  display: none;
+}
+
+.swipe__page {
+  min-width: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.today .swipe__page > .score {
+  border-bottom: 0;
+}
+
+.swipe__dots {
+  display: flex;
+  justify-content: center;
+}
+
+.swipe__dot {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.swipe__dot::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--line-strong);
+  transition: width var(--dur-1) var(--ease-out), background-color var(--dur-1) linear;
+}
+
+.swipe__dot[aria-current="true"]::before {
+  width: 20px;
+  background: var(--ink);
+}
+
+.swipe .stats__note {
+  padding-top: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swipe__dot::before {
+    transition: none;
+  }
 }
