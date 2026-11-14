@@ -1,14 +1,28 @@
 <div align="center">
 
+<a href="https://mealscholar.mannava.org">
+  <img src="src/foodsmart/site/icons/icon-192.png" alt="MealScholar plate-and-leaf logo" width="88" height="88">
+</a>
+
 # MealScholar
 
 **Nutrition from a photo. Honest ranges, not fake precision.**
 
 A HackUMass XIV project, piloting at UMass.
 
-[Open the app](https://mealscholar.mannava.org) · [Visit the website](https://hackumass.mannava.org) · [Quick start](#quick-start) · [Workflow](#workflow) · [Benchmarks](BENCHMARK.md)
+<p>
+  <img alt="Python 3.12+" src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&amp;logoColor=white">
+  <img alt="Google Gemini" src="https://img.shields.io/badge/Gemini-8E75B2?logo=googlegemini&amp;logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&amp;logoColor=white">
+  <img alt="MongoDB Atlas" src="https://img.shields.io/badge/MongoDB_Atlas-47A248?logo=mongodb&amp;logoColor=white">
+  <br>
+  <img alt="SQLite" src="https://img.shields.io/badge/SQLite-003B57?logo=sqlite&amp;logoColor=white">
+  <img alt="HTML5" src="https://img.shields.io/badge/HTML5-E34F26?logo=html5&amp;logoColor=white">
+  <img alt="CSS" src="https://img.shields.io/badge/CSS-663399?logo=css&amp;logoColor=white">
+  <img alt="JavaScript" src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&amp;logoColor=black">
+</p>
 
-<sub>Python 3.12+ · FastAPI · Gemini · MongoDB Atlas</sub>
+[Open the app](https://mealscholar.mannava.org) · [Visit the website](https://hackumass.mannava.org) · [Quick start](#quick-start) · [Workflow](#workflow) · [Team](#team) · [Benchmarks](BENCHMARK.md)
 
 </div>
 
@@ -18,6 +32,7 @@ Snap your meal. Gemini identifies the foods and estimates their portions; a loca
 supplies the nutrition facts. MealScholar turns those estimates into nutrient ranges you can
 inspect, correct and log.
 
+> [!IMPORTANT]
 > **The AI never invents nutrient numbers.** Nutrients come from USDA FoodData Central and
 > arithmetic, not from the model.
 
@@ -36,19 +51,19 @@ Account and preference APIs are also included: registration, sessions, per-user 
 user-selected goals, dining preferences and favorites. The sign-in/onboarding UI is still being
 completed, and emails currently queue to an outbox rather than being delivered.
 
-**Current boundary:** dining-menu browsing is implemented, but photo-to-nutrient calculations
-still use USDA only. Campus-menu nutrient matching is tracked in [TODO.md](TODO.md).
+> [!NOTE]
+> **Campus dining:** menu browsing is implemented, but photo-to-nutrient calculations still use
+> USDA only. Campus-menu nutrient matching is tracked in [TODO.md](TODO.md).
 
 ## Workflow
 
 ```mermaid
-flowchart TD
-    Photo(["Meal photo"]) --> Context["Time and place context<br/>Location is opt-in"]
-    Context --> Vision["Gemini vision<br/>Foods + portion ranges"]
-    Vision --> USDA[("USDA FoodData Central<br/>Matches + alternatives")]
-    USDA --> Math["Nutrient calculation<br/>Portions × per-100 g values"]
+flowchart LR
+    Photo(["Photo + context<br/>Location is opt-in"]) --> Vision["Gemini vision<br/>Foods + portions"]
+    Vision --> USDA[("USDA lookup<br/>Matches + alternatives")]
+    USDA --> Math["Nutrient math<br/>Low · likely · high"]
     Math --> Result["Meal result<br/>Ranges + % Daily Value"]
-    Result --> Diary(["Food diary<br/>Daily totals + weekly trends"])
+    Result --> Diary(["Food diary<br/>Daily + weekly views"])
     Result -.->|Optional answer| Refine["Gemini refinement<br/>Text only"]
     Refine --> USDA
 ```
@@ -219,6 +234,41 @@ CI: [Lint and formatting](https://github.com/hershey-harsh/HackUmass-26-MealScho
 - [Team TODO](TODO.md) — remaining work and known limitations.
 - [Submission draft](submissions/devpost.md) — project story and judging notes.
 - [Film plan](video/film-plan.md) — demo-video shots and production schedule.
+
+## Team
+
+Built for HackUMass XIV by three teammates.
+
+<table>
+  <tr>
+    <td align="center" valign="top">
+      <a href="https://github.com/killerfrost22">
+        <img src="https://avatars.githubusercontent.com/u/36581618?v=4" width="80" height="80" alt="Joseph"><br>
+        <strong>Joseph</strong>
+      </a><br>
+      <a href="https://github.com/killerfrost22">@killerfrost22</a>
+    </td>
+    <td align="center" valign="top">
+      <a href="https://github.com/hershey-harsh">
+        <img src="https://avatars.githubusercontent.com/u/77411358?v=4" width="80" height="80" alt="Harsh"><br>
+        <strong>Harsh</strong>
+      </a><br>
+      <a href="https://github.com/hershey-harsh">@hershey-harsh</a>
+    </td>
+    <td align="center" valign="top">
+      <a href="https://github.com/gabbyao">
+        <img src="https://avatars.githubusercontent.com/u/2808097?v=4" width="80" height="80" alt="Gabby"><br>
+        <strong>Gabby</strong>
+      </a><br>
+      <a href="https://github.com/gabbyao">@gabbyao</a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><sub>AI food detection<br>Photo → nutrients</sub></td>
+    <td align="center"><sub>UI/UX · Accounts<br>Dining · Deploy</sub></td>
+    <td align="center"><sub>Pitch deck<br>Video</sub></td>
+  </tr>
+</table>
 
 ## Data sources
 
