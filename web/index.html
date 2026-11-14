@@ -31,7 +31,6 @@
 <script src="app.js?v=__COMMIT__" defer></script>
 </head>
 <body>
-<div class="page-bg" aria-hidden="true"><div class="page-bg__img"></div><div class="page-bg__tint"></div></div>
 <a class="skip" href="#main">Skip to content</a>
 
 <svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
@@ -159,7 +158,7 @@
   </section>
 
   <!-- Why -->
-  <section class="card section" id="features" aria-labelledby="why-title">
+  <section class="section" id="features" aria-labelledby="why-title">
     <div class="why">
       <div class="why__intro">
         <p class="eyebrow">Why MealScholar</p>
@@ -213,7 +212,7 @@
   </section>
 
   <!-- How it works -->
-  <section class="card section" id="how" aria-labelledby="how-title">
+  <section class="section" id="how" aria-labelledby="how-title">
     <div class="section-head section-head--split section-head--rule">
       <div>
         <p class="eyebrow">How it works</p>
@@ -223,9 +222,11 @@
     </div>
     <ol class="steps">
       <li class="step">
-        <span class="step__num">01</span>
-        <h3>Snap your meal</h3>
-        <p>Take a photo of your plate. That’s all you do.</p>
+        <div class="step__text">
+          <span class="step__num">01</span>
+          <h3>Snap your meal</h3>
+          <p>Take a photo of your plate. That’s all you do.</p>
+        </div>
         <div class="mock" role="img" aria-label="Camera screen with a real photo: three slices of chicken and red onion pizza on a white plate, and a button to take or choose a photo.">
           <div class="vf">
             <img src="img/meal-pizza-640.jpg" srcset="img/meal-pizza-640.jpg 640w, img/meal-pizza-1280.jpg 1280w" sizes="(max-width: 700px) 92vw, 400px" width="640" height="400" alt="" loading="lazy" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
@@ -238,9 +239,11 @@
         </div>
       </li>
       <li class="step">
-        <span class="step__num">02</span>
-        <h3>Foods and how much</h3>
-        <p>The AI names each food and works out how much is there, as a low, likely and high amount. No weighing.</p>
+        <div class="step__text">
+          <span class="step__num">02</span>
+          <h3>Foods and how much</h3>
+          <p>The AI names each food and works out how much is there, as a low, likely and high amount. No weighing.</p>
+        </div>
         <div class="mock" role="img" aria-label="1 food found: chicken and red onion pizza, about 380 to 540 grams, likely 450, sized against the dinner plate. Checked against today's campus menu first, then USDA.">
           <div class="mini mini--foods">
             <div class="ml-head"><span>1 food found</span><span>low · likely · high</span></div>
@@ -250,9 +253,11 @@
         </div>
       </li>
       <li class="step">
-        <span class="step__num">03</span>
-        <h3>One question, if needed</h3>
-        <p>If the photo is unclear, it asks you one thing, then recomputes.</p>
+        <div class="step__text">
+          <span class="step__num">03</span>
+          <h3>One question, if needed</h3>
+          <p>If the photo is unclear, it asks you one thing, then recomputes.</p>
+        </div>
         <div class="mock" role="img" aria-label="The question it asked about this photo: Is the sauce on the pizza a creamy or butter sauce, or a tomato or BBQ sauce? Creamy or butter is picked, and the food becomes butter chicken and red onion pizza.">
           <div class="mini mini--q">
             <span class="mini__label">One question</span>
@@ -262,7 +267,7 @@
           <div class="toast"><svg><use href="#i-check"/></svg>Now butter chicken pizza</div>
         </div>
       </li>
-      <li class="step step--wide step--tint">
+      <li class="step step--wide">
         <div class="step__text">
           <span class="step__num">04</span>
           <h3>Nutrients as ranges</h3>
@@ -280,9 +285,11 @@
         </div>
       </li>
       <li class="step step--fix">
-        <span class="step__num">05</span>
-        <h3>Check it, log it</h3>
-        <p>If it got a food wrong, swap it with one tap. Then log it to your day.</p>
+        <div class="step__text">
+          <span class="step__num">05</span>
+          <h3>Check it, log it</h3>
+          <p>If it got a food wrong, swap it with one tap. Then log it to your day.</p>
+        </div>
         <div class="mock" role="img" aria-label="Check and log: butter chicken pizza, about 380 to 540 grams, likely 450, estimated from the photo. Not on today's campus menu, so it's matched to USDA: Pizza, cheese, from restaurant or fast food, with a Swap button. Then Log to Today.">
           <div class="mini mini--fix">
             <div class="fx-head"><span class="pin">1</span><b>Butter chicken pizza</b><span class="fx-chg"><span class="fx-new">~450 g</span></span></div>
@@ -296,12 +303,12 @@
   </section>
 
   <!-- Videos -->
-  <section class="card section" id="videos" aria-labelledby="videos-title">
-    <div class="section-head section-head--split section-head--rule">
-      <div>
-        <p class="eyebrow">Screen recordings</p>
-        <h2 id="videos-title" class="h2">See it in action</h2>
-      </div>
+  <section class="section" id="videos" aria-labelledby="videos-title">
+    <div class="split">
+    <div class="split__text">
+      <p class="eyebrow">Screen recordings</p>
+      <h2 id="videos-title" class="h2">See it in action</h2>
+      <p class="section-sub">Three short recordings of the real app: a photo becoming ranges, the one question, and the day’s totals.</p>
       <div class="head-actions">
         <a class="pill-link" href="https://mealscholar.mannava.org">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
         <div class="rail-ctrl" data-rail-controls="video-rail">
@@ -310,6 +317,7 @@
         </div>
       </div>
     </div>
+    <div class="split__visual">
     <div class="rail rail--videos" id="video-rail" data-rail role="region" aria-label="Screen recordings, scroll sideways" tabindex="0">
       <div class="videos">
         <figure class="video-card" data-video="snap-to-nutrients">
@@ -336,18 +344,20 @@
       </div>
     </div>
     <div class="rail-dots" data-rail-dots="video-rail" aria-hidden="true"></div>
+    </div>
+    </div>
   </section>
 
   <!-- Nutrients -->
-  <section class="card section" id="nutrients" aria-labelledby="nutrients-title">
-    <div class="section-head section-head--split section-head--rule">
-      <div>
-        <p class="eyebrow">What it tracks</p>
-        <h2 id="nutrients-title" class="h2">19 nutrients, from the campus menu and USDA</h2>
-      </div>
+  <section class="section" id="nutrients" aria-labelledby="nutrients-title">
+    <div class="split split--flip">
+    <div class="split__text split__text--stick">
+      <p class="eyebrow">What it tracks</p>
+      <h2 id="nutrients-title" class="h2">19 nutrients, from the campus menu and USDA</h2>
       <p class="section-sub">Calories, protein, carbs, fat, fiber, sugar, sodium and cholesterol come from the campus menu when the food is on it. Vitamins and minerals come from USDA and are labeled as estimates. % Daily Value is shown where one exists.</p>
+      <p class="fineprint">Daily Value is the amount US food labels use to work out % DV. It is not a goal.</p>
     </div>
-    <div class="ntables" id="nutrient-rail">
+    <div class="ntables split__visual" id="nutrient-rail">
       <div class="ntable">
         <div class="ntable__head">
           <h3>Main nutrients<small>Nine, from the campus menu first</small></h3>
@@ -384,11 +394,11 @@
         </ul>
       </div>
     </div>
-    <p class="fineprint">Daily Value is the amount US food labels use to work out % DV. It is not a goal.</p>
+    </div>
   </section>
 
   <!-- Data -->
-  <section class="card section" id="data" aria-labelledby="data-title">
+  <section class="section" id="data" aria-labelledby="data-title">
     <div class="data">
       <div class="data__main">
         <p class="eyebrow">The data</p>
@@ -409,7 +419,7 @@
   </section>
 
   <!-- Phone -->
-  <section class="card section promo" id="phone" aria-labelledby="phone-title">
+  <section class="section promo" id="phone" aria-labelledby="phone-title">
     <div class="promo__copy">
       <span class="chip chip--white">No app store download</span>
       <h2 id="phone-title" class="h2">Made for your phone</h2>
@@ -460,7 +470,7 @@
   </section>
 
   <!-- UMass -->
-  <section class="card section" id="umass" aria-labelledby="umass-title">
+  <section class="section" id="umass" aria-labelledby="umass-title">
     <div class="umass">
       <div class="umass__main">
         <p class="eyebrow">On campus</p>
@@ -485,7 +495,7 @@
   </section>
 
   <!-- FAQ -->
-  <section class="card section" id="faq" aria-labelledby="faq-title">
+  <section class="section" id="faq" aria-labelledby="faq-title">
     <div class="faq">
       <div class="faq__intro">
         <p class="eyebrow">FAQ</p>
@@ -549,8 +559,8 @@
   </section>
 </main>
 
-<footer class="site-footer wrap">
-  <div class="footer-card">
+<footer class="site-footer">
+  <div class="wrap footer-inner">
     <div class="footer-top">
       <div class="footer-brand">
         <a class="brand" href="#top" aria-label="MealScholar, back to top">
