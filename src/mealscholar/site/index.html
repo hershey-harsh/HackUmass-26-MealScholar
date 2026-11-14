@@ -99,6 +99,22 @@
 
   <a class="skip" href="#main">Skip to content</a>
 
+  <aside class="rail" aria-label="MealScholar">
+    <a class="brand rail__brand" href="/">
+      <svg class="brand__mark rail__mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="128" fill="#1C1C1C"/><circle cx="256" cy="292" r="140" fill="#FAFAFF"/><circle cx="256" cy="292" r="124" fill="none" stroke="#1C1C1C" stroke-width="8" stroke-opacity=".18"/><g fill="#1C1C1C" stroke="#1C1C1C" stroke-linejoin="round" stroke-linecap="round"><path d="M176 174v52q80 44 160 0v-52Z" stroke-width="20"/><path d="M256 80 420 146 256 212 92 146Z" stroke-width="20"/><path d="M197 272v18c0 9 8 16 17 16s17-7 17-16v-18m-17 0v58" fill="none" stroke-width="12"/><path d="M287 266c16 8 26 24 26 40 0 3-3 6-6 6h-11v18a6 6 0 0 1-12 0V270q0-6 3-4Z" stroke="none"/><path d="M204 360C216 398 296 398 308 360" fill="none" stroke-width="14"/><path d="M412 148v100" fill="none" stroke-width="28"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" stroke-width="12"/></g><path d="M176 174v52q80 44 160 0v-52Z" fill="#FAFAFF"/><path d="M256 80 420 146 256 212 92 146Z" fill="#1C1C1C" stroke="#1C1C1C" stroke-width="16" stroke-linejoin="round"/><path d="M256 80 420 146 256 212 92 146Z" fill="#FAFAFF" stroke="#FAFAFF" stroke-width="6" stroke-linejoin="round"/><path d="M412 148v100" fill="none" stroke="#E9B44C" stroke-width="11" stroke-linecap="round"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" fill="#E9B44C" stroke="#E9B44C" stroke-width="2" stroke-linejoin="round"/></svg>
+      <span class="rail__name">MealScholar</span>
+    </a>
+    <nav class="rail__nav" aria-label="Views">
+      <a class="tab" href="#today" data-view="today"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span class="tab__label">Today</span></a>
+      <a class="tab" href="#menu" data-view="menu"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-fork"/></svg><span class="tab__label">Menu</span></a>
+      <a class="tab" href="#week" data-view="week"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-week"/></svg><span class="tab__label">Week</span></a>
+    </nav>
+    <div class="rail__foot">
+      <button id="rail-alerts" class="tab rail__btn" type="button" aria-haspopup="dialog" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bell"/></svg><span class="tab__label">Alerts</span><span class="bell__dot rail__dot" hidden></span></button>
+      <button id="rail-settings" class="tab rail__btn" type="button" aria-haspopup="dialog" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg><span class="tab__label">Settings</span></button>
+    </div>
+  </aside>
+
   <header class="topbar">
     <div class="topbar__inner">
       <a class="brand" href="/">
@@ -115,22 +131,6 @@
       </div>
     </div>
   </header>
-
-  <aside class="rail" aria-label="MealScholar">
-    <a class="brand rail__brand" href="/">
-      <svg class="brand__mark rail__mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="128" fill="#1C1C1C"/><circle cx="256" cy="292" r="140" fill="#FAFAFF"/><circle cx="256" cy="292" r="124" fill="none" stroke="#1C1C1C" stroke-width="8" stroke-opacity=".18"/><g fill="#1C1C1C" stroke="#1C1C1C" stroke-linejoin="round" stroke-linecap="round"><path d="M176 174v52q80 44 160 0v-52Z" stroke-width="20"/><path d="M256 80 420 146 256 212 92 146Z" stroke-width="20"/><path d="M197 272v18c0 9 8 16 17 16s17-7 17-16v-18m-17 0v58" fill="none" stroke-width="12"/><path d="M287 266c16 8 26 24 26 40 0 3-3 6-6 6h-11v18a6 6 0 0 1-12 0V270q0-6 3-4Z" stroke="none"/><path d="M204 360C216 398 296 398 308 360" fill="none" stroke-width="14"/><path d="M412 148v100" fill="none" stroke-width="28"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" stroke-width="12"/></g><path d="M176 174v52q80 44 160 0v-52Z" fill="#FAFAFF"/><path d="M256 80 420 146 256 212 92 146Z" fill="#1C1C1C" stroke="#1C1C1C" stroke-width="16" stroke-linejoin="round"/><path d="M256 80 420 146 256 212 92 146Z" fill="#FAFAFF" stroke="#FAFAFF" stroke-width="6" stroke-linejoin="round"/><path d="M412 148v100" fill="none" stroke="#E9B44C" stroke-width="11" stroke-linecap="round"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" fill="#E9B44C" stroke="#E9B44C" stroke-width="2" stroke-linejoin="round"/></svg>
-      <span class="rail__name">MealScholar</span>
-    </a>
-    <nav class="rail__nav" aria-label="Views">
-      <a class="tab" href="#today" data-view="today"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-home"/></svg><span class="tab__label">Today</span></a>
-      <a class="tab" href="#menu" data-view="menu"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-fork"/></svg><span class="tab__label">Menu</span></a>
-      <a class="tab" href="#week" data-view="week"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-week"/></svg><span class="tab__label">Week</span></a>
-    </nav>
-    <div class="rail__foot">
-      <button id="rail-alerts" class="tab rail__btn" type="button" aria-haspopup="dialog" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bell"/></svg><span class="tab__label">Alerts</span><span class="bell__dot rail__dot" hidden></span></button>
-      <button id="rail-settings" class="tab rail__btn" type="button" aria-haspopup="dialog" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg><span class="tab__label">Settings</span></button>
-    </div>
-  </aside>
 
   <div class="dock">
     <nav class="tabbar" aria-label="Views">

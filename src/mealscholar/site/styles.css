@@ -7232,3 +7232,10 @@ body[data-drop="on"]::after {
   flex: none;
   white-space: nowrap;
 }
+
+/* Without preferences the week moved to its own tab, so the meals take the row's full width. */
+@media (min-width: 64em) {
+  body:not([data-prefs="on"]) :is(.meals-block, .dash-empty) {
+    grid-column: 1 / -1;
+  }
+}
