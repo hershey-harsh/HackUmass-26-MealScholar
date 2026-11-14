@@ -69,6 +69,7 @@ uv run foodsmart week                                      # 7-day averages, mic
 ## Development
 
 ```sh
+uvx ruff@0.17.5 check          # lint; CI runs the same version (.github/workflows/lint.yml)
 uv run pytest
 ```
 
