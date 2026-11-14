@@ -816,7 +816,9 @@ function dayName(key = state.day ?? localDate()) {
 }
 
 function resultHtml(slot) {
-  const { result, photoUrl } = slot;
+  const { result } = slot;
+  // A new result shows the photo on this device; a logged meal, its stored copy when it has one.
+  const photoUrl = slot.photoUrl ?? result.photo_url ?? null;
   const ctx = result.context;
   const when = wallClock(ctx.taken_at);
   const place = placeName(ctx) ? ` <span class="result__place">at ${esc(placeName(ctx))}</span>` : "";
@@ -864,9 +866,9 @@ function deleteLinkHtml() {
   return `<button class="link-btn link-btn--quiet" type="button" data-action="delete-ask">${icon("trash")}Delete this meal</button>`;
 }
 
-function deleteAskHtml() {
+function deleteAskHtml(photo = false) {
   return `
-    <p class="delete__ask">Delete this meal? Today and Week drop its calories.</p>
+    <p class="delete__ask">Delete this meal${photo ? " and its photo" : ""}? Today and Week drop its calories.</p>
     <div class="delete__row">
       <button class="btn btn--danger" type="button" data-action="delete-confirm">${icon("trash")}Delete</button>
       <button class="btn btn--secondary" type="button" data-action="delete-cancel">Keep it</button>
@@ -878,7 +880,7 @@ function totalHtml(result, photoUrl) {
   if (!result.items.length) {
     return `<p class="total__empty">No food or drink found in this photo. Try another shot with the whole plate in view.</p>`;
   }
-  const noPhoto = photoUrl ? "" : '<p class="answered">Saved meals show their foods, not the photo.</p>';
+  const noPhoto = photoUrl ? "" : '<p class="answered">No photo was saved with this meal.</p>';
   const answered = result.answer
     ? `<p class="answered">${icon("check")}<span>You said: “${esc(result.answer)}”. The foods and ranges below include it.</span></p>`
     : "";
@@ -922,7 +924,7 @@ function photoHtml(result, photoUrl) {
     <figure class="shot">
       <div class="shot__frame">
         <div class="shot__img">
-          <img src="${photoUrl}" alt="Your meal photo, with each detected food outlined and numbered">
+          <img src="${esc(photoUrl)}"${photoUrl === result.photo_url ? " data-stored" : ""} alt="Your meal photo, with each detected food outlined and numbered">
           <div class="boxes" aria-hidden="true">${boxes}</div>
         </div>
       </div>
@@ -1158,7 +1160,7 @@ els.result.addEventListener("click", (event) => {
       break;
     case "delete-ask": {
       const box = button.closest("[data-delete]");
-      box.innerHTML = deleteAskHtml();
+      box.innerHTML = deleteAskHtml(Boolean(shownMeal()?.photo_url));
       $('[data-action="delete-cancel"]', box).focus();
       break;
     }
@@ -2397,6 +2399,7 @@ async function openMealFrom(button) {
   await withBusy(button, async () => {
     try {
       const result = await api(`/api/meals/${encodeURIComponent(id)}`);
+      await photoReady(result.photo_url);
       if (epoch === state.epoch) openLogged(result); // never into someone else's session
     } catch (err) {
       if (err.signedOut || epoch !== state.epoch) return;
@@ -2411,6 +2414,15 @@ async function openMealFrom(button) {
       alert.scrollIntoView({ block: "nearest", behavior: reducedMotion.matches ? "auto" : "smooth" });
     }
   });
+}
+
+/** Load a logged meal's stored photo before the meal opens, so its card doesn't jump when the photo
+    arrives. After a moment it opens anyway, and the photo fills in when it comes. */
+function photoReady(url) {
+  if (!url) return Promise.resolve();
+  const img = new Image();
+  img.src = url;
+  return Promise.race([img.decode().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 1000))]);
 }
 
 /** A logged meal opens over the dashboard. */
@@ -4459,10 +4471,14 @@ function recentCardHtml(m) {
   const kcal = m.totals.energy_kcal;
   const names = m.items.map((r) => capitalize(r.item.name)).join(", ");
   const place = placeName(m.context);
+  // The meal's own photo when one was saved with it, else a plate.
+  const photo = m.photo_url
+    ? `<span class="recent-card__photo recent-card__photo--img" aria-hidden="true"><img src="${esc(thumbUrl(m.photo_url))}" alt="" width="44" height="44" loading="lazy" decoding="async" data-stored></span>`
+    : `<span class="recent-card__photo" aria-hidden="true">${icon("fork")}</span>`;
   return `
     <li>
       <button class="card recent-card" type="button" data-meal="${esc(m.id)}">
-        <span class="recent-card__photo" aria-hidden="true">${icon("fork")}</span>
+        ${photo}
         <span class="recent-card__body">
           <span class="recent-card__when"><span class="recent-card__slot">${esc(capitalize(m.context.meal_slot))}</span>${SEP}<span class="recent-card__time">${timeFormat.format(wallClock(m.context.taken_at))}</span>${
             place ? `<span class="recent-card__place">${SEP}${esc(place)}</span>` : ""
@@ -4474,6 +4490,32 @@ function recentCardHtml(m) {
       </button>
     </li>`;
 }
+
+/** The small copy of a stored photo (GET /api/meals/{id}/photo?size=thumb), from the meal's photo_url. */
+function thumbUrl(url) {
+  const thumb = new URL(url, location.href);
+  thumb.searchParams.set("size", "thumb");
+  return thumb.pathname + thumb.search;
+}
+
+// A stored photo that won't load (gone from the server) leaves its row the plate, and an opened
+// meal no photo. Errors don't bubble, so this listens on the way down.
+document.addEventListener(
+  "error",
+  (event) => {
+    const img = event.target;
+    if (!(img instanceof HTMLImageElement) || !img.hasAttribute("data-stored")) return;
+    const tile = img.closest(".recent-card__photo");
+    if (tile) {
+      tile.classList.remove("recent-card__photo--img");
+      tile.innerHTML = icon("fork");
+      return;
+    }
+    img.closest(".meal-card")?.classList.remove("meal-card--photo");
+    img.closest(".shot")?.remove();
+  },
+  true
+);
 
 // ---- the health score
 // A transparent "nutrient balance" number from 0 to 100: today's likely amounts against the FDA
@@ -5465,7 +5507,7 @@ function dataSectionHtml(user) {
       ${buttons(action, label)}
     </div>`;
   const last = user
-    ? `${row("data-delete-account", "Delete account", "Deletes your account and everything in it: meals, goal, dining halls, favorites and settings.", "Delete account", true)}
+    ? `${row("data-delete-account", "Delete account", "Deletes your account and everything in it: meals and their photos, goal, dining halls, favorites and settings.", "Delete account", true)}
       <form class="data-ask form form--plain" id="data-delete-account" data-form="delete-account" novalidate hidden>
         <p class="delete__ask">This can't be undone. Enter your password to delete your account.</p>
         <input class="visually-hidden" type="email" name="username" autocomplete="username" value="${esc(user.email)}" tabindex="-1" aria-hidden="true" readonly>
@@ -5473,13 +5515,13 @@ function dataSectionHtml(user) {
         <p class="form-error" role="alert" hidden></p>
         ${buttons(null, "Delete account")}
       </form>`
-    : `${row("data-erase", "Delete all my data", "Deletes every meal, your goal, dining halls, favorites and settings from the server, then starts over.", "Delete all", true)}
+    : `${row("data-erase", "Delete all my data", "Deletes every meal and its photo, your goal, dining halls, favorites and settings from the server, then starts over.", "Delete all", true)}
       ${ask("data-erase", "Delete everything MealScholar keeps for you? This can't be undone.", "erase-data", "Delete everything")}`;
   return `
     <section class="account__section data-zone" id="settings-data" aria-labelledby="settings-data-title">
       <h3 id="settings-data-title" class="account__section-title" tabindex="-1">Your data</h3>
-      ${row("data-clear", "Clear history", "Deletes every meal you've logged, from the server too. Your goal and settings stay.", "Clear history", false)}
-      ${ask("data-clear", "Delete every meal you've logged? This can't be undone.", "clear-history", "Delete all meals")}
+      ${row("data-clear", "Clear history", "Deletes every meal you've logged and its photo, from the server too. Your goal and settings stay.", "Clear history", false)}
+      ${ask("data-clear", "Delete every meal you've logged and its photo? This can't be undone.", "clear-history", "Delete all meals")}
       ${last}
       <p class="settings__status status" role="status" data-data-status></p>
     </section>`;

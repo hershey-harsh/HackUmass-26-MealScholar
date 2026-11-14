@@ -120,7 +120,7 @@ class Workflow:
             raise ValueError("This meal has no open question.")
         analysis = self.vision.refine(result.analysis(), result.question, answer)
         refined = self._result(result.context, analysis.model_copy(update={"question": None}), self._menu_for(result))
-        return refined.model_copy(update={"id": result.id, "answer": answer})
+        return refined.model_copy(update={"id": result.id, "answer": answer, "photo_url": result.photo_url})
 
     def _menu(self, context: MealContext, location_id: int | None) -> _Menu:
         if location_id is None:

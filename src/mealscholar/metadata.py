@@ -21,7 +21,7 @@ _EXIF_TIME_FORMAT = "%Y:%m:%d %H:%M:%S"
 
 
 def load_image(photo: Path | BinaryIO) -> Image.Image:
-    """Load at most 50 megapixels; in-memory uploads never touch the disk."""
+    """Load at most 50 megapixels. `photo` may be an in-memory stream; the upload as sent is never saved."""
     img = Image.open(photo)
     if img.width * img.height > MAX_PHOTO_PIXELS:
         img.close()
