@@ -5764,6 +5764,7 @@ body[data-screen="onboard"] .toast {
 
   body[data-prefs="on"] .hero__left-range {
     font-size: 0.75rem;
+    text-wrap: balance;
   }
 
   body[data-prefs="on"] .hero__note {
@@ -5784,7 +5785,17 @@ body[data-screen="onboard"] .toast {
     margin-block: -14px;
   }
 
-  /* the health score as one row, the number beside its bar, */
+  /* the health score as one row, the number beside its bar (on the narrowest phones the two
+     labels take a line each rather than breaking mid-label), */
+  body[data-prefs="on"] .score__head {
+    flex-wrap: wrap;
+    gap: 0 12px;
+  }
+
+  body[data-prefs="on"] .score__head > * {
+    white-space: nowrap;
+  }
+
   body[data-prefs="on"] .score {
     gap: 8px;
     padding: 12px 18px 12px;
