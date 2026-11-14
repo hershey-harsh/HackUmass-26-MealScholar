@@ -1785,25 +1785,35 @@ body[data-screen="auth"] .footer {
   color: var(--on-panel-2);
 }
 
+/* The likely number leads, the range sits under it: the same shape as the Today panel. */
 .total__value {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  column-gap: 4px;
-  font: 300 3.25rem / 1 var(--font-sans);
-  letter-spacing: -0.035em;
+  gap: 2px 8px;
+  font: 300 3.5rem / 0.95 var(--font-sans);
+  letter-spacing: -0.04em;
   font-variant-numeric: lining-nums proportional-nums;
 }
 
-.total__dash {
-  color: rgba(250, 250, 255, 0.5);
-}
-
 .total__unit {
-  margin-left: 6px;
   color: var(--on-panel-2);
   font: 500 1.0625rem / 1 var(--font-sans);
   letter-spacing: 0;
+}
+
+.total__range {
+  margin-top: -2px;
+  font-size: 1rem;
+  line-height: 1.4;
+  color: var(--on-panel-2);
+  text-wrap: pretty;
+}
+
+.total__range strong {
+  color: var(--on-panel);
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .total .band {
@@ -1811,14 +1821,10 @@ body[data-screen="auth"] .footer {
 }
 
 .total__likely {
-  font-size: 1rem;
+  font-size: 0.9375rem;
+  line-height: 1.4;
   color: rgba(250, 250, 255, 0.8);
   text-wrap: pretty;
-}
-
-.total__likely strong {
-  color: var(--on-panel);
-  font-weight: 600;
 }
 
 .total__empty {

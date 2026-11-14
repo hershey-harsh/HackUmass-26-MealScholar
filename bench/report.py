@@ -19,7 +19,7 @@ import statistics
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from ground_truth import PHOTOS, Photo, classify
+from ground_truth import NON_MEALS, PHOTOS, Photo, classify
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from run import PROMPT
 
@@ -432,11 +432,13 @@ def usda_table(runs: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _kcal(result: dict) -> Range | None:
+    """A recorded result's meal kcal, recomputed with the current `compute`."""
+    return summarize(MealResult.model_validate(result)).totals.get("energy_kcal")
+
+
 def refine_table(runs: list[dict]) -> str:
     """Phases c and d, one table per config and prompt. Totals are recomputed with the current `compute`."""
-
-    def kcal(result: dict) -> Range | None:
-        return summarize(MealResult.model_validate(result)).totals.get("energy_kcal")
 
     def rng(e: Range | None) -> str:
         return f"{e.likely:.0f} ({e.low:.0f}–{e.high:.0f})" if e else "–"
@@ -451,8 +453,8 @@ def refine_table(runs: list[dict]) -> str:
     for (config, prompt), group in sorted(groups.items()):
         label = "the sweep's prompt" if not prompt else f"prompt {prompt}" + (" (current)" if prompt == PROMPT else "")
         answered = [r for r in group if not r["error"] and r.get("answered")]
-        before = _p([spread(kcal(r["result"])) for r in answered], 0.5)
-        after = _p([spread(kcal(r["answered"])) for r in answered], 0.5)
+        before = _p([spread(_kcal(r["result"])) for r in answered], 0.5)
+        after = _p([spread(_kcal(r["answered"])) for r in answered], 0.5)
         lines += [
             f"#### `{config}`, {label}",
             "",
@@ -473,8 +475,40 @@ def refine_table(runs: list[dict]) -> str:
             )
             lines.append(
                 f"| {run['photo']} r{run['rep']} | {run['result']['question'] or '(none asked)'} "
-                f"| {rng(kcal(run['result']))} | {rng(kcal(after_run)) if after_run else '–'} | {items} |"
+                f"| {rng(_kcal(run['result']))} | {rng(_kcal(after_run)) if after_run else '–'} | {items} |"
             )
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def non_meal_table(runs: list[dict]) -> str:
+    """Phase n, one table per config and prompt. A run passes when the result has no items: the app
+    logs only results with items."""
+    groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for run in runs:
+        groups[(run["config"], run["prompt"])].append(run)
+    lines: list[str] = []
+    for (config, prompt), group in sorted(groups.items()):
+        ok = [r for r in group if not r["error"]]
+        errors = f", {len(group) - len(ok)} errors" if len(ok) < len(group) else ""
+        lines += [
+            f"#### `{config}`, prompt {prompt}" + (" (current)" if prompt == PROMPT else ""),
+            "",
+            f"Not logged: {sum(not r['result']['items'] for r in ok)}/{len(ok)} runs{errors}.",
+            "",
+            "| Photo | Shows | Not logged | Logged instead (likely kcal) |",
+            "|---|---|---|---|",
+        ]
+        for photo, shows in NON_MEALS.items():
+            runs_of_photo = [r for r in ok if r["photo"] == photo]
+            logged = [r["result"] for r in runs_of_photo if r["result"]["items"]]
+            instead = []
+            for result in logged:
+                kcal = _kcal(result)
+                names = ", ".join(i["item"]["name"] for i in result["items"])
+                instead.append(f"{names} ({_num(kcal.likely if kcal else None)})")
+            not_logged = f"{len(runs_of_photo) - len(logged)}/{len(runs_of_photo)}"
+            lines.append(f"| {photo} | {shows} | {not_logged} | {'; '.join(instead) or '–'} |")
         lines.append("")
     return "\n".join(lines).rstrip()
 
@@ -567,6 +601,9 @@ def main() -> None:
     refine = load({"c", "d"})
     if refine and not args.rematch:
         parts += ["", "### Clarifying question → answer → recompute (phases c and d)", "", refine_table(refine)]
+    non_meals = load({"n"})
+    if non_meals and not args.rematch:
+        parts += ["", "### Photos that are not a meal (phase n)", "", non_meal_table(non_meals)]
     text = "\n".join(parts) + "\n"
     (RESULTS / out).write_text(text)
     if not args.check:

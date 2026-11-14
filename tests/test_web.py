@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from mealscholar.config import load_settings
+from mealscholar.schemas import FoodItem, MealAnalysis
 from mealscholar.vision import VisionError
 from mealscholar.web import create_app
 
@@ -18,6 +19,27 @@ class FailingVision:
 
     def analyze(self, jpeg, context):
         raise self.exc or AssertionError("the photo should have been refused before Gemini")
+
+    def refine(self, analysis, question, answer):
+        raise AssertionError("not used")
+
+
+class DisplayCaseVision:
+    """What Gemini said for plastic display food (#49): dishes and a question, but not a meal."""
+
+    def analyze(self, jpeg, context):
+        crepe = FoodItem(
+            name="crepe",
+            fdc_query="Crepe, plain",
+            cooking_method="unknown",
+            grams_low=120,
+            grams_likely=160,
+            grams_high=200,
+            box_2d=None,
+            hidden_fat_likely=False,
+        )
+        question = "Which of these items from the display case are you eating?"
+        return MealAnalysis(is_food=False, items=[crepe], scale_reference=None, question=question)
 
     def refine(self, analysis, question, answer):
         raise AssertionError("not used")
@@ -80,3 +102,13 @@ def test_missing_food_database_reply_hides_the_server_path(tmp_path):
     res = client(tmp_path, FailingVision()).post("/api/meals", content=jpeg())
     assert res.status_code == 503
     assert str(tmp_path) not in res.text and "fdc.sqlite" not in res.text
+
+
+def test_a_photo_that_is_not_a_meal_is_not_logged(home):
+    app = client(home, DisplayCaseVision())
+    res = app.post("/api/meals", content=jpeg())
+    assert res.status_code == 200
+    meal = res.json()
+    assert (meal["id"], meal["items"], meal["totals"], meal["question"]) == (None, [], {}, None)
+    assert meal["notes"] == ["No food or drink detected in the photo."]
+    assert app.get(f"/api/days/{meal['context']['taken_at'][:10]}").json()["meals"] == []

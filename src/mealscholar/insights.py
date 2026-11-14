@@ -1,4 +1,4 @@
-"""Step 8: daily totals and weekly trends. Information, not diagnosis: no calorie targets."""
+"""Step 8: daily totals and weekly trends. Information, not diagnosis: goals are only the user's own (prefs.py)."""
 
 from __future__ import annotations
 
