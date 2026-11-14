@@ -19,6 +19,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel, Field
+from starlette.datastructures import MutableHeaders
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .auth import AuthService, DiaryOwner, install_auth
 from .busy import Busy, install_busy, open_busy
@@ -27,6 +29,7 @@ from .context import NominatimPlaces, PlaceLookup
 from .diary import Diary
 from .dining import Dining, install_dining, open_dining
 from .insights import HealthScore, health_score, summarize_days
+from .metadata import MAX_PHOTO_PIXELS
 from .nutrients import NUTRIENTS
 from .nutrition import FoodDatabase, FoodDatabaseMissing
 from .pipeline import BadCorrection, UnknownFood, Workflow, correct
@@ -92,6 +95,28 @@ class DayView(BaseModel):
     """The day's nutrient-balance score (insights.health_score); None for a day with no meals."""
 
 
+class _ResponseSecurity:
+    """Protect the app's pages and API replies without restricting capture or inline scripts."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_protected(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                headers["X-Content-Type-Options"] = "nosniff"
+                headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+                headers["X-Frame-Options"] = "DENY"
+            await send(message)
+
+        await self.app(scope, receive, send_protected)
+
+
 def create_app(
     settings: Settings,
     *,
@@ -118,6 +143,7 @@ def create_app(
     install_busy(app, busy or open_busy(settings))
     prefs = prefs or open_prefs_store(auth.store)
     install_prefs(app, prefs, dining)
+    app.add_middleware(_ResponseSecurity)
 
     # SQLite connections are opened per request: FastAPI runs sync handlers on a thread pool.
     # `owner` is the signed-in user's id, or None for the local diary (see auth.diary_owner).
@@ -220,7 +246,9 @@ def create_app(
                     location_id=location_id,
                 )
             except Image.DecompressionBombError as exc:
-                raise HTTPException(413, "That photo has too many pixels. Send a regular camera photo.") from exc
+                limit = MAX_PHOTO_PIXELS // 1_000_000
+                reply = f"Photos are limited to {limit} megapixels. Choose a lower-resolution photo."
+                raise HTTPException(413, reply) from exc
             # Not an image, or cut off (UnidentifiedImageError is an OSError too). In this block only the
             # in-memory photo raises OSError: Gemini, place and database failures have their own types.
             except OSError as exc:

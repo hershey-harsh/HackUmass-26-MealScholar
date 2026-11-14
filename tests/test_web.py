@@ -169,13 +169,27 @@ def png_claiming(width: int, height: int) -> bytes:
 
 
 @pytest.mark.parametrize(
+    ("path", "status"),
+    [("/", 200), ("/styles.css", 200), ("/api/days/2026-11-14", 401), ("/missing-page", 404)],
+)
+def test_pages_and_api_errors_have_browser_protections(tmp_path, path, status):
+    app = TestClient(create_app(load_settings({"MEALSCHOLAR_HOME": str(tmp_path)})))
+    response = app.get(path)
+    assert response.status_code == status
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+    assert response.headers["x-frame-options"] == "DENY"
+
+
+@pytest.mark.parametrize(
     ("photo", "status"),
     [
         (png_claiming(40_000, 40_000), 413),
+        (png_claiming(10_000, 6_000), 413),  # below Pillow's default warning threshold
         (jpeg()[:300], 415),  # cut off mid-upload
         (b"not an image at all", 415),
     ],
-    ids=["too many pixels", "truncated", "not an image"],
+    ids=["Pillow decompression bomb", "over 50 megapixels", "truncated", "not an image"],
 )
 def test_photos_that_wont_decode_get_a_client_error(home, photo, status):
     res = client(home, FailingVision()).post("/api/meals", content=photo)

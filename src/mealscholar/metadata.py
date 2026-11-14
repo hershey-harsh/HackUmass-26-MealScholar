@@ -15,12 +15,17 @@ from .schemas import PhotoMetadata
 # iPhones save HEIC by default.
 register_heif_opener()
 
+MAX_PHOTO_PIXELS = 50_000_000
+
 _EXIF_TIME_FORMAT = "%Y:%m:%d %H:%M:%S"
 
 
 def load_image(photo: Path | BinaryIO) -> Image.Image:
-    """`photo` may be an in-memory stream so uploads never touch the disk."""
+    """Load at most 50 megapixels; in-memory uploads never touch the disk."""
     img = Image.open(photo)
+    if img.width * img.height > MAX_PHOTO_PIXELS:
+        img.close()
+        raise Image.DecompressionBombError(f"Photos are limited to {MAX_PHOTO_PIXELS:,} pixels.")
     img.load()
     return img
 
