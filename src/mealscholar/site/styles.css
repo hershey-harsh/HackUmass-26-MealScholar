@@ -7160,3 +7160,57 @@ body[data-drop="on"]::after {
     columns: 3 17rem;
   }
 }
+
+/* Recently uploaded: the chevron sits in its own column, centered on the card. */
+.recent-card .meal__chev {
+  grid-area: auto;
+  align-self: center;
+}
+
+.facts__row--text dd {
+  font-family: var(--font-sans);
+  font-weight: 400;
+}
+
+.upcoming__count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.upcoming__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  margin: -10px -8px -10px 0;
+  padding: 0 4px 0 10px;
+  border-radius: 999px;
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.upcoming__more .icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.2;
+}
+
+@media (hover: hover) {
+  .upcoming__more:hover {
+    background: var(--surface-2);
+  }
+}
+
+@media (min-width: 64em) {
+  .week-view .week-block {
+    position: sticky;
+    top: calc(var(--bar-h) + var(--safe-top) + 16px);
+  }
+
+  .week-view .wk__plot {
+    height: 15rem;
+  }
+}

@@ -2249,6 +2249,13 @@ function dashClick(event) {
   }
   const dish = target.closest("[data-dish]");
   if (dish) return openDish(dish.dataset.dish, dish);
+  if (target.closest("[data-to-menu]")) {
+    event.preventDefault();
+    setView("menu");
+    syncHistory();
+    els.menuTitle.focus({ preventScroll: true });
+    return;
+  }
   const meal = target.closest("[data-meal]");
   if (meal) openMealFrom(meal);
 }
@@ -3752,7 +3759,7 @@ function renderUpcoming() {
       <div class="dishes" tabindex="0" role="region" aria-label="${esc(`${meal.label ?? "Menu"} items`)}">
         <ul class="dishes__groups">${rows || '<li class="options__empty">Nothing is listed for this meal yet.</li>'}</ul>
       </div>
-      <p class="upcoming__count">${items.length} item${items.length === 1 ? "" : "s"} on the menu</p>
+      <p class="upcoming__count"><span>${items.length} item${items.length === 1 ? "" : "s"} on the menu</span><a class="upcoming__more" href="#menu" data-to-menu>Every hall${icon("chevron-right")}</a></p>
     </section>`;
   measureSideFit();
   fitSideCard();
@@ -4036,7 +4043,7 @@ function dishSheetHtml({ item, meal }) {
         <div class="facts__row"><dt>Protein</dt><dd>${factValue(item.protein_g, "g")}</dd></div>
         <div class="facts__row"><dt>Carbs</dt><dd>${factValue(item.carbs_g, "g")}</dd></div>
         <div class="facts__row"><dt>Fat</dt><dd>${factValue(item.fat_g, "g")}</dd></div>
-        <div class="facts__row"><dt>Serving size</dt><dd>${serving}</dd></div>
+        <div class="facts__row facts__row--text"><dt>Serving size</dt><dd>${serving}</dd></div>
         <div class="facts__row facts__row--chips"><dt>Allergens</dt><dd>${list(allergens)}</dd></div>
         <div class="facts__row facts__row--chips"><dt>Diet tags</dt><dd>${list(diets)}</dd></div>
       </dl>
