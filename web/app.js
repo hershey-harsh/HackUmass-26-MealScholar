@@ -124,24 +124,15 @@
   });
 })();
 
-// Page backdrop: --p runs from 0 at the top to 1 at the bottom for the scroll effects,
-// and sections rise in as they come into view. Skipped when reduced motion is on.
+// Sections rise in as they come into view. Skipped when reduced motion is on.
 // Sections are fully visible by default; the short entrance animation plays only when a
 // section scrolls into view, never right after a resize, so nothing is left half-faded.
 (function () {
-  var d = document, w = window, root = d.documentElement;
+  var d = document, w = window;
   if (w.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  var queued = false, resizedAt = 0;
-  function set() {
-    queued = false;
-    var max = root.scrollHeight - w.innerHeight;
-    root.style.setProperty('--p', max > 0 ? Math.min(1, Math.max(0, w.scrollY / max)).toFixed(4) : '0');
-  }
-  function queue() { if (!queued) { queued = true; w.requestAnimationFrame(set); } }
-  w.addEventListener('scroll', queue, { passive: true });
-  w.addEventListener('resize', function () { resizedAt = Date.now(); queue(); });
-  set();
   if (!('IntersectionObserver' in w)) return;
+  var resizedAt = 0;
+  w.addEventListener('resize', function () { resizedAt = Date.now(); });
   var io = new IntersectionObserver(function (entries) {
     entries.forEach(function (e) {
       if (!e.isIntersecting) return;
