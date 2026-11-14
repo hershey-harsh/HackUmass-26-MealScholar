@@ -5,11 +5,13 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from email.utils import getaddresses
 from pathlib import Path
 
 DEFAULT_MODEL = "gemini-4-hydrogen"
 DEFAULT_NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
 DEFAULT_PUBLIC_URL = "http://127.0.0.1:8000"
+DEFAULT_SENDER_NAME = "MealScholar"
 EMAIL_PROVIDERS = ("outbox", "smtp")
 THINKING_LEVELS = ("minimal", "low", "medium", "high", "xhigh")
 """Gemini thinking levels the installed SDK accepts (google.genai.interactions.ThinkingLevel)."""
@@ -57,6 +59,19 @@ class Settings:
     """Set when MEALSCHOLAR_SMTP_HOST is; required with email_provider "smtp"."""
 
     @property
+    def email_sending(self) -> bool:
+        """Account emails really go out: the smtp provider with a relay host, a From address and,
+        with a login user, its password. The outbox only queues them, so the app must not say
+        "we sent you a link"."""
+        s = self.smtp
+        return (
+            self.email_provider == "smtp"
+            and s is not None
+            and bool(s.host and s.sender)
+            and (s.user is None or bool(s.password))
+        )
+
+    @property
     def food_db(self) -> Path:
         return self.home / "fdc.sqlite"
 
@@ -79,6 +94,8 @@ def load_settings(env: Mapping[str, str] = os.environ) -> Settings:
     smtp = _smtp(env)
     if email_provider == "smtp" and (smtp is None or not smtp.sender):
         raise ValueError("MEALSCHOLAR_EMAIL_PROVIDER=smtp needs MEALSCHOLAR_SMTP_HOST and MEALSCHOLAR_EMAIL_FROM.")
+    if smtp is not None and smtp.sender:
+        sender_address(smtp.sender)  # a malformed From fails at start-up, not on the first email
     return Settings(
         gemini_api_key=env.get("GEMINI_API_KEY") or None,
         gemini_model=env.get("MEALSCHOLAR_MODEL", DEFAULT_MODEL),
@@ -96,6 +113,19 @@ def load_settings(env: Mapping[str, str] = os.environ) -> Settings:
         dev_outbox=_flag(env, "MEALSCHOLAR_DEV_OUTBOX", False),
         smtp=smtp,
     )
+
+
+def sender_address(sender: str) -> tuple[str, str]:
+    """(display name, address) from MEALSCHOLAR_EMAIL_FROM, such as "MealScholar <no-reply@example.com>",
+    or a bare address, which gets the name MealScholar. Raises ValueError unless it is one address."""
+    found = getaddresses([sender]) if "\r" not in sender and "\n" not in sender else []
+    name, address = found[0] if len(found) == 1 else ("", "")
+    local, _, domain = address.rpartition("@")
+    if not local or "." not in domain or any(c.isspace() or c in "<>,;" for c in address):
+        raise ValueError(
+            f"MEALSCHOLAR_EMAIL_FROM must be one address, like 'MealScholar <no-reply@example.com>', not {sender!r}."
+        )
+    return name.strip() or DEFAULT_SENDER_NAME, address
 
 
 def _smtp(env: Mapping[str, str]) -> SmtpSettings | None:

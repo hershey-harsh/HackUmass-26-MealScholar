@@ -19,6 +19,7 @@ import unicodedata
 from contextlib import closing, suppress
 from dataclasses import replace
 from datetime import date, datetime, timedelta
+from email.utils import parsedate_to_datetime
 from http.cookies import SimpleCookie
 
 import pytest
@@ -39,7 +40,15 @@ from mealscholar.auth_store import (
 )
 from mealscholar.config import SmtpSettings, load_settings
 from mealscholar.diary import Diary
-from mealscholar.mailer import SmtpSender, make_sender, verification_email
+from mealscholar.mailer import (
+    Email,
+    SmtpSender,
+    html_email,
+    make_sender,
+    password_changed_email,
+    password_reset_email,
+    verification_email,
+)
 from mealscholar.schemas import FoodItem, MealAnalysis, MealContext, MealResult
 from mealscholar.web import create_app
 
@@ -769,9 +778,111 @@ def test_smtp_sender_talks_starttls_and_sends(make_app, fake_smtp):
     assert msg["From"] == "MealScholar <no-reply@example.com>"
     assert msg["To"] == "sam@example.com"
     assert msg["Subject"] == "Confirm your MealScholar email"
-    assert "/?verify=" in msg.get_content()
+    assert msg["Auto-Submitted"] == "auto-generated"
+    assert parsedate_to_datetime(msg["Date"]).tzinfo is not None
+    assert re.fullmatch(r"<[^@<>\s]+@example\.com>", msg["Message-ID"])
+    assert msg.get_content_type() == "multipart/alternative"
+    plain, html = msg.get_body(("plain",)), msg.get_body(("html",))
+    link = re.search(r"https?://\S+/\?verify=[\w-]+", plain.get_content()).group(0)
+    assert f'href="{link}"' in html.get_content() and "Confirm email" in html.get_content()
     assert app.state.auth.store.recent_emails(20) == []  # raw links stay out of the database
-    assert client.get("/api/status").json()["email_provider"] == "smtp"
+    status = client.get("/api/status").json()
+    assert (status["email_provider"], status["email_sending"]) == ("smtp", True)
+
+
+def test_smtp_from_gets_a_display_name_and_a_message_id_on_its_domain(fake_smtp):
+    sender = SmtpSender(SmtpSettings(host="smtp.example", sender="no-reply@mealscholar.health"), background=False)
+    sender.send(verification_email("sam@example.com", "https://app.example/?verify=abc"))
+    (msg,) = fake_smtp.messages
+    assert msg["From"] == "MealScholar <no-reply@mealscholar.health>"
+    assert msg["Message-ID"].endswith("@mealscholar.health>")
+
+
+@pytest.mark.parametrize(
+    "email",
+    [
+        Email("sam@example.com\r\nBcc: x@example.com", "Hi", "text", "verify_email"),
+        Email("sam@example.com", "Hi\nBcc: x@example.com", "text", "verify_email"),
+        Email("sam@example.com", "Hi\r", "text", "verify_email"),
+    ],
+)
+@pytest.mark.parametrize("background", [True, False])
+def test_smtp_refuses_line_breaks_in_headers(fake_smtp, email, background):
+    sender = SmtpSender(SmtpSettings(host="smtp.example", sender="x@example.com"), background=background)
+    with pytest.raises(ValueError, match="line break"):
+        sender.send(email)
+    sender.drain(5)
+    assert fake_smtp.connections == []
+
+
+def test_account_emails_have_an_escaped_html_part_with_the_link():
+    link = 'https://app.example/?reset=a"b<c>&d'
+    for email in (
+        verification_email("sam@example.com", link),
+        password_reset_email("sam@example.com", link),
+    ):
+        assert link in email.text
+        assert email.html is not None and link not in email.html  # only in escaped form
+        assert 'href="https://app.example/?reset=a&quot;b&lt;c&gt;&amp;d"' in email.html
+        assert ">MealScholar</p>" in email.html
+        assert "You got this because" in email.html
+        assert not re.search(r"<img|src=|https?://(?!app\.example)", email.html)  # nothing remote, no pixels
+    changed = password_changed_email("sam@example.com", "https://app.example")
+    assert changed.purpose == "password_changed"
+    assert "https://app.example/" in changed.text and "Forgot password" in changed.text
+    assert 'href="https://app.example/"' in changed.html
+    page = html_email("<b>hi</b>", footer="a & b", details=[("<day>", ["<script>x</script>"])])
+    assert "<b>hi" not in page and "&lt;b&gt;hi" in page and "a &amp; b" in page
+    assert "<script>" not in page and "&lt;day&gt;" in page
+
+
+def test_password_change_and_reset_send_a_notice(make_app):
+    app = make_app()
+    client = browser(app)
+    register(client)
+    store = app.state.auth.store
+
+    # Not to an unconfirmed address: whoever signed up with it may not own it, and repeated
+    # password changes would otherwise send it one email each.
+    change = {"current_password": PASSWORD, "new_password": NEW_PASSWORD}
+    assert client.post("/api/auth/change-password", json=change).status_code == 200
+    assert [e.purpose for e in store.recent_emails(20)] == ["verify_email"]
+    assert client.post("/api/auth/verify-email", json={"token": emailed_token(app, "verify")}).status_code == 200
+
+    change = {"current_password": NEW_PASSWORD, "new_password": PASSWORD}
+    assert client.post("/api/auth/change-password", json=change).status_code == 200
+    notice = store.recent_emails(1)[0]
+    assert (notice.to, notice.subject, notice.purpose) == (
+        "sam@example.com",
+        "Your MealScholar password was changed",
+        "password_changed",
+    )
+    assert "If it wasn't, reset your password" in notice.text
+
+    wrong = {"current_password": "not my password", "new_password": NEW_PASSWORD}
+    assert client.post("/api/auth/change-password", json=wrong).status_code == 401
+    assert store.recent_emails(1)[0] == notice  # nothing changed, nothing sent
+
+    client.post("/api/auth/forgot-password", json={"email": "sam@example.com"})
+    token = emailed_token(app, "reset")
+    assert client.post("/api/auth/reset-password", json={"token": token, "password": "short"}).status_code == 400
+    assert store.recent_emails(1)[0].purpose == "reset_password"
+    assert client.post("/api/auth/reset-password", json={"token": token, "password": NEW_PASSWORD}).status_code == 200
+    assert [e.purpose for e in store.recent_emails(20)] == [
+        "password_changed",
+        "reset_password",
+        "password_changed",
+        "verify_email",
+    ]
+
+
+def test_email_sending_only_with_complete_smtp_settings(make_app):
+    assert load_settings({}).email_sending is False
+    assert load_settings({"MEALSCHOLAR_SMTP_HOST": "smtp.example"}).email_sending is False  # provider still outbox
+    assert load_settings(SMTP_ENV).email_sending is True
+    assert load_settings({**SMTP_ENV, "MEALSCHOLAR_SMTP_PASSWORD": ""}).email_sending is False  # login would fail
+    assert load_settings({**SMTP_ENV, "MEALSCHOLAR_SMTP_USER": "", "MEALSCHOLAR_SMTP_PASSWORD": ""}).email_sending
+    assert browser(make_app()).get("/api/status").json()["email_sending"] is False
 
 
 def test_smtp_sending_does_not_delay_sign_up_or_forgot_password(make_app, fake_smtp):
@@ -865,6 +976,9 @@ def test_smtp_settings_from_the_environment():
         ({**SMTP_ENV, "MEALSCHOLAR_SMTP_PORT": "70000"}, "MEALSCHOLAR_SMTP_PORT"),
         ({**SMTP_ENV, "MEALSCHOLAR_SMTP_TIMEOUT": "0"}, "MEALSCHOLAR_SMTP_TIMEOUT"),
         ({**SMTP_ENV, "MEALSCHOLAR_SMTP_TIMEOUT": "soon"}, "MEALSCHOLAR_SMTP_TIMEOUT"),
+        ({**SMTP_ENV, "MEALSCHOLAR_EMAIL_FROM": "MealScholar"}, "MEALSCHOLAR_EMAIL_FROM"),
+        ({**SMTP_ENV, "MEALSCHOLAR_EMAIL_FROM": "a@example.com, b@example.com"}, "MEALSCHOLAR_EMAIL_FROM"),
+        ({**SMTP_ENV, "MEALSCHOLAR_EMAIL_FROM": "x@example.com\r\nBcc: y@example.com"}, "MEALSCHOLAR_EMAIL_FROM"),
     ):
         with pytest.raises(ValueError, match=name):
             load_settings(env)
@@ -932,6 +1046,7 @@ def test_meal_and_diary_routes_need_a_session(make_app):
 
     status = client.get("/api/status").json()
     assert status["auth_required"] is True and status["email_provider"] == "outbox"
+    assert status["email_sending"] is False
     assert {"gemini_ready", "food_db_ready"} <= set(status)
     assert client.get("/api/nutrients").status_code == 200
     assert client.get("/api/foods", params={"q": "rice"}).json()["foods"]
@@ -1281,3 +1396,44 @@ def test_account_flow_end_to_end(make_app, store):
     assert client.get("/api/auth/me").status_code == 200
     assert phone.get("/api/auth/me").json() == SIGN_IN
     assert client.post("/api/auth/reset-password", json={"token": link, "password": NEW_PASSWORD}).status_code == 400
+
+
+def test_forgot_password_mails_one_account_at_most_5_times_an_hour_from_any_network(make_app):
+    app = make_app()
+    register(browser(app))
+    store = app.state.auth.store
+
+    def forgot(ip):
+        return browser(app, ip=ip).post("/api/auth/forgot-password", json={"email": "sam@example.com"}).status_code
+
+    assert [forgot(f"203.0.113.{i}") for i in range(8)] == [202] * 8  # silent: the same answer as for nobody
+    assert [e.purpose for e in store.recent_emails(20)].count("reset_password") == 5
+
+
+def test_forgot_password_looks_up_the_account_after_answering(make_app):
+    """The web route passes its background tasks as `defer`: the lookup and the email happen after
+    the 202 is sent, so the answer takes the same time whether or not the account exists."""
+    app = make_app()
+    register(browser(app))
+    auth = app.state.auth
+    later = []
+    for email in ("sam@example.com", "nobody@example.com"):
+        auth.forgot_password(email, Client("198.51.100.1", None), defer=later.append)
+    assert len(later) == 2 and [e.purpose for e in auth.store.recent_emails(20)] == ["verify_email"]
+    for work in later:
+        work()
+    assert [e.purpose for e in auth.store.recent_emails(20)] == ["reset_password", "verify_email"]
+
+
+def test_a_background_smtp_error_of_any_kind_is_logged_without_the_address(fake_smtp, monkeypatch, caplog):
+    sender = SmtpSender(SmtpSettings(host="smtp.example", sender="x@example.com"))
+
+    def broken(email):
+        raise UnicodeEncodeError("ascii", "sam@example.com", 0, 1, "no")
+
+    monkeypatch.setattr(sender, "_deliver", broken)
+    with caplog.at_level(logging.WARNING, logger="mealscholar.mailer"):
+        sender.send(mailer.password_changed_email("sam@example.com", "https://app.example"))
+        sender.drain(5)
+    assert "Couldn't send the password_changed email to s***@example.com: UnicodeEncodeError" in caplog.text
+    assert "sam@example.com" not in caplog.text

@@ -28,7 +28,7 @@ from functools import cache
 from typing import Annotated, Any
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -38,7 +38,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .auth_store import AuthStore, EmailTaken, EmailToken, OutboxEmail, Session, TokenPurpose, User, open_store, utc_now
 from .config import Settings
-from .mailer import EmailSender, make_sender, password_reset_email, verification_email
+from .mailer import Email, EmailSender, make_sender, password_changed_email, password_reset_email, verification_email
 
 log = logging.getLogger(__name__)
 
@@ -121,6 +121,9 @@ LOGIN_PER_IP = Rule("login-ip", 50, 15 * 60)
 REGISTER_PER_IP = Rule("register", 30, 60 * 60)  # a whole room on campus Wi-Fi can share one address
 FORGOT_PER_IP = Rule("forgot-ip", 5, 60 * 60)
 FORGOT_PER_EMAIL = Rule("forgot-email", 3, 60 * 60)
+# Per account from every network together, and silent (the answer stays 202), so many networks
+# can't flood one inbox with reset emails and the cap doesn't say whether the account exists.
+FORGOT_MAIL_PER_USER = Rule("forgot-mail", 5, 60 * 60)
 RESEND_PER_USER = Rule("resend", 3, 60 * 60)
 CHANGE_PASSWORD_PER_USER = Rule("change-password", 10, 15 * 60)
 DELETE_ACCOUNT_PER_USER = Rule("delete-account", 10, 15 * 60)
@@ -299,18 +302,28 @@ class AuthService:
         self._limit((RESEND_PER_USER, user.id))
         return self._demo(self._email_link(user, "verify_email"))
 
-    def forgot_password(self, email: str, client: Client) -> None:
+    def forgot_password(
+        self, email: str, client: Client, defer: Callable[[Callable[[], None]], object] | None = None
+    ) -> None:
         """Emails a reset link if the account exists. The answer never says whether it does and
         never contains the link, even with demo links on: anyone can ask for a reset, so showing
-        the link would hand the account to whoever asked."""
+        the link would hand the account to whoever asked. `defer` runs the lookup and the email
+        after the answer is sent (the web app's background tasks), so it takes the same time
+        either way; without it they run now."""
         address = _normalized_email(email)
         if address is None:  # no account can have it: nothing to count or send
             return
         # Per (network, email), so one network can't use up another person's attempts.
         self._limit((FORGOT_PER_IP, client.network), (FORGOT_PER_EMAIL, (client.network, address)))
-        user = self.store.user_by_email(address)
-        if user:
-            self._email_link(user, "reset_password")
+        (defer or _run_now)(lambda: self._reset_link(address))
+
+    def _reset_link(self, address: str) -> None:
+        try:
+            user = self.store.user_by_email(address)
+            if user and self.limiter.hit((FORGOT_MAIL_PER_USER, user.id)) is None:
+                self._email_link(user, "reset_password")
+        except Exception:  # after the answer: log it, never the address or the link
+            log.exception("Couldn't make a password reset link")
 
     def reset_password(self, token: str, password: str, client: Client) -> SignedIn:
         """Sets the new password, signs the user out everywhere, then signs this browser in."""
@@ -377,12 +390,16 @@ class AuthService:
         return SignedIn(user, token)
 
     def _new_password(self, user: User, password: str, client: Client) -> SignedIn:
-        """Set the password, cancel open reset links and end every session; then sign this browser in."""
+        """Set the password, cancel open reset links and end every session; then sign this browser
+        in and tell the account's address, so an owner who didn't do it can reset it back."""
         now = self._clock()
         user = self.store.set_password_hash(user.id, hash_password(password), now) or user
         self.store.revoke_email_tokens(user.id, "reset_password", now)
         self.store.delete_user_sessions(user.id)
-        return self._sign_in(user, client)
+        signed_in = self._sign_in(user, client)
+        if user.email_verified_at is not None:  # an unconfirmed address may not be the owner's: no mail to it
+            self._send(password_changed_email(user.email, self.settings.public_url))
+        return signed_in
 
     def _email_link(self, user: User, purpose: TokenPurpose) -> str:
         """Store a new one-time token, email its link to the user, and return the link."""
@@ -393,12 +410,15 @@ class AuthService:
         )
         link = f"{self.settings.public_url}/?{LINK_PARAM[purpose]}={token}"
         compose = verification_email if purpose == "verify_email" else password_reset_email
+        self._send(compose(user.email, link))
+        return link
+
+    def _send(self, email: Email) -> None:
         try:
-            self.sender.send(compose(user.email, link))
+            self.sender.send(email)
         except Exception:
             # Best effort: the account change already happened, and the user can ask for another email.
-            log.exception("Couldn't send the %s email", purpose)
-        return link
+            log.exception("Couldn't send the %s email", email.purpose)
 
     def _email_token(self, token: str, purpose: TokenPurpose, *, use: bool) -> EmailToken | None:
         if not _plausible_token(token):
@@ -415,6 +435,10 @@ class AuthService:
             minutes = math.ceil(wait / 60)
             when = "1 minute" if minutes == 1 else f"{minutes} minutes"
             raise AuthError(429, f"Too many attempts. Try again in {when}.", retry_after=wait)
+
+
+def _run_now(work: Callable[[], None]) -> None:
+    work()
 
 
 def _digest(token: str) -> str:
@@ -677,9 +701,9 @@ def resend_verification(user: CurrentUser, auth: Auth) -> VerificationReply:
 
 
 @router.post("/forgot-password", status_code=202)
-def forgot_password(body: EmailAddress, request: Request, auth: Auth) -> ResetReply:
-    """Same answer whether or not the account exists."""
-    auth.forgot_password(body.email, _client(request))
+def forgot_password(body: EmailAddress, request: Request, auth: Auth, after: BackgroundTasks) -> ResetReply:
+    """Same answer, in the same time, whether or not the account exists."""
+    auth.forgot_password(body.email, _client(request), defer=after.add_task)
     return ResetReply()
 
 

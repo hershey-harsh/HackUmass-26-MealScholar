@@ -24,7 +24,7 @@ from .config import Settings
 log = logging.getLogger(__name__)
 
 TokenPurpose = Literal["verify_email", "reset_password"]
-EmailPurpose = Literal[TokenPurpose, "favorites_digest"]
+EmailPurpose = Literal[TokenPurpose, "password_changed", "favorites_digest"]
 
 
 def utc_now() -> datetime:

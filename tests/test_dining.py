@@ -723,6 +723,10 @@ def test_favorites_email():
         "You get this email because email alerts are on in your MealScholar settings. "
         "Turn them off there to stop these emails.\n"
     )
+    html = email.html
+    assert "Saturday, November 14" in html and "Grab &#x27;n Go at Blue Wall: Turkey Club" in html
+    assert 'href="https://meals.example/"' in html and "See the menus" in html
+    assert "<img" not in html and "src=" not in html
 
 
 def accounts_with_prefs():
