@@ -73,6 +73,7 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
 - [ ] Set `FOODSMART_DEMO_VERIFY_LINK` on the demo server, so sign-up works without a real email service.
 - [ ] Fallbacks: a recorded video, and the faster model (`FOODSMART_MODEL=gemini-3.6-flash FOODSMART_THINKING=minimal`) if Gemini is slow on venue Wi-Fi.
 - [ ] Charge phones. Test the demo on venue Wi-Fi and on cellular.
+- [ ] **Everyone filming**: hard-reload mealscholar.mannava.org once on each filming phone before the 7 PM screen recordings. Older deploys left cached app files on phones; deploys stamp the commit into asset versions from the next app change on (Harsh).
 
 ## 5. Continuous development (keep doing this after the hackathon)
 
