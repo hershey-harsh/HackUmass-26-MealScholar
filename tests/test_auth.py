@@ -27,6 +27,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 import mealscholar.auth
+import mealscholar.web
 from mealscholar import cli, mailer
 from mealscholar.auth import AuthError, AuthService, Client, RateLimiter, Rule, hash_password, verify_password
 from mealscholar.auth_store import (
@@ -439,7 +440,7 @@ def test_rate_limiter_slides_and_counts_nothing_it_refuses():
 
 
 def test_photos_and_answers_share_an_account_budget_across_networks(make_app, clock, monkeypatch):
-    monkeypatch.setattr(mealscholar.auth, "ANALYSIS_PER_USER", Rule("analysis-user", 3, 600))
+    monkeypatch.setattr(mealscholar.web, "ANALYSIS_PER_USER", Rule("analysis-user", 3, 600))
     vision = FakeVision()
     app = make_app(vision=vision)
     app.state.auth.limiter = RateLimiter(clock=lambda: clock.now.timestamp())
@@ -468,7 +469,7 @@ def test_photos_and_answers_share_an_account_budget_across_networks(make_app, cl
 
 @pytest.mark.parametrize("required", ["0", "1"])
 def test_network_budget_covers_accounts_guests_and_answers(make_app, monkeypatch, required):
-    monkeypatch.setattr(mealscholar.auth, "ANALYSIS_PER_IP", Rule("analysis-ip", 2, 600))
+    monkeypatch.setattr(mealscholar.web, "ANALYSIS_PER_IP", Rule("analysis-ip", 2, 600))
     vision = FakeVision()
     app = make_app(vision=vision, MEALSCHOLAR_AUTH_REQUIRED=required)
     first = browser(app, ip="198.51.100.1")
@@ -497,7 +498,7 @@ def test_network_budget_covers_accounts_guests_and_answers(make_app, monkeypatch
     ],
 )
 def test_analysis_uses_the_existing_trusted_network_identity(make_app, monkeypatch, first_ip, second_ip, limited):
-    monkeypatch.setattr(mealscholar.auth, "ANALYSIS_PER_IP", Rule("analysis-ip", 1, 600))
+    monkeypatch.setattr(mealscholar.web, "ANALYSIS_PER_IP", Rule("analysis-ip", 1, 600))
     vision = FakeVision()
     app = make_app(vision=vision, MEALSCHOLAR_AUTH_REQUIRED="0")
     first = browser(app, {"CF-Connecting-IP": "203.0.113.1"}, ip=first_ip)
