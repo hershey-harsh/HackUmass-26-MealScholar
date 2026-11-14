@@ -190,9 +190,11 @@
 
   <!-- How it works -->
   <section class="card section" id="how" aria-labelledby="how-title">
-    <div class="section-head section-head--center">
-      <p class="eyebrow">How it works</p>
-      <h2 id="how-title" class="h2">From photo to nutrients</h2>
+    <div class="section-head section-head--split section-head--rule">
+      <div>
+        <p class="eyebrow">How it works</p>
+        <h2 id="how-title" class="h2">From photo to nutrients</h2>
+      </div>
       <p class="section-sub">Five steps, shown with a real lunch photo.</p>
     </div>
     <ol class="steps">
@@ -241,7 +243,7 @@
           <span class="step__num">04</span>
           <h3>Nutrients as ranges</h3>
           <p>If the food is on today’s campus menu, the nutrients come from the dining hall’s own nutrition facts. If not, from USDA FoodData Central. The AI never outputs nutrient numbers.</p>
-          <span class="dot-chip">Campus menu first · USDA as a backup</span>
+          <span class="dot-chip">Campus menu first&nbsp;· USDA as a backup</span>
         </div>
         <div class="mock mock--side" role="img" aria-label="Nutrients for this pizza: calories 1,011 to 1,436 kcal, likely 1,197. Protein 51.3 grams, 87 to 123 percent of the Daily Value. Carbohydrate 149.8 grams, 46 to 65 percent. Worked example: pizza, 450 grams times 11.4 grams of protein per 100 grams, equals 51.3 grams of protein.">
           <div class="mini mini--nutr">
@@ -271,7 +273,7 @@
 
   <!-- Videos -->
   <section class="card section" id="videos" aria-labelledby="videos-title">
-    <div class="section-head section-head--split">
+    <div class="section-head section-head--split section-head--rule">
       <div>
         <p class="eyebrow">Screen recordings</p>
         <h2 id="videos-title" class="h2">See it in action</h2>
@@ -289,21 +291,21 @@
         <figure class="video-card" data-video="snap-to-nutrients">
           <div class="video-frame">
             <!-- To add the recording, replace the next line with: <video src="videos/snap-to-nutrients.mp4" poster="videos/snap-to-nutrients.jpg" controls playsinline preload="none"></video> -->
-            <div class="video-ph video-ph--a"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+            <div class="video-ph video-ph--a"><span class="chip chip--soon">Coming soon</span><span class="video-ph__idx" aria-hidden="true">01 / 03</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
           </div>
           <figcaption><h3>Snap to nutrients</h3><p>One photo becomes foods, grams and nutrient ranges.</p></figcaption>
         </figure>
         <figure class="video-card" data-video="one-question">
           <div class="video-frame">
             <!-- To add the recording, replace the next line with: <video src="videos/one-question.mp4" poster="videos/one-question.jpg" controls playsinline preload="none"></video> -->
-            <div class="video-ph video-ph--b"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+            <div class="video-ph video-ph--b"><span class="chip chip--soon">Coming soon</span><span class="video-ph__idx" aria-hidden="true">02 / 03</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
           </div>
           <figcaption><h3>One question</h3><p>When a photo is unclear, it asks once and recomputes.</p></figcaption>
         </figure>
         <figure class="video-card" data-video="fix-and-today">
           <div class="video-frame">
             <!-- To add the recording, replace the next line with: <video src="videos/fix-and-today.mp4" poster="videos/fix-and-today.jpg" controls playsinline preload="none"></video> -->
-            <div class="video-ph video-ph--c"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+            <div class="video-ph video-ph--c"><span class="chip chip--soon">Coming soon</span><span class="video-ph__idx" aria-hidden="true">03 / 03</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
           </div>
           <figcaption><h3>Check it, then see today</h3><p>Swap a food if it got one wrong, then check the day’s totals.</p></figcaption>
         </figure>
@@ -314,41 +316,50 @@
 
   <!-- Nutrients -->
   <section class="card section" id="nutrients" aria-labelledby="nutrients-title">
-    <div class="rail-top">
-      <p class="eyebrow">What it tracks</p>
-      <div class="rail-ctrl" data-rail-controls="nutrient-rail">
-        <button type="button" class="round-btn" data-dir="-1" aria-label="Previous nutrients"><svg aria-hidden="true"><use href="#i-chev-l"/></svg></button>
-        <button type="button" class="round-btn" data-dir="1" aria-label="Next nutrients"><svg aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+    <div class="section-head section-head--split section-head--rule">
+      <div>
+        <p class="eyebrow">What it tracks</p>
+        <h2 id="nutrients-title" class="h2">19 nutrients, from the campus menu and USDA</h2>
       </div>
-    </div>
-    <div class="section-head section-head--center">
-      <h2 id="nutrients-title" class="h2">19 nutrients, from the campus menu and USDA</h2>
       <p class="section-sub">Calories, protein, carbs, fat, fiber, sugar, sodium and cholesterol come from the campus menu when the food is on it. Vitamins and minerals come from USDA and are labeled as estimates. % Daily Value is shown where one exists.</p>
     </div>
-    <div class="rail rail--nutrients" id="nutrient-rail" data-rail role="region" aria-label="Nutrient cards, scroll sideways" tabindex="0">
-      <ul class="rail__list">
-        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">kcal</span></div><div class="ncard__fig"><small>Your goal</small><b>Optional</b></div><div class="ncard__body"><h3>Calories</h3><p>Shown as a range. Set your own goal if you want one.</p></div></li>
-        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">g</span></div><div class="ncard__fig"><small>Daily Value</small><b>50 g</b></div><div class="ncard__body"><h3>Protein</h3><p>In grams, with % Daily Value.</p></div></li>
-        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">g</span></div><div class="ncard__fig"><small>Daily Value</small><b>275 g</b></div><div class="ncard__body"><h3>Carbohydrate</h3><p>With % DV. No carb dosing advice.</p></div></li>
-        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">g</span></div><div class="ncard__fig"><small>Daily Value</small><b>78 g</b></div><div class="ncard__body"><h3>Fat</h3><p>Total fat in grams, with % DV.</p></div></li>
-        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">g</span></div><div class="ncard__fig"><small>Daily Value</small><b>20 g</b></div><div class="ncard__body"><h3>Saturated fat</h3><p>Its own line, apart from total fat.</p></div></li>
-        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">g</span></div><div class="ncard__fig"><small>Daily Value</small><b>28 g</b></div><div class="ncard__body"><h3>Fiber</h3><p>In grams, with % Daily Value.</p></div></li>
-        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">g</span></div><div class="ncard__fig"><small>Daily Value</small><b>None</b></div><div class="ncard__body"><h3>Total sugars</h3><p>In grams, without a % DV.</p></div></li>
-        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>2,300 mg</b></div><div class="ncard__body"><h3>Sodium</h3><p>In milligrams, with % DV.</p></div></li>
-        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>300 mg</b></div><div class="ncard__body"><h3>Cholesterol</h3><p>In milligrams, with % DV.</p></div></li>
-        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>1,300 mg</b></div><div class="ncard__body"><h3>Calcium</h3><p>Labeled as an estimate.</p></div></li>
-        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>18 mg</b></div><div class="ncard__body"><h3>Iron</h3><p>Labeled as an estimate.</p></div></li>
-        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>4,700 mg</b></div><div class="ncard__body"><h3>Potassium</h3><p>Labeled as an estimate.</p></div></li>
-        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>420 mg</b></div><div class="ncard__body"><h3>Magnesium</h3><p>Labeled as an estimate.</p></div></li>
-        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>11 mg</b></div><div class="ncard__body"><h3>Zinc</h3><p>Labeled as an estimate.</p></div></li>
-        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">µg</span></div><div class="ncard__fig"><small>Daily Value</small><b>900 µg</b></div><div class="ncard__body"><h3>Vitamin A</h3><p>An estimate, in µg RAE.</p></div></li>
-        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>90 mg</b></div><div class="ncard__body"><h3>Vitamin C</h3><p>Labeled as an estimate.</p></div></li>
-        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">µg</span></div><div class="ncard__fig"><small>Daily Value</small><b>20 µg</b></div><div class="ncard__body"><h3>Vitamin D</h3><p>Labeled as an estimate.</p></div></li>
-        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">µg</span></div><div class="ncard__fig"><small>Daily Value</small><b>2.4 µg</b></div><div class="ncard__body"><h3>Vitamin B12</h3><p>Labeled as an estimate.</p></div></li>
-        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">µg</span></div><div class="ncard__fig"><small>Daily Value</small><b>400 µg</b></div><div class="ncard__body"><h3>Folate</h3><p>An estimate, in µg DFE.</p></div></li>
-      </ul>
+    <div class="ntables" id="nutrient-rail">
+      <div class="ntable">
+        <div class="ntable__head">
+          <h3>Main nutrients<small>Nine, from the campus menu first</small></h3>
+          <span class="ntable__col" aria-hidden="true">Daily Value</span>
+        </div>
+        <ul class="nlist" aria-label="Main nutrients and their Daily Values">
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">01</span><span class="nt-row__nm">Calories</span><span class="nt-row__note">Shown as a range. Set your own goal if you want one.</span><span class="nt-row__dv"><b>Optional</b><small>your goal</small></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">02</span><span class="nt-row__nm">Protein</span><span class="nt-row__note">In grams, with % Daily Value.</span><span class="nt-row__dv"><b>50 g</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">03</span><span class="nt-row__nm">Carbohydrate</span><span class="nt-row__note">With % DV. No carb dosing advice.</span><span class="nt-row__dv"><b>275 g</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">04</span><span class="nt-row__nm">Fat</span><span class="nt-row__note">Total fat in grams, with % DV.</span><span class="nt-row__dv"><b>78 g</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">05</span><span class="nt-row__nm">Saturated fat</span><span class="nt-row__note">Its own line, apart from total fat.</span><span class="nt-row__dv"><b>20 g</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">06</span><span class="nt-row__nm">Fiber</span><span class="nt-row__note">In grams, with % Daily Value.</span><span class="nt-row__dv"><b>28 g</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">07</span><span class="nt-row__nm">Total sugars</span><span class="nt-row__note">In grams, without a % DV.</span><span class="nt-row__dv"><b>None</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">08</span><span class="nt-row__nm">Sodium</span><span class="nt-row__note">In milligrams, with % DV.</span><span class="nt-row__dv"><b>2,300 mg</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">09</span><span class="nt-row__nm">Cholesterol</span><span class="nt-row__note">In milligrams, with % DV.</span><span class="nt-row__dv"><b>300 mg</b></span></li>
+        </ul>
+      </div>
+      <div class="ntable">
+        <div class="ntable__head">
+          <h3>Vitamins and minerals<small>Ten, from USDA, labeled as estimates</small></h3>
+          <span class="ntable__col" aria-hidden="true">Daily Value</span>
+        </div>
+        <ul class="nlist" aria-label="Vitamins and minerals and their Daily Values">
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">10</span><span class="nt-row__nm">Calcium</span><span class="nt-row__dv"><b>1,300 mg</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">11</span><span class="nt-row__nm">Iron</span><span class="nt-row__dv"><b>18 mg</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">12</span><span class="nt-row__nm">Potassium</span><span class="nt-row__dv"><b>4,700 mg</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">13</span><span class="nt-row__nm">Magnesium</span><span class="nt-row__dv"><b>420 mg</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">14</span><span class="nt-row__nm">Zinc</span><span class="nt-row__dv"><b>11 mg</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">15</span><span class="nt-row__nm">Vitamin A</span><span class="nt-row__note">In µg RAE.</span><span class="nt-row__dv"><b>900 µg</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">16</span><span class="nt-row__nm">Vitamin C</span><span class="nt-row__dv"><b>90 mg</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">17</span><span class="nt-row__nm">Vitamin D</span><span class="nt-row__dv"><b>20 µg</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">18</span><span class="nt-row__nm">Vitamin B12</span><span class="nt-row__dv"><b>2.4 µg</b></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">19</span><span class="nt-row__nm">Folate</span><span class="nt-row__note">In µg DFE.</span><span class="nt-row__dv"><b>400 µg</b></span></li>
+        </ul>
+      </div>
     </div>
-    <div class="rail-dots" data-rail-dots="nutrient-rail" aria-hidden="true"></div>
     <p class="fineprint">Daily Value is the amount US food labels use to work out % DV. It is not a goal.</p>
   </section>
 
@@ -364,9 +375,9 @@
       </div>
       <div class="data__side">
         <ul class="datasets">
-          <li class="dataset"><span class="dataset__k"><i class="sw sw--d1"></i>Campus menu items</span><span class="dataset__n">24,191</span><span class="dataset__p">November 10 to 28</span></li>
-          <li class="dataset"><span class="dataset__k"><i class="sw sw--d2"></i>Campus dishes</span><span class="dataset__n">2,236</span><span class="dataset__p">with nutrition facts</span></li>
-          <li class="dataset"><span class="dataset__k"><i class="sw sw--d3"></i>USDA backup foods</span><span class="dataset__n">13,648</span><span class="dataset__p">for anything not on the menu</span></li>
+          <li class="dataset"><span class="dataset__k">Campus menu items</span><span class="dataset__n">24,191</span><span class="dataset__p">November 10 to 28</span></li>
+          <li class="dataset"><span class="dataset__k">Campus dishes</span><span class="dataset__n">2,236</span><span class="dataset__p">with nutrition facts</span></li>
+          <li class="dataset"><span class="dataset__k">USDA backup foods</span><span class="dataset__n">13,648</span><span class="dataset__p">for anything not on the menu</span></li>
         </ul>
         <a class="pill-link" href="https://fdc.nal.usda.gov/">USDA FoodData Central<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
       </div>
@@ -396,7 +407,6 @@
       </div>
     </div>
     <div class="promo__visual">
-      <span class="rings" aria-hidden="true"></span>
       <div class="phone phone--today" role="img" aria-label="Example Today view on a phone, for illustration: breakfast and lunch logged, the day’s calories as a range from 616 to 858, and % Daily Value ranges for protein, carbohydrate and fiber.">
         <div class="phone__screen">
           <div class="ps-status"><span>9:41</span><span class="ps-sig"><i></i><i></i><i></i><b></b></span></div>
@@ -460,31 +470,31 @@
       </div>
       <div class="faq__list">
         <details open>
-          <summary><span>How does MealScholar estimate my meal?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <summary><span class="faq__n" aria-hidden="true">01</span><span class="faq__q">How does MealScholar estimate my meal?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
           <div class="faq__a"><p>The AI looks at your photo, names each food and works out how much is there as a low, likely and high amount. It never outputs nutrient numbers. Those come from the campus menu’s nutrition facts when the food is on it, and from USDA FoodData Central otherwise.</p></div>
         </details>
         <details>
-          <summary><span>Why ranges instead of one number?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <summary><span class="faq__n" aria-hidden="true">02</span><span class="faq__q">Why ranges instead of one number?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
           <div class="faq__a"><p>A photo can’t show exactly how much food is on the plate, so one precise number would be a guess. The range shows how sure the estimate is.</p></div>
         </details>
         <details>
-          <summary><span>Do I need to weigh my food?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <summary><span class="faq__n" aria-hidden="true">03</span><span class="faq__q">Do I need to weigh my food?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
           <div class="faq__a"><p>No. You just take the photo. It works out how much is on the plate by itself.</p></div>
         </details>
         <details>
-          <summary><span>What if it gets a food wrong?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <summary><span class="faq__n" aria-hidden="true">04</span><span class="faq__q">What if it gets a food wrong?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
           <div class="faq__a"><p>Swap it for the right food with one tap, from the campus menu or USDA.</p></div>
         </details>
         <details>
-          <summary><span>Do I need to download an app?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <summary><span class="faq__n" aria-hidden="true">05</span><span class="faq__q">Do I need to download an app?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
           <div class="faq__a"><p>No. It works in the browser on any phone. On iPhone or Android you can add it to your Home Screen from the browser’s share button or menu.</p></div>
         </details>
         <details>
-          <summary><span>Is this medical advice?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <summary><span class="faq__n" aria-hidden="true">06</span><span class="faq__q">Is this medical advice?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
           <div class="faq__a"><p>No. MealScholar gives you information, not medical advice. Any goal is one you choose, and it never gives insulin or carb dosing advice.</p></div>
         </details>
         <details>
-          <summary><span>Does it know the dining hall menus?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <summary><span class="faq__n" aria-hidden="true">07</span><span class="faq__q">Does it know the dining hall menus?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
           <div class="faq__a"><p>Yes. It has every dining hall, café and food court menu on campus with nutrition facts, refreshed every hour.</p></div>
         </details>
       </div>
