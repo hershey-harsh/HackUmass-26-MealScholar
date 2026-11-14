@@ -78,6 +78,14 @@ class Diary:
             cur = self._con.execute("DELETE FROM meals WHERE id = ? AND user_id = ?", (meal_id, self._user))
         return cur.rowcount > 0
 
+    def clear(self) -> int:
+        """Delete all of this user's meals and the portions learned from their corrections.
+        Returns how many meals were deleted."""
+        with self._con:
+            cur = self._con.execute("DELETE FROM meals WHERE user_id = ?", (self._user,))
+            self._con.execute("DELETE FROM usual_portions WHERE user_id = ?", (self._user,))
+        return cur.rowcount
+
     def meals_between(self, first: date, last: date) -> list[MealResult]:
         rows = self._con.execute(
             "SELECT result FROM meals WHERE user_id = ? AND local_date BETWEEN ? AND ? ORDER BY local_date, taken_at",

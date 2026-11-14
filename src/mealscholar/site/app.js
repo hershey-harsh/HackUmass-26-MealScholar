@@ -3004,7 +3004,8 @@ function renderAccountBody() {
     ${passwordSectionHtml(user)}
     <p class="account__status status" role="status"></p>
     <button class="btn btn--soft btn--block" type="button" data-install${installable() ? "" : " hidden"}>${icon("home")}Add to Home Screen</button>
-    <button class="btn btn--secondary btn--block" type="button" data-action="sign-out">${icon("logout")}Sign out</button>`;
+    <button class="btn btn--secondary btn--block" type="button" data-action="sign-out">${icon("logout")}Sign out</button>
+    ${dataSectionHtml(user)}`;
 }
 
 /** Add to Home Screen (install.js) shows only where it can work: after the browser offers an
@@ -3122,6 +3123,14 @@ els.account.addEventListener("click", (event) => {
       return demoVerify(button);
     case "sign-out":
       return signOut(button);
+    case "ask-data":
+      return askData(button);
+    case "cancel-data":
+      return cancelData(button);
+    case "clear-history":
+      return clearHistory(button);
+    case "erase-data":
+      return eraseData(button);
   }
   prefsClick(event); // the Settings widgets (chips, favorites, nearest hall)
 });
@@ -3129,6 +3138,7 @@ els.account.addEventListener("click", (event) => {
 els.account.addEventListener("submit", (event) => {
   event.preventDefault();
   if (event.target.dataset.form === "goals") return saveGoalsForm(event.target);
+  if (event.target.dataset.form === "delete-account") return deleteAccount(event.target);
   submitAccountForm(event.target);
 });
 
@@ -3153,6 +3163,112 @@ async function signOut(button) {
     leaveAccount("welcome"); // the sheet closes at once, so focus can land on Welcome
     toast("You're signed out.");
   });
+}
+
+// ---- Your data: clear history, delete everything, delete the account
+
+function askData(button) {
+  const panel = document.getElementById(button.dataset.ask);
+  if (!panel) return;
+  for (const other of $$(".data-ask", els.account)) if (other !== panel) closeDataAsk(other);
+  panel.hidden = false;
+  button.setAttribute("aria-expanded", "true");
+  const first = $("input:not(.visually-hidden)", panel) ?? $(".btn--danger", panel);
+  first?.focus({ preventScroll: true });
+  panel.scrollIntoView({ block: "nearest", behavior: reducedMotion.matches ? "auto" : "smooth" });
+}
+
+function closeDataAsk(panel) {
+  if (!panel || panel.hidden) return;
+  panel.hidden = true;
+  $(`[data-ask="${CSS.escape(panel.id)}"]`, els.account)?.setAttribute("aria-expanded", "false");
+  if (panel.tagName === "FORM") {
+    clearFormErrors(panel);
+    panel.reset();
+  }
+}
+
+function cancelData(button) {
+  const panel = button.closest(".data-ask");
+  closeDataAsk(panel);
+  $(`[data-ask="${CSS.escape(panel.id)}"]`, els.account)?.focus();
+}
+
+const dataStatus = () => $("[data-data-status]", els.account);
+
+async function clearHistory(button) {
+  await withBusy(button, async () => {
+    let erased;
+    try {
+      erased = await api("/api/meals", { method: "DELETE" });
+    } catch (err) {
+      if (!err.signedOut) setStatus(err.message, { error: true, target: dataStatus() });
+      return;
+    }
+    closeDataAsk(button.closest(".data-ask"));
+    // Nothing logged is left: close any open meal and fetch every day again.
+    for (const key of Object.keys(state.slots)) if (state.slots[key]?.result?.id != null) closeSlot(key);
+    state.openedMeal = null;
+    dayCache.clear();
+    loadDashboard();
+    syncHistory();
+    $('[data-ask="data-clear"]', els.account)?.focus();
+    setStatus(erased.meals === 1 ? "Deleted 1 meal." : `Deleted ${erased.meals} meals.`, { target: dataStatus() });
+  });
+}
+
+async function eraseData(button) {
+  await withBusy(button, async () => {
+    try {
+      await api("/api/me", { method: "DELETE" });
+    } catch (err) {
+      if (!err.signedOut) setStatus(err.message, { error: true, target: dataStatus() });
+      return;
+    }
+    startOver("Your data is deleted. MealScholar starts fresh.");
+  });
+}
+
+async function deleteAccount(form) {
+  const button = $('button[type="submit"]', form);
+  if (button?.getAttribute("aria-busy") === "true") return;
+  clearFormErrors(form);
+  const input = form.elements.namedItem("password");
+  if (!input.value) {
+    setFieldError(input, "Enter your password.");
+    input.focus();
+    return;
+  }
+  await withBusy(button, async () => {
+    try {
+      await api("/api/auth/delete-account", { method: "POST", ...jsonBody({ password: input.value }), session: true });
+    } catch (err) {
+      showFormError(form, err);
+      return;
+    }
+    startOver("Your account and its data are deleted.");
+  });
+}
+
+/** Reload from the top, so nothing from before stays in memory; the message shows after. */
+function startOver(message) {
+  try {
+    sessionStorage.setItem("ms_notice", message);
+  } catch {
+    // private mode: the reload just has no message
+  }
+  location.replace(location.pathname);
+}
+
+function showStartOverNotice() {
+  let message = null;
+  try {
+    message = sessionStorage.getItem("ms_notice");
+    sessionStorage.removeItem("ms_notice");
+  } catch {
+    return;
+  }
+  if (message) toast(message);
 }
 
 // --------------------------------------------------------------- history
@@ -4682,6 +4798,48 @@ function appearanceSectionHtml() {
     </section>`;
 }
 
+/** Settings → Your data: clear history, and delete everything (no account) or the account itself.
+    Each asks once more, in place, before anything is deleted. */
+function dataSectionHtml(user) {
+  const row = (id, title, note, label, danger) => `
+    <div class="data-row">
+      <div class="data-row__text">
+        <p class="data-row__title">${title}</p>
+        <p class="data-row__note">${note}</p>
+      </div>
+      <button class="btn ${danger ? "btn--danger" : "btn--secondary"} data-row__btn" type="button" data-action="ask-data" data-ask="${id}" aria-expanded="false" aria-controls="${id}">${label}</button>
+    </div>`;
+  const buttons = (action, label) => `
+    <div class="delete__row">
+      <button class="btn btn--danger" type="${action ? "button" : "submit"}"${action ? ` data-action="${action}"` : ""}>${icon("trash")}${label}</button>
+      <button class="btn btn--secondary" type="button" data-action="cancel-data">Cancel</button>
+    </div>`;
+  const ask = (id, text, action, label) => `
+    <div class="data-ask" id="${id}" hidden>
+      <p class="delete__ask">${text}</p>
+      ${buttons(action, label)}
+    </div>`;
+  const last = user
+    ? `${row("data-delete-account", "Delete account", "Deletes your account and everything in it: meals, goal, dining halls, favorites and settings.", "Delete account", true)}
+      <form class="data-ask form form--plain" id="data-delete-account" data-form="delete-account" novalidate hidden>
+        <p class="delete__ask">This can't be undone. Enter your password to delete your account.</p>
+        <input class="visually-hidden" type="email" name="username" autocomplete="username" value="${esc(user.email)}" tabindex="-1" aria-hidden="true" readonly>
+        ${passwordFieldHtml({ id: "delete-password", name: "password", label: "Password", autocomplete: "current-password" })}
+        <p class="form-error" role="alert" hidden></p>
+        ${buttons(null, "Delete account")}
+      </form>`
+    : `${row("data-erase", "Delete all my data", "Deletes every meal, your goal, dining halls, favorites and settings from the server, then starts over.", "Delete all", true)}
+      ${ask("data-erase", "Delete everything MealScholar keeps for you? This can't be undone.", "erase-data", "Delete everything")}`;
+  return `
+    <section class="account__section data-zone" id="settings-data" aria-labelledby="settings-data-title">
+      <h3 id="settings-data-title" class="account__section-title" tabindex="-1">Your data</h3>
+      ${row("data-clear", "Clear history", "Deletes every meal you've logged, from the server too. Your goal and settings stay.", "Clear history", false)}
+      ${ask("data-clear", "Delete every meal you've logged? This can't be undone.", "clear-history", "Delete all meals")}
+      ${last}
+      <p class="settings__status status" role="status" data-data-status></p>
+    </section>`;
+}
+
 function renderSettingsBody() {
   const user = state.localUser ? null : state.user;
   const prefs = state.prefs;
@@ -4716,7 +4874,8 @@ function renderSettingsBody() {
     ${user ? passwordSectionHtml(user) : ""}
     <p class="account__status status" role="status"></p>
     <button class="btn btn--soft btn--block" type="button" data-install${installable() ? "" : " hidden"}>${icon("home")}Add to Home Screen</button>
-    ${user ? `<button class="btn btn--secondary btn--block" type="button" data-action="sign-out">${icon("logout")}Sign out</button>` : ""}`;
+    ${user ? `<button class="btn btn--secondary btn--block" type="button" data-action="sign-out">${icon("logout")}Sign out</button>` : ""}
+    ${dataSectionHtml(user)}`;
 }
 
 // ----------------------------------------------------------- onboarding
@@ -4996,6 +5155,7 @@ function bootFailed(err) {
 
 async function init() {
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  showStartOverNotice();
   const links = takeLinkTokens();
   const startOnToday = location.hash === "#today";
   // A refresh keeps the account screen that was open: its entry says which one.

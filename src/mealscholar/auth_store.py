@@ -102,6 +102,10 @@ class AuthStore(Protocol):
 
     def set_password_hash(self, user_id: str, password_hash: str, now: datetime) -> User | None: ...
 
+    def delete_user(self, user_id: str) -> None:
+        """Deletes the account with its sessions, email tokens and queued emails."""
+        ...
+
     # sessions
     def create_session(self, session: Session) -> None: ...
 
@@ -236,6 +240,15 @@ class MemoryAuthStore:
             for token_hash, session in list(self._sessions.items()):
                 if session.user_id == user_id and token_hash != keep:
                     del self._sessions[token_hash]
+
+    def delete_user(self, user_id: str) -> None:
+        with self._lock:
+            user = self._users.pop(user_id, None)
+            if user is not None:
+                self._user_ids.pop(user.email, None)
+                self._outbox = [e for e in self._outbox if e.to != user.email]
+            self._sessions = {k: s for k, s in self._sessions.items() if s.user_id != user_id}
+            self._tokens = {k: t for k, t in self._tokens.items() if t.user_id != user_id}
 
     def create_email_token(self, token: EmailToken) -> None:
         with self._lock:
@@ -377,6 +390,15 @@ class MongoAuthStore:
 
     def delete_session(self, token_hash: str) -> None:
         self._sessions.delete_one({"token_hash": token_hash})
+
+    def delete_user(self, user_id: str) -> None:
+        if (oid := _object_id(user_id)) is None:
+            return
+        doc = self._users.find_one_and_delete({"_id": oid}, {"email": True})
+        self._sessions.delete_many({"user_id": oid})
+        self._tokens.delete_many({"user_id": oid})
+        if doc is not None:
+            self._outbox.delete_many({"to": doc["email"]})
 
     def delete_user_sessions(self, user_id: str, *, keep: str | None = None) -> None:
         if (oid := _object_id(user_id)) is None:

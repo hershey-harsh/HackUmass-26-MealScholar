@@ -28,7 +28,7 @@ from .insights import summarize_days
 from .nutrients import NUTRIENTS
 from .nutrition import FoodDatabase, FoodDatabaseMissing
 from .pipeline import UnknownFood, Workflow, correct
-from .prefs import PrefsStore, install_prefs, open_prefs_store
+from .prefs import LOCAL_USER, PrefsStore, install_prefs, open_prefs_store
 from .schemas import MealResult, Range
 from .vision import GeminiVision, VisionError, VisionModel
 
@@ -75,6 +75,10 @@ class Correction(BaseModel):
     fdc_id: int | None = None
 
 
+class Erased(BaseModel):
+    meals: int = Field(description="How many meals were deleted.")
+
+
 class DayView(BaseModel):
     day: date
     meals: list[MealResult]
@@ -104,7 +108,8 @@ def create_app(
     install_auth(app, auth)
     dining = dining or open_dining(settings)
     install_dining(app, dining)
-    install_prefs(app, prefs or open_prefs_store(auth.store), dining)
+    prefs = prefs or open_prefs_store(auth.store)
+    install_prefs(app, prefs, dining)
 
     # SQLite connections are opened per request: FastAPI runs sync handlers on a thread pool.
     # `owner` is the signed-in user's id, or None for the local diary (see auth.diary_owner).
@@ -199,6 +204,29 @@ def create_app(
         with closing(Diary(settings.diary_db, owner)) as diary:
             if not diary.delete(meal_id):
                 raise HTTPException(404, f"No meal #{meal_id}.")
+
+    @app.delete("/api/meals")
+    def clear_history(owner: DiaryOwner) -> Erased:
+        """Delete every meal in the diary and the portions learned from corrections; goals and
+        settings stay. With nobody signed in, that is the local diary."""
+        with closing(Diary(settings.diary_db, owner)) as diary:
+            return Erased(meals=diary.clear())
+
+    def erase(owner: str | None) -> int:
+        """Delete the meals, learned portions and preferences kept for `owner` (None: the local user)."""
+        with closing(Diary(settings.diary_db, owner)) as diary:
+            meals = diary.clear()
+        prefs.delete(owner or LOCAL_USER)
+        return meals
+
+    # POST /api/auth/delete-account runs this before it deletes the account itself.
+    app.state.erase_user_data = erase
+
+    @app.delete("/api/me")
+    def erase_me(owner: DiaryOwner) -> Erased:
+        """Delete everything kept for whoever asks: meals, learned portions, goals and settings, so
+        the app starts over. A signed-in account stays; POST /api/auth/delete-account removes it too."""
+        return Erased(meals=erase(owner))
 
     @app.post("/api/meals/{meal_id}/answer")
     def answer(meal_id: int, body: Answer, owner: DiaryOwner) -> MealResult:

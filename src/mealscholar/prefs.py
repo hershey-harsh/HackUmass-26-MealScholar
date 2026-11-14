@@ -264,6 +264,10 @@ class PrefsStore(Protocol):
         """The saved document without _id, or None if the user never saved any."""
         ...
 
+    def delete(self, user_id: str) -> None:
+        """Forget this user's preferences; get() then returns None."""
+        ...
+
     def update(self, user_id: str, changes: Mapping[str, Any]) -> dict[str, Any]:
         """Set fields (dotted paths reach into nutrient_goals and notify), creating the document
         if there is none, and return it as saved."""
@@ -300,6 +304,10 @@ class MemoryPrefsStore:
         with self._lock:
             return copy.deepcopy(self._docs.get(user_id))
 
+    def delete(self, user_id: str) -> None:
+        with self._lock:
+            self._docs.pop(user_id, None)
+
     def update(self, user_id: str, changes: Mapping[str, Any]) -> dict[str, Any]:
         with self._lock:
             doc = self._docs.setdefault(user_id, {})
@@ -333,6 +341,9 @@ class MongoPrefsStore:
 
     def get(self, user_id: str) -> dict[str, Any] | None:
         return self._prefs.find_one({"_id": _user_id(user_id)}, {"_id": False})
+
+    def delete(self, user_id: str) -> None:
+        self._prefs.delete_one({"_id": _user_id(user_id)})
 
     def update(self, user_id: str, changes: Mapping[str, Any]) -> dict[str, Any]:
         return self._prefs.find_one_and_update(
