@@ -733,16 +733,6 @@ function resultHtml(slot) {
     </div>`;
 }
 
-/** Big low–high calories; one number once every counted food is weighed. */
-function kcalRangeHtml(kcal) {
-  const [low, high] = [amount(kcal.low, "kcal"), amount(kcal.high, "kcal")];
-  const numbers =
-    low === high
-      ? `<span>${low}</span>`
-      : `<span>${low}</span><span class="total__dash" aria-hidden="true">–</span><span class="visually-hidden"> to </span><span>${high}</span>`;
-  return `${numbers}<span class="total__unit">kcal</span>`;
-}
-
 function totalHtml(result, photoUrl) {
   const kcal = result.totals.energy_kcal;
   if (!result.items.length) {
@@ -762,16 +752,18 @@ function totalHtml(result, photoUrl) {
   const [low, likely, high] = [amount(kcal.low, "kcal"), amount(kcal.likely, "kcal"), amount(kcal.high, "kcal")];
   const exact = low === high;
   const weighable = result.items.some((r) => r.match && !isExact(itemGrams(r.item)));
+  // The likely number leads and the range sits under it, the same shape as the Today panel.
   return `
     <div class="total">
       <p class="eyebrow">Calories, this meal</p>
-      <p class="total__value">${kcalRangeHtml(kcal)}</p>
-      ${bandHtml("total-kcal", kcal, { dark: true })}
-      <p class="total__likely">${
+      <p class="total__value"><span class="total__num">${likely}</span><span class="total__unit">kcal</span>${exact ? "" : '<span class="visually-hidden">, most likely</span>'}</p>
+      <p class="total__range">${
         exact
-          ? "Every counted food has a set amount, so this is a single number."
-          : `Most likely <strong>${likely}&nbsp;kcal</strong>.${weighable ? " Know an amount? Set it to narrow the range." : ""}`
+          ? "Every counted food has a set amount, so this is one number."
+          : `Most likely, in a range of <strong>${low}${TO}${high}&nbsp;kcal</strong>`
       }</p>
+      ${bandHtml("total-kcal", kcal, { dark: true })}
+      ${weighable ? '<p class="total__likely">Know an amount? Set it to narrow the range.</p>' : ""}
     </div>${answered}${noPhoto}`;
 }
 
@@ -838,7 +830,7 @@ function itemHtml(r, i, gramsScale) {
   const method = item.cooking_method === "unknown" ? "" : capitalize(item.cooking_method.replace(/_/g, " "));
   const meta = [
     method && `<span class="chip">${esc(method)}</span>`,
-    weighed ? `<span class="chip chip--ok">${icon("check")}Weighed</span>` : null,
+    weighed ? `<span class="chip chip--ok">${icon("check")}Set amount</span>` : null,
     item.hidden_fat_likely ? `<span class="chip chip--warn">${icon("drop")}Likely hidden oil or butter</span>` : null,
   ].filter(Boolean);
   const energy = match
@@ -858,7 +850,7 @@ function itemHtml(r, i, gramsScale) {
       </div>
       ${meta.length ? `<p class="item__meta">${meta.join(SEP)}</p>` : ""}
       <div class="item__grams">
-        <span class="field-label">${weighed ? "Weight" : "Estimated weight"}</span>
+        <span class="field-label">${weighed ? "Amount" : "Estimated amount"}</span>
         ${bandHtml(`grams-${i}`, range, { scale: gramsScale })}${rangeHtml(range, "g", grams)}
       </div>
       ${matchLine}
@@ -1195,17 +1187,17 @@ function weighHtml(r, i) {
   const range = itemGrams(r.item);
   return `
     <div class="estimate">
-      <span class="field-label">${isExact(range) ? "Current weight" : "Estimated weight"}</span>
+      <span class="field-label">${isExact(range) ? "Current amount" : "Estimated amount"}</span>
       ${bandHtml(`sheet-grams-${i}`, range, { scale: range.high * 1.1 || 1 })}${rangeHtml(range, "g", grams)}
     </div>
     <form class="weigh" data-form="weigh">
-      <label class="field-label" for="grams-${i}">Exact weight in grams<span class="visually-hidden"> of ${esc(r.item.name)}</span></label>
+      <label class="field-label" for="grams-${i}">Amount in grams<span class="visually-hidden"> of ${esc(r.item.name)}</span></label>
       <div class="weigh__row">
         <span class="field-unit">
           <input id="grams-${i}" class="field" name="grams" type="number" inputmode="numeric" pattern="[0-9]*" min="1" max="10000" step="1" required placeholder="${esc(r.item.grams_likely)}" enterkeyhint="done" aria-describedby="weigh-hint">
           <span aria-hidden="true">g</span>
         </span>
-        <button class="btn btn--primary" type="submit">${icon("check")}Set weight</button>
+        <button class="btn btn--primary" type="submit">${icon("check")}Set amount</button>
       </div>
       <p id="weigh-hint" class="sheet-hint">Collapses this food's range to one number. MealScholar remembers it as your usual portion.</p>
       <p class="sheet-error" role="alert"></p>
@@ -1541,7 +1533,7 @@ function heroHtml(view) {
         <p class="hero__value"><span class="hero__num">${likely}</span><span class="hero__unit">kcal</span>${exact ? "" : '<span class="visually-hidden">, most likely</span>'}</p>
         <p class="hero__range">${
           exact
-            ? "Every counted food is weighed, so this is one number."
+            ? "Every counted food has a set amount, so this is one number."
             : `Most likely, in a range of <strong>${low}${TO}${high}&nbsp;kcal</strong>`
         }</p>
       </div>
@@ -1595,7 +1587,7 @@ function goalHeroHtml(kcal, head, goal) {
         <p class="hero__value"><span class="visually-hidden">Likely </span><span class="hero__num">${likely}</span><span class="hero__unit">of ${amount(goal, "kcal")} kcal</span></p>
         <p class="hero__range">${
           exact
-            ? "Every counted food is weighed, so this is one number."
+            ? "Every counted food has a set amount, so this is one number."
             : `Likely, in a range of <strong>${low}${TO}${high}&nbsp;kcal</strong>`
         }</p>
       </div>
@@ -1616,7 +1608,7 @@ function statHtml(view, key, label, size) {
   const figure = range
     ? `<p class="stat__figure">
          <span class="stat__value"><strong>${fmt(range.likely)}</strong><span class="stat__unit">${esc(unit)}</span>${isExact(range) ? "" : '<span class="visually-hidden">, most likely</span>'}</span>
-         <span class="stat__range">${isExact(range) ? "Weighed" : `<span class="visually-hidden">range </span>${fmt(range.low)}${TO}${fmt(range.high)}`}</span>
+         <span class="stat__range">${isExact(range) ? "Set amount" : `<span class="visually-hidden">range </span>${fmt(range.low)}${TO}${fmt(range.high)}`}</span>
        </p>`
     : '<p class="stat__figure"><span class="stat__none">No data</span></p>';
   let foot;
@@ -2377,9 +2369,9 @@ function sampleHtml() {
       <p class="welcome__sample-title">Lunch</p>
       <div class="total">
         <p class="eyebrow">Calories, this meal</p>
-        <p class="total__value"><span>407</span><span class="total__dash">–</span><span>655</span><span class="total__unit">kcal</span></p>
+        <p class="total__value"><span class="total__num">520</span><span class="total__unit">kcal</span></p>
+        <p class="total__range">Most likely, in a range of <strong>407–655&nbsp;kcal</strong></p>
         ${bandHtml("sample-kcal", { low: 407, likely: 520, high: 655 }, { dark: true })}
-        <p class="total__likely">Most likely <strong>520&nbsp;kcal</strong>.</p>
       </div>
       <ul class="welcome__foods">
         <li><span>Chicken fried rice</span>${rangeHtml({ low: 220, likely: 280, high: 350 }, "g", grams)}</li>
