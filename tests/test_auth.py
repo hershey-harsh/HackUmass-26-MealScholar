@@ -789,7 +789,8 @@ def test_smtp_sending_does_not_delay_sign_up_or_forgot_password(make_app, fake_s
 
     relay.set()
     app.state.auth.sender.drain(10)
-    assert [(m["To"], m["Subject"]) for m in fake_smtp.messages] == [
+    # Two workers deliver at once when the relay lets go, so either email can land first.
+    assert sorted((m["To"], m["Subject"]) for m in fake_smtp.messages) == [
         ("sam@example.com", "Confirm your MealScholar email"),
         ("sam@example.com", "Reset your MealScholar password"),
     ]
