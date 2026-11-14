@@ -8002,10 +8002,25 @@ body .today .dash-head .view-title {
   }
 }
 
-/* Laptops: the head lines up with the content's left edge on every tab. */
+/* Laptops: the head starts at the same x on every tab (Menu and Week sit 4px further left). */
 @media (min-width: 64em) {
-  body .today .dash-head,
-  body .page-head {
+  body .today .dash-head {
     padding-inline: 0;
+  }
+
+  body :is(.menu-view, .week-view) .page-head {
+    padding-inline: 4px 0;
+  }
+}
+
+body .recent .recent-card {
+  row-gap: 2px;
+  column-gap: 14px;
+  padding: 12px 6px;
+}
+
+@media (max-width: 22.49em) {
+  body .recent .recent-card {
+    column-gap: 10px;
   }
 }
