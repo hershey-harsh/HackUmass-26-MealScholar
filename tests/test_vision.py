@@ -82,7 +82,7 @@ def test_context_prompt_names_the_date_and_lists_the_menu():
         "- Pad Thai (serving: 8 OZ)",
         "- Water (serving: unknown)",
     ]
-    assert lines[6].startswith("The photo was taken here, so for each food pick the listed dish of the same kind")
+    assert lines[6].startswith("For each food that IS one of these dishes (the same dish, not just the same kind")
     assert "set menu_item to that exact name" in lines[6] and "Estimate grams for every item either way." in lines[6]
     assert "Today's menu" not in context_prompt(context, {}, [], hall="Worcester Dining Commons")
 
