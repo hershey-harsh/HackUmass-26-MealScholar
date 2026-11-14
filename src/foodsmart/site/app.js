@@ -375,6 +375,7 @@ function setView(view) {
   state.scroll[state.view] = window.scrollY;
   state.view = view;
   document.body.dataset.view = view;
+  queueSideFit();
   syncTabs();
   if (view === "analyze") showBadge(false);
   syncResult();
@@ -400,8 +401,40 @@ for (const tab of els.tabs) {
   });
 }
 
-const onScroll = () => els.topbar.classList.toggle("is-scrolled", window.scrollY > 4);
+/** 64–82em: the shell fills the window, so the fixed + button sits over the side column's corner.
+    The upcoming-meal card keeps its bottom edge just above the button: at the top of the page the
+    column starts under the title and week strip, pinned it starts under the bar, and the card takes
+    whatever height is left either way. A stylesheet can't tell the two states apart, so the height
+    is set here on scroll and resize. */
+const narrowLaptop = matchMedia("(min-width: 64em) and (max-width: 81.99em)");
+const PLUS_LANE = 104; // the 60px button, 28px from the bottom, and a 16px gap above it
+let sideFitQueued = false;
+
+function fitSideCard() {
+  sideFitQueued = false;
+  const card = $(".upcoming", els.dashSide);
+  if (!card) return;
+  if (!narrowLaptop.matches || document.body.dataset.view !== "today") {
+    card.style.maxHeight = "";
+    return;
+  }
+  const top = card.getBoundingClientRect().top;
+  card.style.maxHeight = `${Math.max(240, Math.round(window.innerHeight - PLUS_LANE - top))}px`;
+}
+
+function queueSideFit() {
+  if (sideFitQueued) return;
+  sideFitQueued = true;
+  requestAnimationFrame(fitSideCard);
+}
+
+const onScroll = () => {
+  els.topbar.classList.toggle("is-scrolled", window.scrollY > 4);
+  queueSideFit();
+};
 window.addEventListener("scroll", onScroll, { passive: true });
+window.addEventListener("resize", queueSideFit);
+narrowLaptop.addEventListener("change", queueSideFit);
 
 /** The tab that is on screen for this layout: the tab bar on phones, the top bar on wide screens. */
 const visibleTab = () => els.tabs.find((tab) => tab.matches("[aria-current]") && tab.getClientRects().length);
@@ -965,7 +998,7 @@ els.result.addEventListener("click", (event) => {
       openSheet(button.dataset.action, index);
       break;
     case "settings":
-      openSettings(button.dataset.section);
+      openSettings(button.dataset.section, button);
       break;
   }
 });
@@ -1524,9 +1557,12 @@ function settingsLinkHtml(label, section, { light = false } = {}) {
   return `<button class="link-btn link-btn--inline${light ? " link-btn--light" : ""}" type="button" data-action="settings" data-section="${section}" aria-haspopup="dialog">${label}</button>`;
 }
 
-/** "360 kcal left" or "over by 140 kcal": never a negative number. */
+/** "360 kcal left" or "over by 140 kcal": never a negative number, and never "over by 0" when the
+    difference rounds away. */
 function leftText(value, unit, format = (v) => amount(v, unit)) {
-  return value >= 0 ? `${format(value)} ${unit} left` : `over by ${format(-value)} ${unit}`;
+  const shown = format(Math.abs(value));
+  if (/^0(?:\.0)?$/.test(shown)) return "at your goal";
+  return value >= 0 ? `${shown} ${unit} left` : `over by ${shown} ${unit}`;
 }
 
 /** What's left across the range, low to high, each side worded on its own. */
@@ -1542,11 +1578,16 @@ function goalHeroHtml(kcal, head, goal) {
   const [low, likely, high] = [amount(kcal.low, "kcal"), amount(kcal.likely, "kcal"), amount(kcal.high, "kcal")];
   const exact = low === high;
   const left = goal - kcal.likely;
-  const leftLine = exact
-    ? capitalize(leftText(left, "kcal"))
-    : left >= 0
-      ? `About ${leftText(left, "kcal")}`
-      : `Over by about ${amount(-left, "kcal")} kcal`;
+  const atGoal = amount(Math.abs(left), "kcal") === "0";
+  const leftLine = atGoal
+    ? exact
+      ? "Right at your goal"
+      : "Right at your goal, most likely"
+    : exact
+      ? capitalize(leftText(left, "kcal"))
+      : left >= 0
+        ? `About ${leftText(left, "kcal")}`
+        : `Over by about ${amount(-left, "kcal")} kcal`;
   return `
     <section class="card hero hero--goal" aria-labelledby="hero-title">
       ${head}
@@ -1948,7 +1989,7 @@ els.todayView.addEventListener("click", (event) => {
     case "demo-verify":
       return demoVerify(action);
     case "settings":
-      return openSettings(action.dataset.section);
+      return openSettings(action.dataset.section, action);
     case "retry-upcoming":
       state.upcoming = null;
       return loadUpcoming();
@@ -2775,8 +2816,12 @@ function renderAccountBody() {
     install, or in Safari on an iPhone or iPad, and never once the app runs from the Home Screen. */
 const installable = () => Boolean(window.MealScholarInstall?.available?.());
 
-function openAccount() {
+/** Opens the account sheet. `opener` is the control that asked for it (or its click event), so
+    closing the sheet can hand focus back there instead of always to the avatar in the bar. */
+function openAccount(opener) {
   if (!state.user && !(state.prefsOn && state.localUser)) return;
+  accountOpener =
+    opener instanceof Element ? opener : opener?.currentTarget instanceof Element ? opener.currentTarget : document.activeElement;
   clearTimeout(accountTimer);
   els.account.classList.remove("is-closing");
   els.account.style.transform = "";
@@ -2788,19 +2833,31 @@ function openAccount() {
 }
 
 /** Settings, scrolled to one of its sections (goals, dining, diet, favorites, alerts). */
-function openSettings(section) {
-  openAccount();
+function openSettings(section, opener) {
+  openAccount(opener);
   if (!section || !els.account.open) return;
   const target = $(`#settings-${CSS.escape(section)}`, els.account);
   if (!target) return;
-  target.scrollIntoView({ block: "start", behavior: reducedMotion.matches ? "auto" : "smooth" });
+  // Scroll the sheet body only: scrollIntoView would also scroll the <dialog> itself and push
+  // its header and Close button out of view.
+  const body = $(".sheet__body", els.account);
+  if (body) {
+    const top = target.getBoundingClientRect().top - body.getBoundingClientRect().top + body.scrollTop;
+    body.scrollTo({ top: Math.max(0, top - 8), behavior: reducedMotion.matches ? "auto" : "smooth" });
+  }
+  els.account.scrollTop = 0;
   $(".account__section-title", target)?.focus({ preventScroll: true });
 }
 
 let accountTimer = 0;
 let accountRestore = true;
+let accountOpener = null;
 let accountMessage = "";
 let pressedAccountBackdrop = false;
+
+/** Still on the page and showing, so focus can go back to it. */
+const canTakeFocus = (el) =>
+  el instanceof Element && el.isConnected && !el.closest("[hidden], dialog:not([open])") && (el.checkVisibility?.() ?? true);
 
 function closeAccount({ restoreFocus: restore = true, swiped = false, message = "" } = {}) {
   if (!els.account.open) {
@@ -2828,7 +2885,11 @@ els.account.addEventListener("close", () => {
   els.account.style.transform = "";
   if (!els.sheet.open) document.documentElement.classList.remove("has-sheet");
   els.accountBody.innerHTML = "";
-  if (accountRestore && !els.accountButton.hidden) els.accountButton.focus();
+  if (accountRestore) {
+    const back = canTakeFocus(accountOpener) ? accountOpener : els.accountButton;
+    if (!back.hidden) back.focus();
+  }
+  accountOpener = null;
   accountRestore = true;
   if (accountMessage) toast(accountMessage);
   accountMessage = "";
@@ -3404,6 +3465,7 @@ function renderUpcoming() {
       </div>
       <p class="upcoming__count">${items.length} item${items.length === 1 ? "" : "s"} on the menu</p>
     </section>`;
+  fitSideCard();
 }
 
 function dishLegendHtml(fav, avoid, off) {
@@ -3550,6 +3612,11 @@ function scoreHtml(view) {
     )
     .join("");
   const plusNames = SCORE_PLUS.map(([key, fallback]) => (labelOf(key) === key ? fallback : labelOf(key))); // names keep their case
+  const nothingCounted = parts.every((p) => p.pct == null);
+  const main = nothingCounted
+    ? `<p class="score__empty note">No data yet. Pick a USDA food for each item to score the day.</p>`
+    : `<p class="score__value"><span class="score__num">${score}</span><span class="score__of">of 100</span></p>
+        <span class="score__bar" aria-hidden="true"><span class="score__fill" style="width:${score}%"></span></span>`;
   return `
     <section class="card score" aria-labelledby="score-title">
       <div class="score__head">
@@ -3557,8 +3624,7 @@ function scoreHtml(view) {
         <p class="eyebrow">Nutrient balance</p>
       </div>
       <div class="score__main">
-        <p class="score__value"><span class="score__num">${score}</span><span class="score__of">of 100</span></p>
-        <span class="score__bar" aria-hidden="true"><span class="score__fill" style="width:${score}%"></span></span>
+        ${main}
       </div>
       <p class="score__note">A rough guide, not medical advice.</p>
       <details class="disclosure score__how"${state.scoreOpen ? " open" : ""}>
@@ -4301,9 +4367,13 @@ function showPrefsError(form, err) {
   const input = name ? form.querySelector(`input[name="${CSS.escape(name)}"]`) : null;
   if (input && !input.classList.contains("visually-hidden")) {
     revealField(input);
-    setFieldError(input, err.message);
-    input.focus();
-    return;
+    // The own-number calorie field stays hidden behind the other two choices; then the message
+    // goes above the button instead of into a field nobody can see.
+    if (input.checkVisibility?.() ?? true) {
+      setFieldError(input, err.message);
+      input.focus();
+      return;
+    }
   }
   const alert = $(".form-error", form);
   if (!alert) return toast(err.message);
@@ -4552,6 +4622,7 @@ function renderOnboarding() {
       <form class="card form onboard__form" data-prefs-root data-mode="onboard" data-step="${step}" novalidate>
         ${stepBodyHtml(step)}
         <p class="form-error" role="alert" hidden></p>
+        <button class="visually-hidden" type="submit" tabindex="-1">${last ? "Go to my dashboard" : "Next"}</button>
       </form>
       <div class="onboard__actions">
         <button class="cta cta--block" type="button" data-onboard="${last ? "finish" : "next"}"><span class="cta__pill">${last ? "Go to my dashboard" : "Next"}</span><span class="cta__dot" aria-hidden="true">${icon("arrow")}</span></button>

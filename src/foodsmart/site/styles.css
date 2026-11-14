@@ -5623,11 +5623,13 @@ body[data-screen="onboard"] .toast {
 }
 
 /* Up to 82em the shell fills the window and the fixed + button (60px, 28px up from the bottom)
-   would land on the pinned side column's corner: the card ends above the button, so no menu row
-   scrolls under it. From 82em the + sits beside the shell and the card keeps its full height. */
+   lands on the side column's corner. The card ends above the button both at the top of the page,
+   where the column starts under the title and week strip (138px), and once the column is pinned,
+   so no menu row ever sits under it. From 82em the + sits beside the shell and the card keeps its
+   full height. */
 @media (min-width: 64em) and (max-width: 81.99em) {
   body[data-prefs="on"] .dash-col--side .upcoming {
-    max-height: calc(100dvh - var(--bar-h) - var(--safe-top) - 112px);
+    max-height: calc(100dvh - var(--bar-h) - var(--safe-top) - 138px - 104px);
   }
 }
 /* Larger browser text on narrow phones: the pilot pill keeps only its M in every mode, the brand
@@ -5648,4 +5650,8 @@ body[data-screen="onboard"] .toast {
     position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
   }
   .tab { position: relative; }
+}
+
+.score__empty {
+  margin: 0;
 }
