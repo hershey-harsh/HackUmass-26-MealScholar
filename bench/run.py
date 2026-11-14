@@ -1,4 +1,4 @@
-"""Run Gemini configurations over test_pictures/ through the real FoodSmart pipeline.
+"""Run Gemini configurations over test_pictures/ through the real MealScholar pipeline.
 
 Each run is photo -> metadata -> GeminiVision (production prompt + schema) -> USDA lookup -> totals,
 exactly as `foodsmart analyze --no-log`, with latency and token usage recorded per Gemini call.
