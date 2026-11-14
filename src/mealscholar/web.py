@@ -23,7 +23,16 @@ from pydantic import BaseModel, Field
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from .auth import AuthService, DiaryOwner, install_auth
+from .auth import (
+    AuthError,
+    AuthService,
+    Client,
+    DiaryOwner,
+    RateLimiter,
+    RequestClient,
+    Rule,
+    install_auth,
+)
 from .busy import Busy, install_busy, open_busy
 from .config import USER_AGENT, Settings
 from .context import NominatimPlaces, PlaceLookup
@@ -41,6 +50,8 @@ from .vision import GeminiVision, VisionError, VisionModel
 
 SITE = Path(__file__).parent / "site"
 MAX_PHOTO_BYTES = 25 * 1024 * 1024
+ANALYSIS_PER_USER = Rule("analysis-user", 10, 10 * 60)
+ANALYSIS_PER_IP = Rule("analysis-ip", 100, 10 * 60)  # campus Wi-Fi can share one network
 PHOTO_CACHE = "private, max-age=86400"
 JPEG_REPLY: dict[int | str, dict] = {200: {"content": {"image/jpeg": {}}, "description": "The photo."}}
 
@@ -99,6 +110,15 @@ class DayView(BaseModel):
     daily_value_pct: dict[str, Range]
     health: HealthScore | None = None
     """The day's nutrient-balance score (insights.health_score); None for a day with no meals."""
+
+
+def _limit_analysis(limiter: RateLimiter, owner: str | None, client: Client) -> None:
+    """Photos and clarifying answers share a budget; guests are limited by network."""
+    network = (ANALYSIS_PER_IP, client.network)
+    wait = limiter.hit(network) if owner is None else limiter.hit((ANALYSIS_PER_USER, owner), network)
+    if wait is not None:
+        unit = "second" if wait == 1 else "seconds"
+        raise AuthError(429, f"Too many analysis requests. Try again in {wait} {unit}.", retry_after=wait)
 
 
 class _ResponseSecurity:
@@ -209,6 +229,7 @@ def create_app(
     async def analyze(
         request: Request,
         owner: DiaryOwner,
+        client: RequestClient,
         lat: float | None = None,
         lon: float | None = None,
         location_id: Annotated[int | None, Query(ge=1, le=MAX_LOCATION_ID)] = None,
@@ -223,6 +244,7 @@ def create_app(
         then 'device'. Send local time with its offset, not UTC: a 'Z' or +00:00 time is accepted
         but the diary files the meal under that clock's date, so an evening meal sent as UTC
         lands on the next day."""
+        _limit_analysis(auth.limiter, owner, client)
         if (lat is None) != (lon is None):
             raise HTTPException(400, "lat and lon go together.")
         if taken_at is not None and taken_at.tzinfo is None:
@@ -324,8 +346,9 @@ def create_app(
         return Erased(meals=erase(owner))
 
     @app.post("/api/meals/{meal_id}/answer")
-    def answer(meal_id: int, body: Answer, owner: DiaryOwner) -> MealResult:
+    def answer(meal_id: int, body: Answer, owner: DiaryOwner, client: RequestClient) -> MealResult:
         """Answer the clarifying question: Gemini revises the analysis and everything is recomputed."""
+        _limit_analysis(auth.limiter, owner, client)
         with stores(owner) as (foods, diary):
             result = logged(diary, meal_id)
             if not result.question:

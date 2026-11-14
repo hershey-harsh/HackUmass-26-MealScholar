@@ -63,9 +63,9 @@ BAD_LINK = "That link is invalid or has expired."
 
 # --- passwords ----------------------------------------------------------------
 
-SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_LEN = 2**14, 8, 1, 32
-_SCRYPT_MAXMEM = 64 * 2**20
-_hash_slots = threading.BoundedSemaphore(4)  # each scrypt run takes 16 MiB of memory
+SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_LEN = 2**17, 8, 1, 32
+_SCRYPT_MAXMEM = 256 * 2**20
+_hash_slots = threading.BoundedSemaphore(4)  # each current scrypt run needs about 128 MiB
 
 
 def hash_password(password: str) -> str:
@@ -634,6 +634,9 @@ def _client(request: Request) -> Client:
     if (address := _ip(peer)) is not None and address.is_loopback:
         ip = request.headers.get("cf-connecting-ip", "").strip() or peer
     return Client(ip=ip[:64] or "unknown", user_agent=request.headers.get("user-agent"))
+
+
+RequestClient = Annotated[Client, Depends(_client)]
 
 
 def _ip(text: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
