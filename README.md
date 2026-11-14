@@ -52,21 +52,24 @@ supply the nutrition facts. Review the sources, correct a match and log your mea
 | **Photo analysis** | JPEG, PNG and HEIC uploads up to 25 MB and 50 megapixels; foods and portion estimates with boxes on the photo. |
 | **Honest uncertainty** | Low, likely and high values for portions and nutrients, with at most one clarifying question. |
 | **Check the match** | Inspect the USDA source, search alternatives and correct the selected food. |
-| **Your food diary** | Meals by day, calorie and nutrient totals, % Daily Value and weekly views. |
+| **Your food diary** | Meals with retained, metadata-stripped photos; daily calorie/nutrient totals, % Daily Value and weekly views. |
 | **Phone-first app** | Today, Menu and Week views, camera entry points and Add to Home Screen. |
 | **Campus menu first** | Each upload names a dining hall: the one you're at with location on, else the hall picked on Menu, else your main hall. A food that is a listed dish uses the hall's label; the rest use USDA. |
 | **Campus dining APIs** | UMass Dining locations, menus, dish search, nearby halls and favorites alerts. |
 
 ### Current limitations
 
-- **The backend doesn't pick the hall.** `POST /api/meals` uses a campus label only when it gets
-  a `location_id`; the app chooses that hall. API and CLI callers without one get USDA only.
+- **Campus labels need hall context.** The backend uses a campus label only when it receives
+  `location_id`; it does not choose a hall. The browser supplies the nearby commons when location
+  is on, otherwise the Menu-tab choice or main hall, plus local photo time. Candidates include
+  Grab N' Go and can use past dishes on a missing menu day. Unmatched foods and API/CLI calls
+  without a hall fall back to USDA.
 - **Accounts depend on deployment settings.** Sign-in and onboarding screens exist. Production must
   require authentication; disabling it shares one local diary and preferences among all visitors,
   not a private diary per device.
 - **Email delivery is opt-in configuration.** SMTP is implemented, but the default `outbox` provider
-  only queues messages. The app's SMTP-availability wording and delivered-email smoke checks remain
-  open in [TODO.md](TODO.md).
+  only queues messages. The app reads `/api/status`'s `email_sending` capability; production email
+  delivery and account-isolation smoke checks still need operator verification.
 
 See [TODO.md](TODO.md) for remaining work.
 
@@ -218,9 +221,9 @@ For production, use persistent accounts, require sign-in and set `MEALSCHOLAR_PU
 Configure SMTP and verify delivered confirmation/reset links before relying on email. Favorites
 digests also need an explicit schedule; SMTP configuration alone does not schedule them.
 
-Meals and learned portions remain in `MEALSCHOLAR_HOME/diary.sqlite`, and logged meals' photos in
-`MEALSCHOLAR_HOME/photos/`; MongoDB stores accounts and preferences, not the diary. Back up both
-stores and verify restoration.
+Meals and learned portions live in `MEALSCHOLAR_HOME/diary.sqlite`, and retained photo JPEGs and
+thumbnails in `MEALSCHOLAR_HOME/photos/`. MongoDB stores accounts and preferences. Back up all
+three data sets and verify restoration.
 
 </details>
 
@@ -231,10 +234,13 @@ stores and verify restoration.
 - **Ranges stay visible:** photo-based amounts have low/likely/high estimates. A meal's or a day's
   range adds its foods' errors as partly correlated (`compute.SHARED_ERROR`), not every low and
   every high at once. Exact-weight corrections through the CLI or API can collapse a range.
-- **Private by default:** location is opt-in, and coordinates are not stored. A logged meal keeps
-  its photo, re-encoded from the pixels alone (no EXIF, GPS, XMP or color profile) as a 1280 px
-  JPEG and a 320 px thumbnail that only its owner can fetch. Deleting the meal, the history or the
-  account deletes them. Images sent to Gemini are re-encoded without EXIF, using `store=False`.
+- **Photo retention:** logged meal photos are retained as JPEGs up to 1280 px on the long edge
+  and thumbnails up to 320 px, re-encoded without EXIF/GPS, XMP, comments or color-profile metadata.
+  The raw upload is not saved. Deleting the meal, history or account removes its server photo copies.
+  Photo access follows account ownership when signed in; local guest mode remains shared.
+- **Location is opt-in:** raw coordinates are not retained in the diary. Images sent to Gemini
+  are re-encoded without EXIF, and requests use `store=False`; that flag is not a blanket provider
+  retention guarantee.
 - **Estimates, not diagnosis:** micronutrients are labelled as estimates; weekly averages count
   only days with logged meals.
 - **Your goals, not prescriptions:** calorie goals are optional and user-selected. % Daily Value

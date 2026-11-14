@@ -43,19 +43,22 @@ The first browser responses loaded assets stamped `1960e30`; deployments continu
 ### P1 — core promise, trust and deployment correctness
 
 - [ ] **AUD-04 · Harsh (app) + Joseph (contract): connect the app to the campus-menu backend.**
-  - **Evidence:** #106 implemented menu matching, but `site/app.js:629–645` builds only `?lat=…&lon=…`. It never sends `location_id`; `pipeline.py:101–102,125–127` explicitly skips campus matching without it. `site/app.js:944` hard-codes “USDA” instead of rendering `source`, `dish` and `menu`. The landing's hero, feature 03, workflow and FAQ therefore overpromise what the shipped photo flow reaches.
+  - **Audit evidence (before #121):** the browser omitted the hall and rendered all matches as USDA, leaving the backend campus path unreachable from uploads. That implementation gap is now fixed; the remaining acceptance work below is still open.
   - **Done when:** capture lets the user confirm a dining hall without requiring location permission, sends its `location_id`, and renders `source: "campus"` versus `"usda"` truthfully, including hall, dish and serving basis. Location denial/off-campus/no matching dish must retain a usable USDA path. Counted campus portions need a servings-preserving correction control: sending grams for a counted dish can switch it to USDA. Keep photo-time work in section 3 connected to this flow.
   - **Proof:** an isolated real campus meal produces campus-sourced main nutrients; an unmatched/off-campus meal produces an explicitly labeled USDA fallback; corrections preserve or visibly change provenance. Do not close on backend tests alone. If this cannot land before judging, remove/qualify the campus-first promises before presenting them.
+  - [x] **Harsh · #121 integration:** browser uploads now send hall and local photo time, and source-aware result cards distinguish campus labels from USDA. Hall context uses nearby commons, Menu choice or main hall. **Still required:** isolated real-photo/fallback/correction proof, explicit hall-context review and counted-serving behavior; a merge does not establish those results.
 
 - [ ] **AUD-05 · Harsh + Joseph: finish the SMTP/account go-live cutover, including frontend capability detection.**
-  - **Evidence:** real SMTP support landed in #106, but live status still said `email_provider: "outbox"`. `site/app.js:2315–2319` still calls SMTP a placeholder and includes `"smtp"` in `NOT_SENDING`; switching the server alone will leave false “Email sending isn't switched on yet” messages.
+  - **Audit evidence (before #123):** the app inferred sending capability from provider names and treated SMTP as a placeholder. Production provider/flag settings and delivered-email behavior were not established by the audit.
   - **Done when:** the app recognizes the actual sending provider; production uses SMTP and required authentication; a team-owned address receives working verification and reset links on `https://app.mealscholar.health/`. Confirm the public URL, secure cookies, development outbox disabled and demo verification bypass disabled. Never turn on public auto-verification as a substitute for delivered email.
   - **Separate claim:** do not promise emailed favorites alerts merely because SMTP works. Confirm the digest is scheduled and restricted to verified, opted-in recipients, or keep its unavailable wording accurate.
+  - [x] **Harsh · #123 capability:** the server now exposes `email_sending` and the app uses it for availability wording; account mail is multipart and a password-changed notice exists. Delivered verification/reset email, required-auth deployment, public link origin and scheduled digest checks remain open.
 
 - [ ] **AUD-06 · Harsh + Joseph: publish privacy/retention information and disclose processing at capture.**
   - **Evidence:** neither marketing navigation/footer nor the app links a privacy notice. Photos are processed by Google Gemini; opt-in coordinates can go to public OpenStreetMap Nominatim (`context.py`); sessions retain IP/user-agent information; Cloudflare injects a live analytics beacon. “Only the place name is saved” describes diary storage, not all processing.
   - **Done when:** both sites link a plain-language notice identifying the operator/contact, providers, data sent, data stored, retention and deletion process. Distinguish photo/EXIF handling, place names, account/health preferences, sessions and analytics. Add concise capture/location disclosures before transmission. State actual provider policies, not an unsupported “nothing is stored anywhere” or medical-compliance claim.
   - Account/meal deletion exists in source; verify its isolation and cascade under AUD-01. Data export is a later product decision, not a falsely claimed existing feature.
+  - **Retention update (#122/#126):** logged meal photos are now retained as stripped JPEGs and thumbnails under the data directory, served through the meal owner's API and removed with meal/history/account deletion. README/submission wording is corrected; the actual site notice and capture disclosure must describe this, the shared-guest risk and any cam-preview retention. AUD-06 remains open.
 
 - [x] **AUD-07 · Joseph: make app response protections consistent (#112).**
   - **Evidence:** direct app-root responses lacked `X-Content-Type-Options`, `Referrer-Policy` and a framing restriction. The landing already sends `nosniff` and `strict-origin-when-cross-origin`, but neither root declares a framing restriction.
@@ -66,9 +69,9 @@ The first browser responses loaded assets stamped `1960e30`; deployments continu
   - **Evidence:** the landing root sends `Cache-Control: no-cache`; the app root has no explicit `Cache-Control`. Both already stamp JS/CSS URLs with a commit. Cached HTML can still point a phone at an old set of versioned assets.
   - **Done when:** app HTML has an explicit revalidation policy, private JSON responses are not publicly cached, and a normal reload after a deploy receives the new asset version without requiring users to know about hard reloads. Preserve effective static-asset caching.
 
-- [ ] **AUD-09 · Harsh + Joseph: back up the actual diary store as well as Atlas.**
-  - **Evidence:** accounts/preferences use MongoDB Atlas, but `diary.py` stores meals and learned portions in `MEALSCHOLAR_HOME/diary.sqlite` on the host. The old “accounts and diaries in Atlas” task targets the wrong store.
-  - **Done when:** scheduled SQLite-consistent backups and Atlas backups have documented retention and access controls; restore an account with its diary/preferences into an isolated environment. Copying only a live SQLite file without handling its transaction/WAL state is not sufficient proof.
+- [ ] **AUD-09 · Harsh + Joseph: back up SQLite, retained meal photos and Atlas.**
+  - **Evidence:** meals/learned portions are in `MEALSCHOLAR_HOME/diary.sqlite`, accounts/preferences in Atlas, and #122 adds retained JPEGs/thumbnails under `MEALSCHOLAR_HOME/photos/`. An Atlas-only backup cannot restore a diary with its photos.
+  - **Done when:** scheduled SQLite-consistent, photo-directory and Atlas backups have documented retention/access controls. Restore an account with its diary, photos and preferences in isolation. A bare copy of a live SQLite file without transaction/WAL consistency is not sufficient proof.
 
 - [ ] **AUD-10 · Harsh + Joseph: align correction and goal copy with actual behavior.**
   - **Evidence:** landing FAQ 04 promises a swap “from the campus menu or USDA”; the correction API/sheet currently selects USDA foods, not campus dishes. A campus result's USDA match may supply only micronutrients, so it must not be presented as the source of all nutrition. The app still contains “No targets” copy even though user-chosen goals exist.
@@ -119,9 +122,9 @@ The first browser responses loaded assets stamped `1960e30`; deployments continu
   - **Done when:** record a throttled mobile trace covering initial use, menu loading and photo-analysis waiting states; measure LCP, CLS and interaction latency, network transfer and model time separately. Optimize demonstrated bottlenecks, preserve responsive image selection/lazy loading, and extend cache lifetimes only for genuinely versioned immutable assets. Avoid a framework/build rewrite justified only by source-file size.
 
 - [ ] **AUD-21 · Harsh + Joseph + Gabby: finish the domain/documentation cutover (#55).**
-  - **Evidence:** new hosts work; the two legacy `mannava.org` roots redirect with 302; DNS now lists `treasure.ns.cloudflare.com` and `mario.ns.cloudflare.com`. README and film/submission material still contain old hosts and stale “SMTP not implemented”/account-UI/campus-pipeline descriptions. #55 remained open when checked.
+  - **Audit evidence:** the new hosts worked with temporary legacy redirects, while the documentation still described older implementation states. Subsequent README/submission corrections are recorded below; edge/email-origin and filming-document checks are separate.
   - **Done when:** README/configuration instructions describe current implementation versus enabled deployment, including SMTP settings; all intended app/site/video/submission links and QR codes use the new hosts; account emails use the new app origin. Preserve legacy path/query redirects, make them permanent when the cutover is settled, and retire obsolete “wait for rename/UI merge” instructions. Do not describe backend-only campus support as a working app feature.
-  - [x] **Joseph · #112 README portion:** new app/site domains, current Today/Menu/Week navigation, implemented accounts and SMTP with all relay settings, explicit-hall backend versus still-unconnected browser upload, local-only developer docs, and SQLite-versus-Atlas storage are documented. Video/submission copy, account-email origin and permanent edge redirects remain open, so AUD-21 stays unchecked.
+  - [x] **Joseph · #117/#128/#126 documentation:** README and submission now cover new domains, current campus/time integration, real SMTP capability, retained stripped meal photos and all three storage sets. The obsolete conditional campus-story block is removed. Film-plan, account-email origin and permanent edge-redirect work still keep AUD-21 open.
 
 - [ ] **AUD-22 · Harsh: provide helpful non-API not-found recovery.**
   - **Evidence:** an unknown app path answers raw `{"detail":"Not Found"}` JSON. Hash routes work and real 404 status codes are present; this is recovery polish, not broken main navigation.
@@ -150,15 +153,15 @@ The base chain (#7, #11, #13 and #15) is merged. GitHub checked during the live-
 
 ## 2. Campus-menu promise and data accuracy
 
-**Current state:** #106 merged the backend campus pipeline. The app still does not send the hall needed to activate it, so the end-to-end campus promise remains open under **AUD-04**, not “done because the API exists.”
+**Current state:** #106 implemented the campus backend and #121 connected the browser hall/time inputs and source-aware labels. The code path is integrated; AUD-04 remains open for real-photo, fallback, hall-context and counted-serving/correction acceptance proof, not another backend hookup.
 
 - [x] **Joseph + Harsh**: implement backend campus matching (#106).
   - [x] Select the menu day/meal from photo time, including late-night handling. The hall is an explicit `location_id`, not inferred automatically from location or saved halls.
   - [x] Give Gemini menu dish-name candidates; match the returned `menu_item` against the menu. The implementation uses names, not the originally proposed dish-id output.
   - [x] Use campus label nutrients when the match passes checks; otherwise use USDA. Parse weighted serving sizes and support estimated serving counts for counted dishes.
-  - [x] Add provenance: the shipped enum is `"campus"` or `"usda"`, with `dish` and meal-level `menu` details. Frontend rendering is still AUD-04.
+  - [x] Add provenance: `"campus"` or `"usda"`, with `dish` and meal-level `menu`. #121 also renders campus-versus-USDA labels in the app; remaining acceptance proof is AUD-04.
   - [x] Add backend coverage for menu hit/miss/unavailable data, late-night selection and corrections (`tests/test_pipeline.py`, `tests/test_web.py`). Existing tests were inspected, not rerun in this documentation audit.
-- [ ] **Joseph**: rerun the dining-photo benchmark after AUD-04 connects the real app flow. Report campus hits, fallbacks, portion accuracy, source changes on correction and before/after error, not just whether a campus label appeared.
+- [ ] **Joseph**: rerun the dining-photo benchmark against the integrated #121 path. Report campus hits, fallbacks, portion accuracy, source changes on correction and before/after error, not just whether a campus label appeared.
 - [x] **Harsh**: hourly menu refresh was confirmed on the board at 7:53 AM. This remains a prior operational assertion; freshness visibility and current counts are tracked in **AUD-11**.
 - [x] **Joseph + Harsh**: remove the old “no calorie targets” statements from README/insights and the app footer/header. Remaining unconditional “No targets” UI wording is tracked in **AUD-10**.
 
@@ -177,7 +180,7 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
   - a whole salad matches "Salad dressing, NFS"
 - [ ] Let Gemini choose among the top USDA candidates with structured output.
 - [ ] After every lookup change, post the before/after from `uv run python bench/report.py --rematch`. CI's Lookup regression check (#22) already fails PRs that make the lookup worse. When a change beats `REMATCH_LIMITS` in `bench/report.py`, raise the limits in the same PR.
-- [ ] **Harsh (app) + Joseph (contract)**: send the phone's `taken_at` as ISO 8601 with its UTC offset when photo metadata is unavailable. #106 already added backend support; `site/app.js:629–645` still sends neither photo time nor hall. Verify the intended local diary day and late-night menu near midnight; do not reopen the completed API implementation.
+- [ ] **Harsh + Joseph**: verify phone-local diary dates and late-night menu choice near midnight. #106 accepts offset-bearing `taken_at` and #121 now sends the browser's local photo time and hall; do not reopen that completed integration. Real-device/time-boundary acceptance remains to be observed.
 - [x] Calorie ranges too wide (#54). Meal and day totals now combine the foods' ranges as partly correlated errors instead of adding every low and every high. Meal #7 goes from 945–1,455 to 1,010–1,369 kcal. The refine prompt narrows the items an answer pins down, and the omelette no longer matches a fried egg. Defining low and high as the 10th and 90th percentile was tried and not kept. See "Range width" in `BENCHMARK.md`.
 - [ ] **Harsh**: on the result card, lead with the likely kcal and show the range smaller, the way Today's `hero__num` does (#54). Today the big number is the range (`totalHtml`, `kcalRangeHtml`).
 
@@ -200,10 +203,10 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
 - [x] Gabby acquired **mealscholar.health** (registered at Porkbun, 10:51 AM EST).
   - Finish the remaining cutover work under **AUD-21**; both new origins already serve, while #55 remains open.
   - [x] **Gabby**: switch nameservers to Cloudflare. The audit's DNS lookup returned `treasure.ns.cloudflare.com` and `mario.ns.cloudflare.com`.
-  - [ ] **Harsh + Gabby**: `.health` is run by GoDaddy Registry, so in `submissions/devpost.md` the answer to "Domains registered with GoDaddy Registry during this hackathon" becomes `mealscholar.health` instead of "None".
+  - [x] **Harsh + Gabby**: the submission's GoDaddy Registry answer names `mealscholar.health` and distinguishes Porkbun (registrar) from the registry. Confirm the actual Devpost form matches the corrected draft when submitting.
 - [ ] **Harsh**: make the repo public before submitting, or drop the code link. Judges get a 404 on a private repo. Harsh's Claude says nothing secret is in the repo.
 - [ ] **Joseph or Harsh**: put the numeric Gemini project number in `submissions/devpost.md`. We only have the project ID (`gen-lang-client-…`). The draft explains where to find the number.
-- [ ] **Harsh**: use the campus-matching submission swaps only after **AUD-04** passes through the app. #106 backend support alone is not proof; describe hall selection truthfully rather than claiming automatic hall inference.
+- [x] **Joseph · #128/#126**: the campus-menu submission story reflects #121's integrated browser path and no longer has conditional replacement instructions. Real-photo source/correction proof remains AUD-04, and submission-form completion is separate.
 - [ ] **Gabby**: add the video link (YouTube, Vimeo or Youku) and the gallery images to the Devpost form.
 - [x] **Joseph**: improve the Devpost thumbnail's gallery-size hierarchy (#100). Use `brand/devpost-thumbnail.png` (1800×1200, 3:2); its editable HTML keeps the real salad result and makes the calorie range the primary number.
 - [ ] The final deadline is 9:00 AM on hackumass.com but 10:00 AM on Devpost. Go by 9:00 AM.
