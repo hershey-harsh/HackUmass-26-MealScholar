@@ -193,10 +193,24 @@ Measured by redoing the USDA lookup on the 275 recorded Gemini outputs with `ben
 - `Lemonade, pink, prepared` ×1: frozen concentrate (192) → lemonade powder prepared with water (14). Still wrong, now in the other direction.
 
 **Still wrong after the fix:**
-- `Pizza, cheese and pepperoni, thin crust` (3 runs) ties with "Pizza, extra cheese, thin crust" and loses the tiebreak (268 vs 274 kcal/100 g).
-- `Tea, iced, un-sweetened` splits into "un" + "sweetened" and lands on pre-sweetened tea (32 vs 1).
+- ~~`Pizza, cheese and pepperoni, thin crust` (3 runs) ties with "Pizza, extra cheese, thin crust" and loses the tiebreak (268 vs 274 kcal/100 g).~~ Fixed in #108, below.
+- ~~`Tea, iced, un-sweetened` splits into "un" + "sweetened" and lands on pre-sweetened tea (32 vs 1).~~ Fixed in #108.
 - 3.x models still call the ginger ale iced tea. The calories now land in range only because brewed sweet tea (32) and ginger ale (34) have about the same density.
-- A salad sent as one item (`Salad, vegetable, with cheese and dressing`) still matches "Salad dressing, NFS".
+- ~~A salad sent as one item (`Salad, vegetable, with cheese and dressing`) still matches "Salad dressing, NFS".~~ Fixed in #108: it now matches a lettuce salad, so the dressing inside it isn't counted. Only splitting the salad in the prompt fixes that (fix 5 below).
+
+**Left-out words, green salads and sweet tea (#108).** Four changes to `_Scorer` and its word handling:
+- **Left-out words.** In a descriptor, the words after `no`, `without` or `excluding` (up to the next comma) are left out: they are no longer search or ranking words, a candidate that has one loses 3 points, and a candidate that leaves out the same thing ("…, no dressing") counts it as a match. "with or without" leaves nothing out. Before, "without dressing" matched "Salad dressing, NFS" on the word dressing.
+- **Green salads.** FNDDS has no "Salad, …" entries. It files a plain green salad as "Lettuce, salad with …" or "Mixed salad greens", so for a query whose main food is `Salad` those count as starting with the main food. Before, every candidate was another salad: carrot, gelatin, tuna, Cobb, or a dressing.
+- **Stems.** `un-sweetened` is joined to `unsweetened`, `sweetened` stems to `sweet`, and `iced` to `ice`.
+- **The food's own name.** A query descriptor that a candidate puts before its first comma gets 1 more point. "Pizza with pepperoni, …" names the pepperoni; "Pizza, extra cheese, …" only describes the cheese. Head words don't count, since every candidate has them; counting them sent `Iced tea, sweetened` to "Long Island iced tea".
+
+Replay of the same 275 runs: kcal in band 230 → 231, powder/concentrate matches 4 → 4, pepperoni 50/54 → 53/54. `REMATCH_LIMITS` is raised to match. Every changed match:
+- `Salad, …` sent as one item ×22: salad dressing (430 kcal/100 g), carrot salad (212), tuna salad (190), Cobb salad (93) or gelatin salad (61) → lettuce salad (23–91) or mixed salad greens (21). On Hydrogen `low`, `IMG_0583` rep 0 drops from 573 to 458 kcal, because its 60 g "arugula and red onion salad" no longer counts as carrot salad. One 3.5-flash-lite run leaves the band (380 → 142 kcal): its whole salad, dressing included, was in range only because it matched tuna salad.
+- `Pizza, cheese and pepperoni, thin crust` ×3: extra-cheese pizza (268) → pepperoni pizza (274), which brings one 3.8-flash run into the band.
+- `Tea, iced, un-sweetened` ×1: pre-sweetened (32) → unsweetened (1). `Tea, sweet, brewed, with ice` ×1: ginger tea (1) → pre-sweetened (32), which brings one 3.6-flash run into the band. `Tea, sweet, iced` ×1: bottled (45) → brewed pre-sweetened (32).
+- `Lettuce, salad, with assorted vegetables, raw` ×2: plain lettuce → lettuce salad with assorted vegetables (23).
+
+Still wrong: `Tea, sweetened, ready to drink` (1 run) matches "Tea, ginger" (1 kcal/100 g). The ready-to-drink entry is filed under "Beverages, tea, …". Treating "Beverages, X" as X fixed it, but it also sent `Lemonade, pink` ×32 to a concentrate prepared with water (bad matches 4 → 36), so that change isn't kept.
 
 ## Range width
 
@@ -268,7 +282,7 @@ The rule (the last bullet of `SYSTEM_PROMPT`): only real food or drink that is a
 2. **Done on this branch:** `Pizza with X, …` counts as starting with the main food. Pepperoni matched 1/54 → 50/54. With fix 1, 51 of the 96 out-of-range runs are now in range.
 3. **Prompt: skip food cut off by the frame edge** unless it is the subject of the photo, and point the question at the main subject. This fixes the drink-photo pizza (55/55) and the `IMG_0583` glass (39/55 logged, 22/55 asked about).
 4. **Refine prompt:** "update existing items; never duplicate one". Then add a refine test for the duplicate-dressing case.
-5. **Prompt: one question, one sentence** (43/216 were compound). Composite salads should be split into components; when a salad is sent as one item, `Salad, …` queries match `Salad dressing, NFS`.
+5. **Prompt: one question, one sentence** (43/216 were compound). Composite salads should be split into components. Since #108, a salad sent as one item matches a lettuce salad instead of `Salad dressing, NFS`, but its dressing isn't counted.
 
 ### What to show for "Best Use of Gemini API"
 - **One call, structured output:** foods, gram ranges, cooking method, bounding boxes, a scale reference, and one clarifying question, all from a Pydantic schema. 275/275 responses were valid.
@@ -302,4 +316,4 @@ uv run python bench/report.py --overlays 'gemini-4-hydrogen|low|default'
 
 The meal photos are in `test_pictures/` (IMG_0579–IMG_0583, IMG_0587, IMG_2164 and IMG_2165). The committed copies have EXIF and XMP removed, including GPS; the camera originals still have location, so don't commit those. `bench/run.py` reads only `*.jpeg`, so IMG_2164.jpg (omelette, home fries, avocado) and IMG_2165.jpg (ramen and a dark soda) aren't in benchmark runs. `--rematch` needs only the recorded results and the USDA database. The non-meal photos for phase n are committed in `bench/nonfood/` (no GPS tags). To rerun from scratch, delete `bench/results/runs.jsonl`.
 
-The **Lookup regression** workflow (`.github/workflows/lookup-regression.yml`) runs `--rematch --check` on pull requests that touch the lookup (`nutrition.py`, `nutrients.py`, `compute.py`, `pipeline.py`, `schemas.py`), `bench/`, or dependencies. Limits as of 2026-11-14: kcal in band ≥ 230/275, powder/concentrate matches ≤ 4, pepperoni ≥ 50/54. When a lookup change beats them, raise `REMATCH_LIMITS` in `bench/report.py` in the same PR so the gain is kept.
+The **Lookup regression** workflow (`.github/workflows/lookup-regression.yml`) runs `--rematch --check` on pull requests that touch the lookup (`nutrition.py`, `nutrients.py`, `compute.py`, `pipeline.py`, `schemas.py`), `bench/`, or dependencies. Limits since #108: kcal in band ≥ 231/275, powder/concentrate matches ≤ 4, pepperoni ≥ 53/54. When a lookup change beats them, raise `REMATCH_LIMITS` in `bench/report.py` in the same PR so the gain is kept.

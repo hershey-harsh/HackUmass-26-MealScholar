@@ -40,6 +40,27 @@ def test_another_food_starting_with_the_main_food_is_not_it(food_db):
     assert top(food_db, "Salad, mixed greens, raw", ("raw",)) == 17
 
 
+def test_left_out_food_is_not_matched(food_db):
+    # "without dressing" used to match "Salad dressing, NFS" (430 kcal/100 g) on the word dressing.
+    assert top(food_db, "Salad, vegetable, tossed, without dressing") == 23
+
+
+def test_salad_is_a_green_salad_not_another_named_salad(food_db):
+    # FNDDS has no "Salad, ..."; its green salads are "Lettuce, salad with ...". Tuna salad also
+    # has egg, at 190 kcal/100 g against 71.
+    assert top(food_db, "Salad, vegetable, with cheese and egg") == 24
+
+
+def test_hyphenated_unsweetened_is_unsweetened(food_db):
+    # "un-sweetened" split into "un" and "sweetened", which matched the sweetened tea (32 kcal against 1).
+    assert top(food_db, "Tea, iced, un-sweetened") == 20
+
+
+def test_sweet_and_ice_match_sweetened_and_iced(food_db):
+    # Neither word matched, so "Tea, ginger" (1 kcal/100 g) won on being short.
+    assert top(food_db, "Tea, sweet, brewed, with ice") == 21
+
+
 def test_unrequested_concentrate_loses_even_when_it_matches_more_words(food_db):
     # The concentrate matches "pink" too, but is 192 kcal/100 g against 46 for the drink.
     assert top(food_db, "Lemonade, pink") == 14

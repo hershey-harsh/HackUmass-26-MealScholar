@@ -59,6 +59,23 @@ FIXTURE_FOODS = {
             kcal_protein_fat(212, 13.4, 16.6),
             wweia="Eggs and omelets",
         ),
+        food(20, "Tea, iced, brewed, black, unsweetened", kcal_protein_fat(1, 0, 0), wweia="Tea"),
+        food(21, "Tea, iced, brewed, black, pre-sweetened with sugar", kcal_protein_fat(32, 0, 0), wweia="Tea"),
+        food(22, "Tea, ginger", kcal_protein_fat(1, 0, 0), wweia="Tea"),
+        # FNDDS files a plain green salad under lettuce; Gemini writes "Salad, ...".
+        food(
+            23,
+            "Lettuce, salad with assorted vegetables excluding tomatoes and carrots, no dressing",
+            kcal_protein_fat(23, 1.3, 0.2),
+            wweia="Lettuce and lettuce salads",
+        ),
+        food(
+            24,
+            "Lettuce, salad with egg, cheese, tomato, and/or carrots, with or without other vegetables, no dressing",
+            kcal_protein_fat(71, 5.1, 4.6),
+            wweia="Lettuce and lettuce salads",
+        ),
+        food(25, "Tuna salad with egg", kcal_protein_fat(190, 14, 13), wweia="Fish"),
     ],
     "Foundation": [
         # Many Foundation foods carry only Atwater energy (958/957), no 208.

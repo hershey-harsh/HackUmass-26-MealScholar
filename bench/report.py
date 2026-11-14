@@ -49,9 +49,9 @@ _BAD_MATCH = re.compile(r"powder|concentrate|dehydrated|dry mix|not reconstitute
 # when a lookup change improves the numbers, so the gain is kept; re-derive them if runs.jsonl
 # is re-recorded.
 REMATCH_LIMITS = {
-    "kcal_in_band": ("min", 230),
+    "kcal_in_band": ("min", 231),
     "bad_match": ("max", 4),
-    "pepperoni_matched": ("min", 50),
+    "pepperoni_matched": ("min", 53),
 }
 
 
