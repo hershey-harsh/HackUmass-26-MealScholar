@@ -875,6 +875,7 @@ main > * + * { margin-top: var(--gap); }
 .ps-total__s { font-family: var(--mono); font-size: 1.1em; color: var(--on-ink-2); }
 .ps-total__v { grid-column: 1 / -1; font-size: 3.2em; font-weight: 300; line-height: 1.05; letter-spacing: -0.035em; white-space: nowrap; }
 .ps-total__v small { margin-left: .3em; font-size: .4em; font-weight: 400; letter-spacing: 0; color: var(--on-ink-2); }
+.ps-total__r { grid-column: 1 / -1; margin-top: .15em; font-family: var(--mono); font-size: 1.05em; color: var(--on-ink-2); }
 .ps-total .band { grid-column: 1 / -1; margin-top: .55em; }
 .ps-foods { padding-block: .3em; }
 .ps-food {
