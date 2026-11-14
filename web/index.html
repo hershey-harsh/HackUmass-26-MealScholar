@@ -259,8 +259,8 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('https://app.meals
         </article>
 
         <article class="fan-card" data-slide aria-roledescription="slide" aria-label="6 of 7: On your Home Screen">
-          <div class="fan-card__vis fv-home" aria-hidden="true">
-            <span class="fv-home__grid"><i></i><i></i><i></i><b><svg><use href="#mark"/></svg></b><i></i><i></i><i></i><i></i></span>
+          <div class="fan-card__vis fv-home fv-home--video" aria-hidden="true">
+            <video src="https://app.mealscholar.health/media/add-to-home-screen.mp4" poster="https://app.mealscholar.health/media/add-to-home-screen.jpg" width="624" height="780" muted loop playsinline preload="none" data-autoplay></video>
             <span class="fv-home__step"><svg><use href="#i-share"/></svg>Share, then Add to Home Screen</span>
           </div>
           <div class="fan-card__body">
@@ -456,7 +456,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('https://app.meals
     <div class="split__text split__text--stick">
       <p class="eyebrow">Screen recordings</p>
       <h2 id="videos-title" class="h2">See it in action</h2>
-      <p class="section-sub">Three short recordings of the real app: a photo becoming ranges, the one question, and the day’s totals.</p>
+      <p class="section-sub">Short recordings of the real app: adding it to your Home Screen, a photo becoming ranges, the one question, and the day’s totals.</p>
       <div class="head-actions">
         <a class="pill-link" href="https://app.mealscholar.health">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
         <div class="rail-ctrl" data-rail-controls="video-rail">
@@ -468,24 +468,30 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('https://app.meals
     <div class="split__visual">
     <div class="rail rail--videos" id="video-rail" data-rail role="region" aria-label="Screen recordings, scroll sideways" tabindex="0">
       <div class="videos">
+        <figure class="video-card" data-video="add-to-home-screen">
+          <div class="video-frame">
+            <video src="https://app.mealscholar.health/media/add-to-home-screen.mp4" poster="https://app.mealscholar.health/media/add-to-home-screen.jpg" width="624" height="780" muted loop playsinline controls preload="none" data-autoplay aria-label="Screen recording: in Safari, Share, then Add to Home Screen, then Add, and MealScholar appears on the Home Screen"></video>
+          </div>
+          <figcaption><h3>Add it to your Home Screen</h3><p>In Safari: Share, then Add to Home Screen, then Add. It opens like an app.</p></figcaption>
+        </figure>
         <figure class="video-card" data-video="snap-to-nutrients">
           <div class="video-frame">
             <!-- To add the recording, replace the next line with: <video src="videos/snap-to-nutrients.mp4" poster="videos/snap-to-nutrients.jpg" controls playsinline preload="none"></video> -->
-            <div class="video-ph video-ph--a"><span class="chip chip--soon">Coming soon</span><span class="video-ph__idx" aria-hidden="true">01 / 03</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+            <div class="video-ph video-ph--a"><span class="chip chip--soon">Coming soon</span><span class="video-ph__idx" aria-hidden="true">02 / 04</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
           </div>
           <figcaption><h3>Snap to nutrients</h3><p>One photo becomes foods, grams and nutrient ranges.</p></figcaption>
         </figure>
         <figure class="video-card" data-video="one-question">
           <div class="video-frame">
             <!-- To add the recording, replace the next line with: <video src="videos/one-question.mp4" poster="videos/one-question.jpg" controls playsinline preload="none"></video> -->
-            <div class="video-ph video-ph--b"><span class="chip chip--soon">Coming soon</span><span class="video-ph__idx" aria-hidden="true">02 / 03</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+            <div class="video-ph video-ph--b"><span class="chip chip--soon">Coming soon</span><span class="video-ph__idx" aria-hidden="true">03 / 04</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
           </div>
           <figcaption><h3>One question</h3><p>When a photo is unclear, it asks once and recomputes.</p></figcaption>
         </figure>
         <figure class="video-card" data-video="fix-and-today">
           <div class="video-frame">
             <!-- To add the recording, replace the next line with: <video src="videos/fix-and-today.mp4" poster="videos/fix-and-today.jpg" controls playsinline preload="none"></video> -->
-            <div class="video-ph video-ph--c"><span class="chip chip--soon">Coming soon</span><span class="video-ph__idx" aria-hidden="true">03 / 03</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+            <div class="video-ph video-ph--c"><span class="chip chip--soon">Coming soon</span><span class="video-ph__idx" aria-hidden="true">04 / 04</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
           </div>
           <figcaption><h3>Check it, then see today</h3><p>Swap a food if it got one wrong, then check the day’s totals.</p></figcaption>
         </figure>

@@ -54,6 +54,17 @@
        'Tap <b>Add to Home screen</b> or <b>Install app</b>.',
        'Tap <b>Add</b>. MealScholar appears with your other apps.'];
 
+  // A 12-second screen recording of the three steps in Safari. Muted and looping; with reduced
+  // motion it waits on its poster with controls instead of playing by itself.
+  function video() {
+    var still = w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return '<div class="install__video">' +
+      '<video src="/media/add-to-home-screen.mp4" poster="/media/add-to-home-screen.jpg" width="624" height="780" muted loop playsinline preload="metadata"' +
+      (still ? ' controls' : ' autoplay') +
+      ' aria-label="Screen recording: in Safari, Share, then Add to Home Screen, then Add, and MealScholar appears on the Home Screen"></video>' +
+      '</div>';
+  }
+
   function sheet() {
     var el = d.getElementById('install-sheet');
     if (el) return el;
@@ -73,6 +84,7 @@
           '</div>' +
         '</div>' +
         '<div class="sheet__body">' +
+          (iOS ? video() : '') +
           '<ol class="install__steps">' + steps.map(function (s, i) {
             return '<li><span class="install__num" aria-hidden="true">' + (i + 1) + '</span><span>' + s + '</span></li>';
           }).join('') + '</ol>' +

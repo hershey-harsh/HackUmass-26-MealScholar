@@ -8471,3 +8471,23 @@ body .recent .recent-card {
     transform: none;
   }
 }
+
+/* ---- The install sheet's screen recording (iPhone and iPad): above the steps, never taller than
+   about half the screen so the steps stay in view. */
+
+.install__video {
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+}
+
+.install__video video {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: min(46svh, 420px);
+  aspect-ratio: 624 / 780;
+  border-radius: 18px;
+  background: var(--surface-2, var(--line));
+  object-fit: cover;
+}
