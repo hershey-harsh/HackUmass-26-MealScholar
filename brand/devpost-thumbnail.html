@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MealScholar — Devpost thumbnail</title>
+<!-- Source for devpost-thumbnail.png. Render at a 1440x960 viewport with device scale factor 1.25
+     (or 1440x960 at 1x and upscale) and save the 3:2 PNG; Devpost takes JPG, PNG or GIF up to 5 MB. -->
+<style>
+@font-face { font-family: Geist; src: url(../web/fonts/geist.woff2) format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "Geist Mono"; src: url(../web/fonts/geist-mono.woff2) format("woff2"); font-weight: 100 900; }
+:root { --ink: #1C1C1C; --ink-2: #4A4A48; --label: #5C5C59; --bg: #EEF0F2; --paper: #FAFAFF; --line: #DADDD8; --gold: #E9B44C; }
+* { box-sizing: border-box; margin: 0; }
+html, body { width: 1440px; height: 960px; overflow: hidden; }
+body {
+  position: relative; font-family: Geist, sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased;
+  background: radial-gradient(120% 90% at 0% 0%, #FAFAFF 0%, #F3F4F5 45%, #E9EBEC 100%);
+}
+/* Landing hero plates, faded into the lower left as texture */
+.texture { position: absolute; left: 0; bottom: 0; width: 900px; height: 360px; background: url(../web/img/hero-plates-1408.jpg) center 70% / cover; opacity: .16;
+  -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 100%), linear-gradient(to right, #000 55%, transparent 100%); -webkit-mask-composite: source-in; }
+.copy { position: absolute; left: 104px; top: 0; bottom: 0; width: 640px; display: flex; flex-direction: column; justify-content: center; }
+.mark { width: 148px; height: 148px; display: block; filter: drop-shadow(0 18px 28px rgba(28,28,28,.18)); }
+h1 { margin-top: 40px; font-size: 124px; line-height: .95; font-weight: 600; letter-spacing: -0.055em; }
+.tagline { margin-top: 28px; font-size: 50px; line-height: 1.12; font-weight: 400; letter-spacing: -0.03em; color: var(--ink-2); }
+.event { position: absolute; left: 104px; bottom: 76px; font: 500 22px/1 "Geist Mono", monospace; letter-spacing: .16em; text-transform: uppercase; color: var(--label); }
+
+.card { position: absolute; right: 96px; top: 174px; width: 528px; height: 612px; border-radius: 44px; overflow: hidden; background: var(--paper);
+  box-shadow: 0 40px 80px -24px rgba(28,28,28,.32), 0 0 0 1px rgba(28,28,28,.06); }
+.photo { position: relative; height: 372px; overflow: hidden; background: #2a2a2a; }
+.photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 46% 50%; }
+/* Detection box, like the app draws on the photo */
+.box { position: absolute; left: 52px; top: 30px; width: 384px; height: 312px; border: 4px solid rgba(250,250,255,.95); border-radius: 24px; box-shadow: 0 0 0 1px rgba(28,28,28,.2); }
+.pin { position: absolute; left: -22px; top: -22px; width: 48px; height: 48px; border-radius: 50%; background: var(--ink); color: var(--paper);
+  display: grid; place-items: center; font: 600 24px/1 Geist, sans-serif; box-shadow: 0 0 0 4px rgba(250,250,255,.95); }
+.result { padding: 36px 38px 0; }
+.food { display: flex; align-items: center; gap: 14px; font-size: 30px; font-weight: 500; letter-spacing: -0.02em; }
+.food i { flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--ink); color: var(--paper); display: grid; place-items: center; font: normal 600 18px/1 Geist, sans-serif; }
+.source { margin-top: 22px; font: 500 17px/1 "Geist Mono", monospace; letter-spacing: .04em; color: var(--label); }
+.range { position: relative; height: 18px; margin: 30px 6px 0; }
+.track { position: absolute; inset: 6px 0; border-radius: 3px; background: var(--line); }
+.span { position: absolute; top: 2px; bottom: 2px; left: 14%; right: 18%; border-radius: 9px; background: var(--ink); }
+.likely { position: absolute; top: -9px; left: 46%; width: 36px; height: 36px; margin-left: -18px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 5px var(--paper); }
+.labels { display: flex; justify-content: space-between; margin: 18px 6px 0 calc(14% - 26px); width: calc(68% + 52px); font: 500 20px/1 "Geist Mono", monospace; letter-spacing: .06em; color: var(--label); }
+.labels b { color: var(--ink); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="texture" aria-hidden="true"></div>
+<section class="copy">
+  <img class="mark" src="mark.svg" alt="">
+  <h1>MealScholar</h1>
+  <p class="tagline">Nutrition from a photo,<br>in honest ranges.</p>
+</section>
+<p class="event">HackUMass XIV</p>
+<figure class="card">
+  <div class="photo">
+    <img src="../web/img/meal-pizza-1280.jpg" alt="">
+    <div class="box"><span class="pin">1</span></div>
+  </div>
+  <div class="result">
+    <p class="food"><i>1</i>Chicken and red onion pizza</p>
+    <div class="range"><div class="track"></div><div class="span"></div><div class="likely"></div></div>
+    <p class="labels"><span>low</span><b>likely</b><span>high</span></p>
+    <p class="source">Nutrients from USDA FoodData Central</p>
+  </div>
+</figure>
+</body>
+</html>
