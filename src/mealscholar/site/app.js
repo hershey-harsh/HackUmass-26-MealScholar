@@ -2861,6 +2861,7 @@ function renderAccountBody() {
   els.accountTitle.textContent = user.name || "Your account";
   els.accountBody.innerHTML = `
     ${accountIdHtml(user)}
+    ${appearanceSectionHtml()}
     ${passwordSectionHtml(user)}
     <p class="account__status status" role="status"></p>
     <button class="btn btn--soft btn--block" type="button" data-install${installable() ? "" : " hidden"}>${icon("home")}Add to Home Screen</button>
@@ -4540,6 +4541,22 @@ function passwordSectionHtml(user) {
     </section>`;
 }
 
+/** System, Light or Dark, saved on this device. The theme script in index.html applies the choice
+    and keeps this control and the footer's in step (both carry data-theme-input). */
+function appearanceSectionHtml() {
+  const choice = window.MealScholarTheme?.choice() ?? "system";
+  const option = (value, label, glyph) => `
+    <input id="settings-theme-${value}" class="seg__input visually-hidden" type="radio" name="settings-theme" value="${value}" data-theme-input${choice === value ? " checked" : ""}>
+    <label class="seg__opt" for="settings-theme-${value}">${icon(glyph)}${label}</label>`;
+  return `
+    <section class="account__section" id="settings-appearance" aria-labelledby="settings-appearance-title">
+      <h3 id="settings-appearance-title" class="account__section-title" tabindex="-1">Appearance</h3>
+      <div class="seg" role="radiogroup" aria-labelledby="settings-appearance-title">
+        ${option("system", "System", "monitor")}${option("light", "Light", "sun")}${option("dark", "Dark", "moon")}
+      </div>
+    </section>`;
+}
+
 function renderSettingsBody() {
   const user = state.localUser ? null : state.user;
   const prefs = state.prefs;
@@ -4570,6 +4587,7 @@ function renderSettingsBody() {
   els.accountBody.innerHTML = `
     ${user ? accountIdHtml(user) : '<p class="note">You\'re using MealScholar on this device without an account. These settings stay on this server.</p>'}
     ${goals}${halls}${diet}${favorites}${alerts}${noDining}
+    ${appearanceSectionHtml()}
     ${user ? passwordSectionHtml(user) : ""}
     <p class="account__status status" role="status"></p>
     <button class="btn btn--soft btn--block" type="button" data-install${installable() ? "" : " hidden"}>${icon("home")}Add to Home Screen</button>
