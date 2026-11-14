@@ -94,6 +94,8 @@
   w.addEventListener('scroll', queue, { passive: true });
   w.addEventListener('resize', queue);
   set();
+  // Safety net: whatever happens, everything is visible after a moment.
+  w.setTimeout(function () { root.classList.add('reveal-all'); }, 1200);
   if (!('IntersectionObserver' in w)) return;
   var io = new IntersectionObserver(function (entries) {
     entries.forEach(function (e) {
