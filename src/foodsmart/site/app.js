@@ -106,6 +106,7 @@ const state = {
   // optional. Without that, nothing below exists and the app is as it was.
   prefsOn: false,
   prefs: null,
+  prefsError: null, // GET /api/me/prefs failed with something other than a 404: a notice on Today
   prefsVersion: 0,
   localUser: false, // sign-in optional on the server: the local user, who has no account sheet
   dining: null, // { locations } while the campus menus are connected; false when they aren't
@@ -1951,6 +1952,8 @@ els.todayView.addEventListener("click", (event) => {
     case "retry-upcoming":
       state.upcoming = null;
       return loadUpcoming();
+    case "retry-prefs":
+      return retryPrefs(action);
   }
   const meal = target.closest("[data-meal]");
   if (meal) openMealFrom(meal);
@@ -2227,6 +2230,7 @@ function resetData() {
   // The preferences layer belongs to the account too.
   state.prefsOn = false;
   state.prefs = null;
+  state.prefsError = null;
   state.prefsVersion += 1;
   state.dining = null;
   state.alerts = [];
@@ -2490,6 +2494,7 @@ function setFieldError(input, message) {
   if (error) {
     error.textContent = message;
     error.hidden = false;
+    error.scrollIntoView({ block: "nearest" }); // the message sits under the field: in view with it
   }
 }
 
@@ -2661,8 +2666,9 @@ function confirmActionsHtml() {
 
 function renderBanner() {
   const user = state.user;
+  const notice = state.prefsError ? prefsNoticeHtml(state.prefsError) : "";
   if (!state.authRequired || !user || user.email_verified) {
-    els.banner.innerHTML = "";
+    els.banner.innerHTML = notice;
     return;
   }
   const email = `<strong>${esc(user.email)}</strong>`;
@@ -2675,7 +2681,7 @@ function renderBanner() {
       </div>
       <div class="banner__actions">${confirmActionsHtml()}</div>
       <p class="banner__status" role="status"></p>
-    </div>`;
+    </div>${notice}`;
 }
 
 /** Redraw both places that offer the confirm actions, keeping focus on the same action. */
@@ -3050,13 +3056,66 @@ const dishKey = (name) =>
     .filter(Boolean)
     .join(" ");
 
+/** The preferences, or null when this server keeps none (a 404: today's live server). A server
+    or network failure is tried once more; if it still fails, the app runs without them and the
+    dashboard says so, with a way to try again (see prefsNoticeHtml). */
 async function fetchPrefs() {
-  try {
-    const prefs = await api("/api/me/prefs", { session: state.authRequired });
-    return prefs && typeof prefs === "object" && !Array.isArray(prefs) ? normalizePrefs(prefs) : null;
-  } catch {
-    return null; // 404: no preferences on this server; anything else, the app carries on without them
+  const epoch = state.epoch;
+  state.prefsError = null;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const prefs = await api("/api/me/prefs", { session: state.authRequired });
+      return prefs && typeof prefs === "object" && !Array.isArray(prefs) ? normalizePrefs(prefs) : null;
+    } catch (err) {
+      if (epoch !== state.epoch || err.signedOut || err.status === 404 || err.status === 401) return null;
+      if (attempt === 0 && (err.status === 0 || err.status >= 500)) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        if (epoch !== state.epoch) return null;
+        continue;
+      }
+      state.prefsError = err;
+      return null;
+    }
   }
+}
+
+/** The dashboard's notice when the preferences didn't load: the plain app is running. */
+function prefsNoticeHtml(err) {
+  return `
+    <div class="banner" data-prefs-notice>
+      <span class="banner__icon" aria-hidden="true">${icon("gear")}</span>
+      <div class="banner__text">
+        <p class="banner__title">Couldn't load your settings</p>
+        <p>${esc(err.message)} Your goals, dining halls and alerts are off for now.</p>
+      </div>
+      <div class="banner__actions"><button class="btn btn--soft" type="button" data-action="retry-prefs">Try again</button></div>
+    </div>`;
+}
+
+/** Try again from the notice. When the preferences arrive, the app starts over with them on,
+    by way of the set-up steps if they were never finished. */
+async function retryPrefs(button) {
+  const epoch = state.epoch;
+  await withBusy(button, async () => {
+    const prefs = await fetchPrefs();
+    if (epoch !== state.epoch) return;
+    if (!prefs) {
+      renderBanner(); // the notice again, with the new reason
+      $('[data-action="retry-prefs"]', els.banner)?.focus({ preventScroll: true });
+      return;
+    }
+    if (!state.authRequired) {
+      state.localUser = true;
+      state.home = "today";
+    }
+    enablePrefs(prefs);
+    await loadDining();
+    if (epoch !== state.epoch) return;
+    loadAlerts();
+    renderBanner(); // the notice goes
+    if (needsOnboarding()) startOnboarding();
+    else enterApp({ focus: true });
+  });
 }
 
 /** Only the shapes the app relies on; the server has the last word on every save. */
@@ -3781,6 +3840,7 @@ function readGoalFields(root) {
     }
     const n = Number(text);
     if (!Number.isFinite(n) || n < 0 || n > max) {
+      revealField(input);
       setFieldError(input, `Choose a ${label.toLowerCase()} goal from 0 to ${nf0.format(max)} ${unit}, or leave it empty.`);
       input.focus();
       return null;
@@ -3788,6 +3848,12 @@ function readGoalFields(root) {
     nutrient_goals[key] = Math.round(n * 10) / 10;
   }
   return { calorie_goal, nutrient_goals };
+}
+
+/** A field behind a closed disclosure ("Adjust nutrient goals") can't show its error or take
+    focus: open every disclosure around it first. */
+function revealField(input) {
+  for (let box = input.closest("details"); box; box = box.parentElement?.closest("details")) box.open = true;
 }
 
 function hallsPickerHtml(prefs, { note = null } = {}) {
@@ -4081,6 +4147,8 @@ function readSection(section, root) {
   }
 }
 
+const retrySaves = new Map(); // section -> the changes its last save failed on, for "Try again"
+
 async function saveSection(root, section) {
   if (!root.isConnected) return;
   const changes = readSection(section, root);
@@ -4088,12 +4156,124 @@ async function saveSection(root, section) {
   const status = $("[data-status]", root);
   try {
     await savePrefs(changes);
+    retrySaves.delete(section);
     if (status?.isConnected) flashStatus(status, "Saved.");
   } catch (err) {
-    if (err.signedOut || !status?.isConnected) return;
-    status.textContent = err.message;
-    status.classList.add("is-error");
+    if (err.signedOut || !root.isConnected) return;
+    // The server still has what it had, so the widgets go back to that, with the reason and a
+    // way to send the change again. Focus that was here (or lost: a disabled dish option drops
+    // it) lands on Try again when its control is gone.
+    const hadFocus = root.contains(document.activeElement) || document.activeElement === document.body;
+    retrySaves.set(section, changes);
+    rerenderSection(root, section);
+    showSaveFailed(root, err.message);
+    if (hadFocus && !root.contains(document.activeElement)) $('[data-action="retry-save"]', root)?.focus({ preventScroll: true });
   }
+}
+
+/** A Settings section's widgets, from the saved preferences. */
+function sectionBodyHtml(section, prefs) {
+  switch (section) {
+    case "dining":
+      return hallsPickerHtml(prefs);
+    case "diet":
+      return dietChipsHtml(prefs);
+    case "favorites":
+      return favoritesHtml(prefs);
+    case "alerts":
+      return alertsFieldsHtml(prefs);
+    default:
+      return null;
+  }
+}
+
+/** A selector for the control that has focus, so the same one can take focus after a redraw. */
+function controlSelector(el) {
+  if (!(el instanceof Element)) return null;
+  const quote = (value) => `"${String(value).replace(/["\\]/g, "\\$&")}"`;
+  if (el.matches("[data-chip]")) return `[data-chip=${quote(el.dataset.chip)}][data-value=${quote(el.dataset.value)}]`;
+  if (el.matches("[data-hall]")) return `[data-hall][value=${quote(el.value)}]`;
+  if (el.matches("[data-notify]")) return `[data-notify=${quote(el.dataset.notify)}]`;
+  if (el.matches("[data-fav-add]")) return `[data-fav-add=${quote(el.dataset.favAdd)}]`;
+  if (el.closest("[data-favorites]")) return "[data-fav-search]";
+  if (el.matches('[data-action="nearest"]')) return '[data-action="nearest"]';
+  return null;
+}
+
+/** Draw a Settings section again from the saved preferences, keeping focus on the same control.
+    The nearest-hall note and the dish search (its words and results) stay as they were. */
+function rerenderSection(root, section) {
+  const prefs = state.prefs;
+  const body = prefs && root.dataset.mode === "settings" ? sectionBodyHtml(section, prefs) : null;
+  if (body == null) return;
+  const status = $("[data-status]", root);
+  const title = $(".account__section-title", root);
+  const focus = root.contains(document.activeElement) ? controlSelector(document.activeElement) : null;
+  const keep = {
+    note: $("[data-nearest-note]", root)?.innerHTML ?? "",
+    query: $("[data-fav-search]", root)?.value ?? "",
+    results: $("[data-dish-results]", root)?.innerHTML ?? "",
+  };
+  for (const node of [...root.children]) if (node !== title && node !== status) node.remove();
+  if (status) status.insertAdjacentHTML("beforebegin", body);
+  else root.insertAdjacentHTML("beforeend", body);
+  const note = $("[data-nearest-note]", root);
+  if (note && keep.note) note.innerHTML = keep.note; // the app's own markup from a moment ago
+  const search = $("[data-fav-search]", root);
+  if (search && keep.query) {
+    search.value = keep.query;
+    $("[data-dish-results]", root).innerHTML = keep.results;
+    syncFavOptions(root);
+  }
+  if (focus) root.querySelector(focus)?.focus({ preventScroll: true });
+}
+
+/** The "Added" marks in the dish results follow the favorites list. */
+function syncFavOptions(root) {
+  const chosen = new Set(readFavorites(root).map((f) => dishKey(f.name)));
+  for (const option of $$("[data-fav-add]", root)) {
+    const on = chosen.has(dishKey(option.dataset.favAdd));
+    option.disabled = on;
+    if (on) option.setAttribute("aria-current", "true");
+    else option.removeAttribute("aria-current");
+    $(".option__end", option).innerHTML = on ? `${icon("check")}${SEP}Added` : icon("plus");
+  }
+}
+
+/** The section's status line: why the save failed, and Try again. */
+function showSaveFailed(root, message) {
+  const status = $("[data-status]", root);
+  if (!status) return;
+  clearTimeout(statusTimers.get(status));
+  const text = document.createElement("span");
+  text.textContent = `Couldn't save that. ${message}`;
+  const retry = document.createElement("button");
+  retry.type = "button";
+  retry.className = "link-btn";
+  retry.dataset.action = "retry-save";
+  retry.textContent = "Try again";
+  status.replaceChildren(text, retry);
+  status.classList.add("is-error");
+}
+
+async function retrySave(root, button) {
+  const section = root.dataset.section;
+  const changes = retrySaves.get(section);
+  if (!changes) return;
+  await withBusy(button, async () => {
+    try {
+      await savePrefs(changes);
+      retrySaves.delete(section);
+      if (!root.isConnected) return;
+      rerenderSection(root, section);
+      flashStatus($("[data-status]", root), "Saved.");
+      $(".account__section-title", root)?.focus({ preventScroll: true });
+    } catch (err) {
+      if (err.signedOut || !root.isConnected) return;
+      showSaveFailed(root, err.message);
+      $('[data-action="retry-save"]', root)?.focus({ preventScroll: true });
+    }
+  });
 }
 
 async function saveGoalsForm(form) {
@@ -4120,12 +4300,15 @@ function showPrefsError(form, err) {
   if (name.startsWith("nutrient_goals.")) name = name.slice("nutrient_goals.".length);
   const input = name ? form.querySelector(`input[name="${CSS.escape(name)}"]`) : null;
   if (input && !input.classList.contains("visually-hidden")) {
+    revealField(input);
     setFieldError(input, err.message);
     input.focus();
     return;
   }
-  if ($(".form-error", form)) setFormAlert(form, err.message);
-  else toast(err.message);
+  const alert = $(".form-error", form);
+  if (!alert) return toast(err.message);
+  setFormAlert(form, err.message);
+  alert.scrollIntoView({ block: "nearest", behavior: reducedMotion.matches ? "auto" : "smooth" });
 }
 
 function prefsClick(event) {
@@ -4146,6 +4329,8 @@ function prefsClick(event) {
       return findNearest(root, action);
     case "focus-picker":
       return focusPicker(root);
+    case "retry-save":
+      return retrySave(root, action);
   }
 }
 
@@ -4393,11 +4578,14 @@ async function onboardNav(action, button) {
   const form = $("[data-prefs-root]", els.onboard);
   const step = ob.steps[ob.at];
   if (action === "skip") {
+    clearFormErrors(form);
     await withBusy(button, async () => {
       try {
         await savePrefs({ onboarded: true });
       } catch (err) {
-        if (err.signedOut) return; // the sign-in screen has taken over
+        // Not saved, so the steps would come back next time: say why and stay, like Next does.
+        if (!err.signedOut && state.onboard) showPrefsError(form, err);
+        return;
       }
       if (state.onboard) finishOnboarding("Set this up any time in Settings.");
     });

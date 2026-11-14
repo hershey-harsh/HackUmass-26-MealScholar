@@ -2079,6 +2079,11 @@ body[data-screen="auth"] .footer {
 
 /* ---------------------------------------------------------------- dashboard */
 
+.today__banner {
+  display: grid;
+  gap: 12px;
+}
+
 .today__banner:empty {
   display: none;
 }
@@ -2193,6 +2198,14 @@ body[data-screen="auth"] .footer {
 /* The day's parts take their places in the grid as if the wrappers weren't there. */
 .dash-region {
   display: contents;
+}
+
+/* The markup puts the side column (the upcoming meal) after the middle column, so keyboard and
+   reading order follow the laptop columns left to right; in the phone and tablet stack the week
+   chart and the vitamins card still come after it. */
+.week-block,
+.micro-card {
+  order: 1;
 }
 
 /* The day's calories: the one dark panel, leading with the likely number. */
@@ -4746,9 +4759,17 @@ html.install-open {
   white-space: nowrap;
 }
 
-/* Not in the diet the person chose: still listed, but faded. */
-.dish.is-off {
-  opacity: 0.55;
+/* Not in the diet the person chose: still listed, but faded. Faded with the lighter ink token
+   rather than opacity, so the words keep 4.5:1 (#595959 is 6.7:1 on the card); only the marks
+   go translucent. */
+.dish.is-off .dish__name,
+.dish.is-off .dish__kcal,
+.dish.is-off .dish__warn {
+  color: var(--label);
+}
+
+.dish.is-off .dish__marks {
+  opacity: 0.78;
 }
 
 .upcoming__count {
@@ -5052,6 +5073,7 @@ html.install-open {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  align-items: start; /* a field with an error under it doesn't push its neighbour's input down */
 }
 
 .goal-field .field-unit .field {
@@ -5336,8 +5358,20 @@ html.install-open {
   padding: 0;
 }
 
+/* A failed save: the reason beside its icon, and Try again under the reason. */
 .settings__status.is-error {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 10px;
   padding: 10px 12px;
+}
+
+.settings__status .link-btn {
+  grid-column: 2;
+  justify-self: start;
+  margin-left: -4px;
+  color: var(--ink);
 }
 
 .account__section-title:focus {
@@ -5588,6 +5622,14 @@ body[data-screen="onboard"] .toast {
   }
 }
 
+/* Up to 82em the shell fills the window and the fixed + button (60px, 28px up from the bottom)
+   would land on the pinned side column's corner: the card ends above the button, so no menu row
+   scrolls under it. From 82em the + sits beside the shell and the card keeps its full height. */
+@media (min-width: 64em) and (max-width: 81.99em) {
+  body[data-prefs="on"] .dash-col--side .upcoming {
+    max-height: calc(100dvh - var(--bar-h) - var(--safe-top) - 112px);
+  }
+}
 /* Larger browser text on narrow phones: the pilot pill keeps only its M in every mode, the brand
    name truncates instead of overflowing, and the dock tabs drop their labels so the icons fit. */
 @media (max-width: 29.99em) {
