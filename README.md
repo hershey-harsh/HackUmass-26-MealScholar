@@ -166,6 +166,9 @@ uv run foodsmart fix 3 1 --food 2708404
 
 # Optional exact-weight correction for item 1 in meal 3.
 uv run foodsmart fix 3 1 --grams 300
+
+# Remove meal 3 from the diary, e.g. one logged from the wrong photo.
+uv run foodsmart delete 3
 ```
 
 `--json` prints the full `MealResult`. The CLI works with the local diary; signing into the

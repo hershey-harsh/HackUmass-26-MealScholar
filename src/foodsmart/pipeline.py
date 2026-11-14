@@ -92,7 +92,8 @@ class Workflow:
                 context=context,
                 items=items,
                 scale_reference=analysis.scale_reference,
-                question=analysis.question,
+                # Nothing to ask about a photo that isn't a meal, and answering would re-run Gemini.
+                question=analysis.question if analysis.is_food else None,
                 notes=notes,
             )
         )

@@ -125,6 +125,18 @@ PHOTOS: dict[str, Photo] = {
     )
 }
 
+NON_MEALS: dict[str, str] = {
+    "black-frame.jpg": "an all-black frame, as from a camera that fired in a pocket",
+    "keyboard.jpg": "a laptop keyboard",
+    "houseplant.jpg": "an amaryllis flower",
+    "empty-plate.jpg": "a clean plate with a fork and knife",
+    "menu-board.jpg": "a chalkboard menu, with seafood on ice below it",
+    "dog-food.jpg": "dry dog food in a bowl",
+    "food-replicas.jpg": "plastic food replicas in a restaurant's display case",
+    "finished-plate.jpg": "a finished breakfast plate: half a grilled tomato and a few beans left",
+}
+"""Photos in bench/nonfood/ (phase n) that must not be logged as a meal: no items in the result."""
+
 
 def item_text(item: dict) -> str:
     return f"{item['name']} | {item['fdc_query']}".lower()

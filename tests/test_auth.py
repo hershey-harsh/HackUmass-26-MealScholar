@@ -738,6 +738,7 @@ def test_meal_and_diary_routes_need_a_session(make_app):
         client.get("/api/meals/1"),
         client.post("/api/meals/1/answer", json={"answer": "yes"}),
         client.patch("/api/meals/1/items/0", json={"grams": 100}),
+        client.delete("/api/meals/1"),
         client.get("/api/days/2026-11-14"),
     ):
         assert res.status_code == 401
@@ -768,14 +769,22 @@ def test_users_only_see_their_own_meals(make_app, home):
     assert alex.get(f"/api/meals/{meal_id}").json() == missing
     assert alex.post(f"/api/meals/{meal_id}/answer", json={"answer": "yes, oil"}).json() == missing
     assert alex.patch(f"/api/meals/{meal_id}/items/0", json={"grams": 1}).json() == missing
+    assert alex.delete(f"/api/meals/{meal_id}").json() == missing
     assert alex.get(f"/api/days/{day}").json()["meals"] == []
     assert sam.get("/api/meals/999").json() == {"detail": "No meal #999."}
+    assert sam.delete("/api/meals/999").json() == {"detail": "No meal #999."}
 
     assert sam.get(f"/api/meals/{meal_id}").json() == meal  # untouched by alex's attempts
     assert [m["id"] for m in sam.get(f"/api/days/{day}").json()["meals"]] == [meal_id]
     assert sam.post(f"/api/meals/{meal_id}/answer", json={"answer": "yes, oil"}).json()["answer"] == "yes, oil"
     with closing(Diary(home / "diary.sqlite")) as local:  # nor does the CLI's local diary see it
         assert local.get(meal_id) is None
+        assert not local.delete(meal_id)
+
+    deleted = sam.delete(f"/api/meals/{meal_id}")
+    assert (deleted.status_code, deleted.content) == (204, b"")
+    assert sam.get(f"/api/meals/{meal_id}").json() == missing
+    assert sam.get(f"/api/days/{day}").json()["meals"] == []
 
 
 def test_usual_portions_are_per_user(make_app, home):
