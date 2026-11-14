@@ -6531,7 +6531,7 @@ body:not([data-dining="on"]) .tab[data-view="menu"] {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px;
+  padding: 8px;
 }
 
 .pill-btn {
@@ -6541,12 +6541,12 @@ body:not([data-dining="on"]) .tab[data-view="menu"] {
   justify-content: center;
   gap: 8px;
   min-height: 44px;
-  padding: 0 16px;
+  padding: 0 14px;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
   background: var(--surface);
   color: var(--ink);
-  font: 500 0.9375rem / 1.15 var(--font-sans);
+  font: 500 0.875rem / 1.15 var(--font-sans);
   cursor: pointer;
   transition: background-color var(--dur-1) linear, transform var(--dur-1) var(--ease-out);
 }
@@ -6556,11 +6556,6 @@ body:not([data-dining="on"]) .tab[data-view="menu"] {
   height: 19px;
 }
 
-.pill-btn:first-child {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--on-ink);
-}
 
 .pill-btn:active:not(:disabled) {
   transform: scale(0.97);
@@ -6578,31 +6573,36 @@ body:not([data-dining="on"]) .tab[data-view="menu"] {
     background: var(--surface-2);
   }
 
-  .pill-btn:first-child:hover:not(:disabled) {
-    background: var(--ink-hover);
-  }
 }
 
 .snap-tools__loc {
-  min-height: 56px;
-  margin-inline: 10px;
-  padding-block: 10px;
+  min-height: 52px;
+  margin-inline: 12px 10px;
+  padding-block: 6px;
   border-top: 1px solid var(--line);
-  gap: 12px;
+  gap: 10px;
 }
 
 .snap-tools__loc .switch-row__icon {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
+  background: none;
 }
 
 .snap-tools__loc .switch-row__title {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
+/* The hint stays the switch's description for screen readers; on screen the title says enough. */
 .snap-tools__loc .switch-row__hint {
-  margin-top: 1px;
-  font-size: 0.8125rem;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .snap-tools .setting__status {
@@ -6974,7 +6974,7 @@ body[data-drop="on"]::after {
 /* ---- laptops: the sidebar */
 @media (min-width: 64em) {
   :root {
-    --rail-w: 96px;
+    --rail-w: 80px;
     --bar-h: 64px;
   }
 
@@ -6992,7 +6992,7 @@ body[data-drop="on"]::after {
     flex-direction: column;
     gap: 22px;
     width: calc(var(--rail-w) + var(--safe-left));
-    padding: calc(var(--safe-top) + 12px) 12px 20px calc(12px + var(--safe-left));
+    padding: calc(var(--safe-top) + 12px) 8px 20px calc(8px + var(--safe-left));
     background: var(--surface);
     border-right: 1px solid var(--line);
     overflow-y: auto;
@@ -7213,4 +7213,22 @@ body[data-drop="on"]::after {
   .week-view .wk__plot {
     height: 15rem;
   }
+}
+
+/* Laptops up to 80em: the sidebar is a narrow rail, so the shell gives up a little side padding and
+   the left column a larger share, and its nutrient tiles still sit three to a row. */
+@media (min-width: 64em) and (max-width: 79.99em) {
+  body[data-screen="app"] .shell,
+  body[data-screen="app"] .topbar__inner {
+    padding-inline: 24px;
+  }
+
+  body[data-prefs="on"][data-dining="on"] .dash-grid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 4.4fr) minmax(0, 3.6fr);
+  }
+}
+
+.upcoming__more {
+  flex: none;
+  white-space: nowrap;
 }
