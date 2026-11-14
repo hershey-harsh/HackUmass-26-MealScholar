@@ -53,6 +53,35 @@
     }, true);
   }
 
+  // Theme: System, Light or Dark. The script in <head> already set data-theme before
+  // first paint; the radios save the choice, and System follows the system setting live.
+  var theme = w.mealscholarTheme;
+  var radios = d.querySelectorAll('.theme input');
+  if (theme && radios.length) {
+    var choice = theme.stored() || 'system';
+    var sync = function () { radios.forEach(function (r) { r.checked = r.value === choice; }); };
+    var show = function () {
+      var root = d.documentElement;
+      root.classList.add('theme-switch');
+      theme.apply(choice);
+      w.requestAnimationFrame(function () { w.requestAnimationFrame(function () { root.classList.remove('theme-switch'); }); });
+    };
+    radios.forEach(function (r) {
+      r.addEventListener('change', function () {
+        if (!r.checked) return;
+        choice = r.value;
+        try {
+          if (choice === 'system') w.localStorage.removeItem(theme.key);
+          else w.localStorage.setItem(theme.key, choice);
+        } catch (e) {}
+        sync();
+        show();
+      });
+    });
+    theme.mq.addEventListener('change', function () { if (choice === 'system') show(); });
+    sync();
+  }
+
   // Sideways rows: previous/next buttons and dots, focusable only while they scroll.
   d.querySelectorAll('[data-rail]').forEach(function (rail) {
     var ctrl = d.querySelector('[data-rail-controls="' + rail.id + '"]');

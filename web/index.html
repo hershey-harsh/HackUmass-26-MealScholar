@@ -11,6 +11,21 @@
 <meta property="og:title" content="MealScholar">
 <meta property="og:description" content="Snap a photo of your meal and get the foods, how much is there and the nutrients, shown as honest ranges.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<script>
+/* Theme before first paint: the saved choice (mealscholar-theme), else the system setting. app.js runs the switch. */
+(function (d, w) {
+  var key = 'mealscholar-theme', mq = w.matchMedia('(prefers-color-scheme: dark)');
+  function stored() { try { var v = w.localStorage.getItem(key); return v === 'light' || v === 'dark' ? v : null; } catch (e) { return null; } }
+  function apply(choice) {
+    var t = choice === 'light' || choice === 'dark' ? choice : (mq.matches ? 'dark' : 'light');
+    d.documentElement.dataset.theme = t;
+    d.querySelector('meta[name="theme-color"]').content = t === 'dark' ? '#111112' : '#EEF0F2';
+    d.querySelector('meta[name="color-scheme"]').content = t;
+  }
+  apply(stored());
+  w.mealscholarTheme = { key: key, mq: mq, stored: stored, apply: apply };
+})(document, window);
+</script>
 <link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="styles.css?v=__COMMIT__">
 <script src="app.js?v=__COMMIT__" defer></script>
@@ -32,6 +47,9 @@
   <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3.5v11M8 7.5l4-4 4 4M7 11H6a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 18 11h-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-menu-dots" viewBox="0 0 24 24"><circle cx="12" cy="5.5" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="18.5" r="1.8" fill="currentColor"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 20h6M12 16.5V20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.6A7.8 7.8 0 0 1 9.4 4.5a7.8 7.8 0 1 0 10.1 10.1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   <symbol id="mark" viewBox="0 0 32 32"><rect width="32" height="32" rx="10" fill="#1C1C1C"/><circle cx="16" cy="17.5" r="8" fill="none" stroke="#FAFAFF" stroke-width="2.4"/><path d="M16.2 4.8c2.9 1.4 4.2 3.9 3.7 6.9-2.9-.2-5-2-5.5-4.9.4-.8 1-1.5 1.8-2z" fill="#DADDD8"/></symbol>
   <symbol id="plate" viewBox="0 0 320 200">
@@ -64,6 +82,11 @@
       <span>MealScholar</span>
     </a>
     <div class="header-cta">
+      <div class="theme theme--bar" role="radiogroup" aria-label="Theme">
+        <label class="theme__opt" title="System"><input type="radio" name="theme" value="system" checked><svg aria-hidden="true"><use href="#i-monitor"/></svg><span class="theme__lbl">System</span></label>
+        <label class="theme__opt" title="Light"><input type="radio" name="theme" value="light"><svg aria-hidden="true"><use href="#i-sun"/></svg><span class="theme__lbl">Light</span></label>
+        <label class="theme__opt" title="Dark"><input type="radio" name="theme" value="dark"><svg aria-hidden="true"><use href="#i-moon"/></svg><span class="theme__lbl">Dark</span></label>
+      </div>
       <a class="cta cta--sm" href="https://mealscholar.mannava.org">
         <span class="cta__pill">Open the app</span>
         <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
@@ -82,6 +105,11 @@
           <span class="cta__pill">Open the app</span>
           <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
         </a>
+        <div class="theme theme--menu" role="radiogroup" aria-label="Theme">
+          <label class="theme__opt"><input type="radio" name="theme-menu" value="system" checked><svg aria-hidden="true"><use href="#i-monitor"/></svg><span class="theme__lbl">System</span></label>
+          <label class="theme__opt"><input type="radio" name="theme-menu" value="light"><svg aria-hidden="true"><use href="#i-sun"/></svg><span class="theme__lbl">Light</span></label>
+          <label class="theme__opt"><input type="radio" name="theme-menu" value="dark"><svg aria-hidden="true"><use href="#i-moon"/></svg><span class="theme__lbl">Dark</span></label>
+        </div>
       </div>
     </details>
   </div>
