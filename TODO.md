@@ -1,6 +1,6 @@
 # MealScholar TODO
 
-As of Sat Nov 14, 10:55 AM EST. Owners follow the table in `AGENTS.md`. Deadlines come from `TIMELINE.md`.
+As of Sat Nov 14, 11:20 AM EST. Owners follow the table in `AGENTS.md`. Deadlines come from `TIMELINE.md`.
 Tick a box when it's done. When a contract changes, post on the board.
 
 ## 1. Merge chain and cleanup
@@ -50,6 +50,8 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
 - [ ] Let Gemini choose among the top USDA candidates with structured output.
 - [ ] After every lookup change, post the before/after from `uv run python bench/report.py --rematch`. CI's Lookup regression check (#22) already fails PRs that make the lookup worse. When a change beats `REMATCH_LIMITS` in `bench/report.py`, raise the limits in the same PR.
 - [ ] Meal time: the app sends only `lat`/`lon`. Have it also send the phone's local time with its UTC offset, and have `POST /api/meals` accept it, so photos without EXIF don't fall back to the server clock.
+- [x] Calorie ranges too wide (#54). Meal and day totals now combine the foods' ranges as partly correlated errors instead of adding every low and every high. Meal #7 goes from 945–1,455 to 1,010–1,369 kcal. The refine prompt narrows the items an answer pins down, and the omelette no longer matches a fried egg. Defining low and high as the 10th and 90th percentile was tried and not kept. See "Range width" in `BENCHMARK.md`.
+- [ ] **Harsh**: on the result card, lead with the likely kcal and show the range smaller, the way Today's `hero__num` does (#54). Today the big number is the range (`totalHtml`, `kcalRangeHtml`).
 
 ## 4. Demo and submission
 
@@ -99,7 +101,7 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
     - [ ] Sign-up answers 409 for an email that already has an account. Forgot-password allows 3 per hour per email, so anyone can use up someone else's quota; count per (network, email) instead.
     - [ ] Raise scrypt's work factor from N=2^14 toward OWASP's 2^17. It's stored in each hash, so existing passwords keep working.
   - [ ] Photos between about 89 and 179 megapixels still decode, with a warning, and can take several hundred MB of RAM each. Set an explicit pixel limit; phone photos are 48 MP at most (#32).
-- [ ] Weigh 10 real meals on a kitchen scale, so the benchmark has real error bars instead of estimates.
+- [ ] Weigh 10 real meals on a kitchen scale, so the benchmark has real error bars instead of estimates. Then check that the narrower meal ranges from #54 still contain the weighed amounts, and retune `compute.SHARED_ERROR`.
 - [x] Run `bench/report.py --rematch` in CI as a regression check: the Lookup regression workflow (#22), with the USDA download cached.
 
 ## 6. Later

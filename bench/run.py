@@ -6,14 +6,20 @@ exactly as `foodsmart analyze --no-log`, with latency and token usage recorded p
     uv run --env-file .env python bench/run.py --phase a      # model x thinking level sweep
     uv run --env-file .env python bench/run.py --phase b      # media resolution sweep
     uv run --env-file .env python bench/run.py --phase c --config 'gemini-4-hydrogen|low|default'   # answer loop
+    uv run --env-file .env python bench/run.py --phase d --config 'gemini-4-hydrogen|low|default'   # prompt change
+
+Phase d reruns one config after a prompt change (analyze and answer, like c, 3 reps), so the report
+can compare it with the same config in phases a and c. Each run records a fingerprint of the prompts
+and output schema it used.
 
 Photos go in test_pictures/ (not committed: they carry GPS EXIF). Results append to
-bench/results/runs.jsonl; runs already there are skipped, so it is resumable.
+bench/results/runs.jsonl; runs already there for the same prompt are skipped, so it is resumable.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 import threading
@@ -26,14 +32,19 @@ from types import SimpleNamespace
 from foodsmart.config import load_settings
 from foodsmart.nutrition import FoodDatabase
 from foodsmart.pipeline import Workflow
-from foodsmart.vision import GeminiVision, VisionError
+from foodsmart.schemas import MealAnalysis
+from foodsmart.vision import REFINE_PROMPT, SYSTEM_PROMPT, GeminiVision, VisionError
 
 ROOT = Path(__file__).resolve().parent.parent
 PHOTOS = sorted((ROOT / "test_pictures").glob("*.jpeg"))
 RESULTS = ROOT / "bench" / "results" / "runs.jsonl"
 _RETRY_STATUS = {429, 500, 502, 503, 504}
+PROMPT = hashlib.sha256(
+    (SYSTEM_PROMPT + REFINE_PROMPT + json.dumps(MealAnalysis.model_json_schema(), sort_keys=True)).encode()
+).hexdigest()[:8]
+"""Fingerprint of what Gemini is told. Runs recorded before prompts were fingerprinted have none."""
 
-# Phase C: what the user would type after the clarifying question.
+# Phases C and D: what the user would type after the clarifying question.
 ANSWERS = {
     "IMG_0579.jpeg": "One cheese slice and one pepperoni slice from a large dining-hall pie.",
     "IMG_0580.jpeg": "Regular ginger ale, not diet. The glass holds about 12 oz.",
@@ -127,11 +138,11 @@ class _Sink:
         path.parent.mkdir(parents=True, exist_ok=True)
         self._path = path
         self._lock = threading.Lock()
-        self.done: set[tuple[str, str, str, int]] = set()
+        self.done: set[tuple[str, str, str, int, str | None]] = set()
         if path.exists():
             for line in path.read_text().splitlines():
                 r = json.loads(line)
-                self.done.add((r["phase"], r["config"], r["photo"], r["rep"]))
+                self.done.add((r["phase"], r["config"], r["photo"], r["rep"], r.get("prompt")))
 
     def write(self, record: dict) -> None:
         with self._lock, self._path.open("a") as f:
@@ -144,7 +155,7 @@ def run_config(phase: str, cfg: Config, reps: int, api_key: str, food_db: Path, 
     workflow, recorder = _workflow(cfg, api_key, food_db)
     for rep in range(reps):
         for photo in PHOTOS:
-            if (phase, cfg.key, photo.name, rep) in sink.done:
+            if (phase, cfg.key, photo.name, rep, PROMPT) in sink.done:
                 continue
             record = {
                 "phase": phase,
@@ -154,6 +165,7 @@ def run_config(phase: str, cfg: Config, reps: int, api_key: str, food_db: Path, 
                 "resolution": cfg.resolution or "default",
                 "photo": photo.name,
                 "rep": rep,
+                "prompt": PROMPT,
                 "error": None,
                 "result": None,
             }
@@ -162,7 +174,7 @@ def run_config(phase: str, cfg: Config, reps: int, api_key: str, food_db: Path, 
             try:
                 result = workflow.analyze(photo)
                 record["result"] = result.model_dump(mode="json")
-                if phase == "c":
+                if phase in ("c", "d"):
                     record["call_analyze"] = recorder.calls[-1]
                     if result.question:
                         answered = workflow.answer(result, ANSWERS[photo.name])
@@ -176,7 +188,7 @@ def run_config(phase: str, cfg: Config, reps: int, api_key: str, food_db: Path, 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--phase", choices=("a", "b", "c"), action="append", required=True)
+    parser.add_argument("--phase", choices=("a", "b", "c", "d"), action="append", required=True)
     parser.add_argument("--reps", type=int, default=3)
     parser.add_argument("--config", action="append", help="model|thinking|resolution (phase c, or to narrow a/b)")
     args = parser.parse_args()
@@ -188,7 +200,7 @@ def main() -> None:
     for phase in args.phase:
         configs = [Config.parse(k) for k in args.config] if args.config else {"a": PHASE_A, "b": PHASE_B}.get(phase)
         if not configs:
-            raise SystemExit("Phase c needs --config.")
+            raise SystemExit(f"Phase {phase} needs --config.")
         jobs += [(phase, cfg) for cfg in configs]
 
     sink = _Sink(RESULTS)

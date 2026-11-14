@@ -4,6 +4,10 @@ uv run python bench/report.py                                  # tables
 uv run python bench/report.py --rematch                        # redo the USDA lookup with current code
 uv run python bench/report.py --rematch --check                # ...and exit 1 below REMATCH_LIMITS (CI)
 uv run python bench/report.py --overlays 'gemini-4-hydrogen|low|default'   # draw boxes, rep 0
+
+Configs are reported per prompt: a phase d rerun shows up as its own row next to the same config
+from the sweep. Meal ranges are combined with the current `compute.add_ranges`, whatever the
+recorded totals say.
 """
 
 from __future__ import annotations
@@ -17,11 +21,13 @@ from pathlib import Path
 
 from ground_truth import PHOTOS, Photo, classify
 from PIL import Image, ImageDraw, ImageFont, ImageOps
+from run import PROMPT
 
+from foodsmart.compute import add_ranges, summarize
 from foodsmart.config import load_settings
 from foodsmart.nutrition import FoodDatabase
 from foodsmart.pipeline import Workflow
-from foodsmart.schemas import MealResult
+from foodsmart.schemas import MealResult, Range
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "bench" / "results"
@@ -82,6 +88,11 @@ def union_box(boxes: list[list[int]]) -> list[int] | None:
     return [min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes)]
 
 
+def _combined(ranges: list[Range], **kwargs) -> Range | None:
+    """The ranges added up the way `compute` adds a meal's foods; None for no ranges."""
+    return add_ranges(({"x": r} for r in ranges), **kwargs).get("x")
+
+
 def cost(model: str, usage: dict) -> float:
     pin, pout = PRICES[model]
     out = usage.get("total_output_tokens", 0) + usage.get("total_thought_tokens", 0)
@@ -139,7 +150,12 @@ def score(run: dict) -> dict:
     s["grams"] = g[1]
     s["grams_in_band"] = lo <= g[1] <= hi
     s["grams_ape"] = abs(g[1] - likely) / likely
-    s["grams_covers"] = g[0] <= likely <= g[2]
+    portions = [r["item"] for r in req_items]
+    grams = _combined([Range(low=i["grams_low"], likely=i["grams_likely"], high=i["grams_high"]) for i in portions])
+    s["grams_covers"] = grams is not None and grams.low <= likely <= grams.high
+    sized = [i for i in portions if i["grams_likely"]]
+    s["width_below"] = [(i["grams_likely"] - i["grams_low"]) / i["grams_likely"] for i in sized]
+    s["width_above"] = [(i["grams_high"] - i["grams_likely"]) / i["grams_likely"] for i in sized]
     for comp, (clo, chi) in photo.component_grams.items():
         cg = sum(r["item"]["grams_likely"] for r in req_items if comp in r["_comps"])
         s[f"{comp}_g_ok"] = clo <= cg <= chi
@@ -149,6 +165,13 @@ def score(run: dict) -> dict:
     s["kcal_shown"] = result["totals"].get("energy_kcal", {}).get("likely", 0)
     s["kcal_in_band"] = photo.kcal[0] <= kcal <= photo.kcal[2]
     s["kcal_ape"] = abs(kcal - photo.kcal[1]) / photo.kcal[1]
+    kcal_ranges = [Range(**r["nutrients"]["energy_kcal"]) for r in req_items if "energy_kcal" in r["nutrients"]]
+    if (combined := _combined(kcal_ranges)) is not None and combined.likely:
+        worst = _combined(kcal_ranges, correlation=1.0)
+        foods = "one" if len(kcal_ranges) == 1 else "several"
+        s[f"kcal_spread_{foods}"] = (combined.high - combined.low) / combined.likely
+        s[f"kcal_spread_{foods}_worst"] = (worst.high - worst.low) / worst.likely
+        s["kcal_covers"] = combined.low <= photo.kcal[1] <= combined.high
     s["matched"] = sum(r["match"] is not None for r in items) / len(items) if items else None
     s["bad_match"] = sum(bool(r["match"] and _BAD_MATCH.search(r["match"]["description"])) for r in items)
     pep = [r for r in req_items if "pepperoni" in r["_comps"]]
@@ -197,7 +220,7 @@ def _num(v, fmt: str = "{:.0f}") -> str:
 def aggregate(runs: list[dict]) -> dict[str, dict]:
     by_cfg: dict[str, list[tuple[dict, dict]]] = defaultdict(list)
     for run in runs:
-        by_cfg[run["config"]].append((run, score(run)))
+        by_cfg[f"{run['config']}|{run.get('prompt') or ''}"].append((run, score(run)))
     out = {}
     for cfg, pairs in by_cfg.items():
         ss = [s for _, s in pairs]
@@ -220,6 +243,7 @@ def aggregate(runs: list[dict]) -> dict[str, dict]:
             "model": model,
             "thinking": pairs[0][0]["thinking"],
             "resolution": pairs[0][0]["resolution"],
+            "prompt": pairs[0][0].get("prompt"),
             "n": len(ss),
             "errors": len(ss) - len(ok),
             "error_sample": next((r["error"] for r, s in pairs if not s["ok"]), None),
@@ -244,6 +268,12 @@ def aggregate(runs: list[dict]) -> dict[str, dict]:
             "grams_in_band": _mean(s["grams_in_band"] for s in ok),
             "grams_ape": _p([s["grams_ape"] for s in ok], 0.5),
             "grams_covers": _mean(s["grams_covers"] for s in ok),
+            "width_below": _p([w for s in ok for w in s["width_below"]], 0.5),
+            "width_above": _p([w for s in ok for w in s["width_above"]], 0.5),
+            "kcal_spread_one": _p([s.get("kcal_spread_one") for s in ok], 0.5),
+            "kcal_spread_several": _p([s.get("kcal_spread_several") for s in ok], 0.5),
+            "kcal_spread_several_worst": _p([s.get("kcal_spread_several_worst") for s in ok], 0.5),
+            "kcal_covers": _mean(s.get("kcal_covers") for s in ok),
             "egg_ok": _mean(s.get("egg_g_ok") for s in ok),
             "dressing_g_ok": _mean(s.get("dressing_g_ok") for s in ok),
             "kcal_in_band": _mean(s["kcal_in_band"] for s in ok),
@@ -276,13 +306,17 @@ def _order(agg: dict[str, dict]) -> list[str]:
             models.index(agg[k]["model"]),
             levels.index(agg[k]["thinking"]),
             res.index(agg[k]["resolution"]),
+            agg[k]["prompt"] or "",
         ),
     )
 
 
 def _name(a: dict) -> str:
     res = "" if a["resolution"] == "default" else f" · res {a['resolution']}"
-    return f"`{a['model'].removeprefix('gemini-')}` {a['thinking']}{res}"
+    prompt = ""
+    if a["prompt"]:
+        prompt = f" · prompt {a['prompt']}" + (" (current)" if a["prompt"] == PROMPT else "")
+    return f"`{a['model'].removeprefix('gemini-')}` {a['thinking']}{res}{prompt}"
 
 
 def tables(agg: dict[str, dict]) -> str:
@@ -333,6 +367,26 @@ def tables(agg: dict[str, dict]) -> str:
             f"| {_pct([a['kcal_in_band']])} | {_pct([a['kcal_ape']])} | {_num(a['salad_ratio'], '{:.2f}')} "
             f"| {_pct([a['edge']])} |"
         )
+    lines += [
+        "",
+        "### Range width and coverage",
+        "",
+        "Item range: how far each food's low and high grams sit from likely (median). kcal range: high minus",
+        "low over likely for the labeled items (median), for photos of one food and of several, combined as",
+        "`compute.add_ranges` does and with every low and every high added up. Covers: the combined range",
+        "contains the reference amount.",
+        "",
+        "| Config | Item range below / above likely | kcal range, one food | kcal range, several foods "
+        "| Several foods, lows and highs added | Covers reference grams | Covers reference kcal |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for k in keys:
+        a = agg[k]
+        lines.append(
+            f"| {_name(a)} | −{_pct([a['width_below']])} / +{_pct([a['width_above']])} "
+            f"| {_pct([a['kcal_spread_one']])} | {_pct([a['kcal_spread_several']])} "
+            f"| {_pct([a['kcal_spread_several_worst']])} | {_pct([a['grams_covers']])} | {_pct([a['kcal_covers']])} |"
+        )
     errors = [(k, agg[k]) for k in keys if agg[k]["errors"]]
     if errors:
         lines += ["", "### Errors", ""]
@@ -379,23 +433,50 @@ def usda_table(runs: list[dict]) -> str:
 
 
 def refine_table(runs: list[dict]) -> str:
-    lines = [
-        "| Photo | Question | kcal before (low–high) | kcal after answer (low–high) | Items after |",
-        "|---|---|---|---|---|",
-    ]
-    for run in sorted(runs, key=lambda r: (r["photo"], r["rep"])):
-        if run["error"]:
-            lines.append(f"| {run['photo']} | error: {run['error'][:80]} | | | |")
-            continue
-        before = run["result"]["totals"].get("energy_kcal", {})
-        rng = lambda e: f"{e['likely']:.0f} ({e['low']:.0f}–{e['high']:.0f})" if e else "–"  # noqa: E731
-        after = run.get("answered")
-        items = ", ".join(f"{r['item']['name']} {r['item']['grams_likely']} g" for r in after["items"]) if after else ""
-        lines.append(
-            f"| {run['photo']} r{run['rep']} | {run['result']['question'] or '(none asked)'} | {rng(before)} "
-            f"| {rng(after['totals'].get('energy_kcal', {})) if after else '–'} | {items} |"
-        )
-    return "\n".join(lines)
+    """Phases c and d, one table per config and prompt. Totals are recomputed with the current `compute`."""
+
+    def kcal(result: dict) -> Range | None:
+        return summarize(MealResult.model_validate(result)).totals.get("energy_kcal")
+
+    def rng(e: Range | None) -> str:
+        return f"{e.likely:.0f} ({e.low:.0f}–{e.high:.0f})" if e else "–"
+
+    def spread(e: Range | None) -> float | None:
+        return (e.high - e.low) / e.likely if e and e.likely else None
+
+    groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for run in runs:
+        groups[(run["config"], run.get("prompt") or "")].append(run)
+    lines: list[str] = []
+    for (config, prompt), group in sorted(groups.items()):
+        label = "the sweep's prompt" if not prompt else f"prompt {prompt}" + (" (current)" if prompt == PROMPT else "")
+        answered = [r for r in group if not r["error"] and r.get("answered")]
+        before = _p([spread(kcal(r["result"])) for r in answered], 0.5)
+        after = _p([spread(kcal(r["answered"])) for r in answered], 0.5)
+        lines += [
+            f"#### `{config}`, {label}",
+            "",
+            f"Median meal kcal range on the {len(answered)} answered runs: {_pct([before])} of likely before the "
+            f"answer, {_pct([after])} after.",
+            "",
+            "| Photo | Question | kcal before (low–high) | kcal after answer (low–high) | Items after |",
+            "|---|---|---|---|---|",
+        ]
+        for run in sorted(group, key=lambda r: (r["photo"], r["rep"])):
+            if run["error"]:
+                lines.append(f"| {run['photo']} | error: {run['error'][:80]} | | | |")
+                continue
+            after_run = run.get("answered")
+            items = ", ".join(
+                f"{i['name']} {i['grams_likely']} g ({i['grams_low']}–{i['grams_high']})"
+                for i in (r["item"] for r in (after_run or {}).get("items", []))
+            )
+            lines.append(
+                f"| {run['photo']} r{run['rep']} | {run['result']['question'] or '(none asked)'} "
+                f"| {rng(kcal(run['result']))} | {rng(kcal(after_run)) if after_run else '–'} | {items} |"
+            )
+        lines.append("")
+    return "\n".join(lines).rstrip()
 
 
 def overlays(config: str) -> None:
@@ -473,19 +554,19 @@ def main() -> None:
     if args.overlays:
         overlays(args.overlays)
         return
-    sweep = load({"a", "b"})
+    runs = load({"a", "b", "d"})
     if args.rematch:
-        sweep = rematch(sweep)
+        runs = rematch(runs)
         title = "Benchmark results, USDA lookup redone with current code (bench/report.py --rematch)"
         out = "summary-rematched.md"
     else:
         title, out = "Benchmark results (generated by bench/report.py)", "summary.md"
-    h = headline(sweep)
-    parts = [f"# {title}", "", overall(h), "", tables(aggregate(sweep))]
-    parts += ["", "### USDA lookup: every fdc_query Gemini produced", "", usda_table(sweep)]
-    refine = load({"c"})
+    h = headline([r for r in runs if r["phase"] in ("a", "b")])  # REMATCH_LIMITS are counted on the sweep
+    parts = [f"# {title}", "", overall(h), "", tables(aggregate(runs))]
+    parts += ["", "### USDA lookup: every fdc_query Gemini produced", "", usda_table(runs)]
+    refine = load({"c", "d"})
     if refine and not args.rematch:
-        parts += ["", "### Clarifying question → answer → recompute (phase c)", "", refine_table(refine)]
+        parts += ["", "### Clarifying question → answer → recompute (phases c and d)", "", refine_table(refine)]
     text = "\n".join(parts) + "\n"
     (RESULTS / out).write_text(text)
     if not args.check:
