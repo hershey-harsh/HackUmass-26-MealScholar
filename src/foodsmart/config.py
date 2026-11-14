@@ -9,6 +9,8 @@ from pathlib import Path
 
 DEFAULT_MODEL = "gemini-4-hydrogen"
 DEFAULT_NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
+DEFAULT_PUBLIC_URL = "http://127.0.0.1:8000"
+EMAIL_PROVIDERS = ("outbox", "smtp")
 USER_AGENT = "foodsmart/0.1 (HackUMass prototype; https://github.com/killerfrost22/26hackumass-foodsmart)"
 
 
@@ -19,6 +21,19 @@ class Settings:
     thinking_level: str
     home: Path
     nominatim_url: str
+    # Accounts (auth.py)
+    mongodb_uri: str | None = None
+    """Accounts live in MongoDB when set; otherwise in memory and vanish on restart."""
+    mongodb_db: str = "mealscholar"
+    auth_required: bool = True
+    """Meal and diary routes need a signed-in user. Off: local single-user use."""
+    public_url: str = DEFAULT_PUBLIC_URL
+    """Base of the links in emails, without a trailing slash."""
+    cookie_secure: bool = True
+    email_provider: str = "outbox"
+    demo_verify_link: bool = False
+    """Return email links in API responses so a demo works without email. Never on a public server."""
+    dev_outbox: bool = False
 
     @property
     def food_db(self) -> Path:
@@ -40,4 +55,37 @@ def load_settings(env: Mapping[str, str] = os.environ) -> Settings:
         thinking_level=env.get("FOODSMART_THINKING", "low"),
         home=Path(env.get("FOODSMART_HOME", "~/.foodsmart")).expanduser(),
         nominatim_url=env.get("FOODSMART_NOMINATIM_URL", DEFAULT_NOMINATIM_URL),
+        mongodb_uri=env.get("MONGODB_URI") or None,
+        mongodb_db=env.get("FOODSMART_MONGODB_DB") or "mealscholar",
+        auth_required=_flag(env, "FOODSMART_AUTH_REQUIRED", True),
+        public_url=_public_url(env.get("FOODSMART_PUBLIC_URL") or DEFAULT_PUBLIC_URL),
+        cookie_secure=_flag(env, "FOODSMART_COOKIE_SECURE", True),
+        email_provider=_email_provider(env.get("FOODSMART_EMAIL_PROVIDER") or "outbox"),
+        demo_verify_link=_flag(env, "FOODSMART_DEMO_VERIFY_LINK", False),
+        dev_outbox=_flag(env, "FOODSMART_DEV_OUTBOX", False),
     )
+
+
+def _flag(env: Mapping[str, str], name: str, default: bool) -> bool:
+    value = env.get(name, "").strip().lower()
+    if not value:
+        return default
+    if value in ("1", "true", "yes", "on"):
+        return True
+    if value in ("0", "false", "no", "off"):
+        return False
+    raise ValueError(f"{name} must be 1 or 0, not {value!r}.")
+
+
+def _public_url(value: str) -> str:
+    url = value.strip().rstrip("/")
+    if not url.startswith(("http://", "https://")):
+        raise ValueError(f"FOODSMART_PUBLIC_URL must start with http:// or https://, not {value!r}.")
+    return url
+
+
+def _email_provider(value: str) -> str:
+    provider = value.strip().lower()
+    if provider not in EMAIL_PROVIDERS:
+        raise ValueError(f"FOODSMART_EMAIL_PROVIDER must be one of {', '.join(EMAIL_PROVIDERS)}, not {value!r}.")
+    return provider
