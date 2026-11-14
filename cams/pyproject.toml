@@ -29,3 +29,4 @@ include = ["umass_cams*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]  # test this checkout, not the copy the service venv points at

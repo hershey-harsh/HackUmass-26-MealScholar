@@ -1,11 +1,13 @@
 """Sampler CLI: one pass over the dining-hall cams.
 
-For each hall: capture a ~20 s window, detect + track people, compute the busy
-level, upsert one occupancy document, then write state/latest.json and log one
-line. One hall failing never stops the others; an offline or blocked stream is
-recorded as level "unknown" with a reason. Whole run stays under 120 s.
+For each hall: capture a 16 s window (a frame every 0.5 s), detect + track people,
+compute the busy level, upsert one occupancy document, write the hall's boxed clip
+and poster to the clip dir (config.clip_dir()), then write state/latest.json and
+log one line. One hall failing never stops the others, and neither does a failed
+clip encode; an offline or blocked stream is recorded as level "unknown" with a
+reason. Whole run stays under config.TOTAL_BUDGET_S (launchd starts one every 180 s).
 
-    python -I -m umass_cams.sample [--all] [--window 20] [--dry-run] [--screenshots DIR]
+    python -I -m umass_cams.sample [--all] [--window 16] [--dry-run] [--no-clips] [--screenshots DIR]
 """
 
 from __future__ import annotations
@@ -103,8 +105,37 @@ def json_safe(doc: dict) -> dict:
     return out
 
 
+def save_clip(stream: Stream, per_frame, clip_dir: Path | None) -> bool:
+    """Write the hall's latest boxed clip + poster. Only a hall's main camera has one. Never raises."""
+    if clip_dir is None or not stream.primary or not per_frame:
+        return False
+    from .detect import write_clip
+
+    t0 = time.time()
+    try:
+        write_clip(
+            per_frame,
+            clip_dir / f"{stream.location_id}.mp4",
+            clip_dir / f"{stream.location_id}.jpg",
+            title=stream.location_name,
+        )
+    except Exception as e:
+        log.warning("%s (%s): clip not written (%s: %s)", stream.location_name, stream.youtube_id, type(e).__name__, e)
+        return False
+    log.info("%s (%s): clip written in %.1fs", stream.location_name, stream.youtube_id, time.time() - t0)
+    return True
+
+
 def sample_one(
-    grabber, tracker_factory, stream: Stream, coll, now: datetime, window_s: float, deadline: float, dry_run: bool
+    grabber,
+    tracker_factory,
+    stream: Stream,
+    coll,
+    now: datetime,
+    window_s: float,
+    deadline: float,
+    dry_run: bool,
+    clip_dir: Path | None = None,
 ) -> dict:
     t0 = time.time()
     model_name = "yolo11n"
@@ -140,7 +171,8 @@ def sample_one(
     from .detect import run_window  # heavy import only when there are frames
 
     tracker = tracker_factory()
-    counts, ids, _ = run_window(tracker, res.frames)
+    counts, ids, per_frame = run_window(tracker, res.frames)
+    save_clip(stream, per_frame, clip_dir)
     people, tracks = busy.summarize_window(counts, ids)
     history = load_history(coll, stream, now) if coll is not None else []
     assessment = busy.assess(people, stream.youtube_id, history, now, frames=len(counts))
@@ -229,6 +261,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--budget", type=float, default=config.TOTAL_BUDGET_S, help="total seconds for the run")
     ap.add_argument("--dry-run", action="store_true", help="no Mongo writes")
     ap.add_argument("--no-mongo", action="store_true", help="do not connect to Mongo at all")
+    ap.add_argument("--no-clips", action="store_true", help="do not write the boxed clips for the app")
     ap.add_argument("--screenshots", default=None, help="save player screenshots on failure to this dir")
     ap.add_argument("--only", default=None, help="comma-separated youtube ids to sample")
     args = ap.parse_args(argv)
@@ -245,6 +278,7 @@ def main(argv: list[str] | None = None) -> int:
         ]
 
     coll = None if args.no_mongo else open_collection(args.dry_run)
+    clip_dir = None if args.no_clips else config.clip_dir()
 
     from .streams import FrameGrabber
 
@@ -271,7 +305,11 @@ def main(argv: list[str] | None = None) -> int:
                     docs.append(_store(coll, doc, args.dry_run))
                     continue
                 try:
-                    docs.append(sample_one(grabber, tracker_factory, s, coll, now, args.window, deadline, args.dry_run))
+                    docs.append(
+                        sample_one(
+                            grabber, tracker_factory, s, coll, now, args.window, deadline, args.dry_run, clip_dir
+                        )
+                    )
                 except Exception as e:  # one hall never stops the others
                     log.exception("%s: failed: %s", s.location_name, e)
                     doc = build_doc(

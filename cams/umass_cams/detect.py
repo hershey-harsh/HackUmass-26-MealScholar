@@ -7,7 +7,8 @@ in two frames in a row, and frames taken seconds apart rarely match, so its own
 output would undercount. Green boxes (BGR 0,200,0) carry the id once there is
 one; a count overlay sits top-left. No
 crops, no faces, no identification: a box and a number per person is all that
-is ever produced, and nothing here is written to the database.
+is ever produced, and nothing here is written to the database. write_clip keeps
+only each hall's latest boxed clip and poster, as files for the app.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import tempfile
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -116,8 +118,11 @@ def boxes_to_detections(boxes) -> list[Detection]:
     return out
 
 
-def annotate(frame_bgr: np.ndarray, dets: Sequence[Detection], title: str = "", extra: str = "") -> np.ndarray:
-    """Return a copy with green boxes, ids and a count overlay."""
+def annotate(
+    frame_bgr: np.ndarray, dets: Sequence[Detection], title: str = "", extra: str = "", *, count: bool = True
+) -> np.ndarray:
+    """Return a copy with green boxes, ids and a title overlay; with `count`, that frame's count too. The app's
+    clips leave it out: the app shows the window's median, and a per-frame count would disagree with it."""
     img = frame_bgr.copy()
     h, w = img.shape[:2]
     scale = max(0.5, min(1.2, w / 1280))
@@ -129,9 +134,9 @@ def annotate(frame_bgr: np.ndarray, dets: Sequence[Detection], title: str = "", 
         y = max(d.y1, th + base + 2)
         cv2.rectangle(img, (d.x1, y - th - base - 2), (d.x1 + tw + 4, y), GREEN, -1)
         cv2.putText(img, label, (d.x1 + 2, y - base), cv2.FONT_HERSHEY_SIMPLEX, 0.5 * scale, (0, 0, 0), 1, cv2.LINE_AA)
-    text = f"{len(dets)} people"
+    text = f"{len(dets)} people" if count else ""
     if title:
-        text = f"{title}  |  {text}"
+        text = f"{title}  |  {text}" if text else title
     if extra:
         text += f"  |  {extra}"
     (tw, th), base = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7 * scale, 2)
@@ -206,6 +211,114 @@ def write_annotated_mp4(
     else:
         tmp.rename(path)
     return path
+
+
+def clip_fps(per_frame: Sequence[tuple[float, np.ndarray, Sequence[Detection]]], default: float = 2.0) -> float:
+    """Frames per second of the capture itself, so the clip plays back in real time."""
+    if len(per_frame) < 2:
+        return default
+    span = per_frame[-1][0] - per_frame[0][0]
+    if span <= 0:
+        return default
+    return max(0.5, min(30.0, (len(per_frame) - 1) / span))
+
+
+def write_clip(
+    per_frame: Sequence[tuple[float, np.ndarray, Sequence[Detection]]],
+    mp4_path: str | os.PathLike,
+    poster_path: str | os.PathLike,
+    title: str = "",
+    fps: float | None = None,
+    size: tuple[int, int] = config.CLIP_SIZE,
+    ffmpeg: str | None = None,
+    timeout: float = 20.0,
+) -> tuple[Path, Path]:
+    """The window's boxed frames as an H.264 MP4 (browsers play it inline) plus a JPEG poster of the
+    last frame, both at `size`. Each file is written next to its target and swapped in with
+    os.replace, so a reader never sees half a clip. Raises when ffmpeg is missing, fails or takes over
+    `timeout` seconds after the last frame (it is killed); the previous clip then stays as it was."""
+    mp4_path, poster_path = Path(mp4_path), Path(poster_path)
+    if not per_frame:
+        raise ValueError("no frames")
+    ffmpeg = ffmpeg or shutil.which("ffmpeg") or "/opt/homebrew/bin/ffmpeg"
+    if not os.path.exists(ffmpeg):
+        raise FileNotFoundError("ffmpeg not found")
+    w, h = size
+    fps = fps or clip_fps(per_frame)
+    mp4_path.parent.mkdir(parents=True, exist_ok=True)
+    poster_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_mp4 = mp4_path.with_name(f".{mp4_path.name}.{os.getpid()}.tmp")
+    tmp_jpg = poster_path.with_name(f".{poster_path.name}.{os.getpid()}.tmp")
+    cmd = [
+        ffmpeg,
+        "-y",
+        "-loglevel",
+        "error",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "bgr24",
+        "-s",
+        f"{w}x{h}",
+        "-r",
+        f"{fps:.4f}",
+        "-i",
+        "-",
+        "-an",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "26",
+        "-pix_fmt",
+        "yuv420p",
+        "-movflags",
+        "+faststart",
+        "-f",
+        "mp4",
+        str(tmp_mp4),
+    ]
+    for stale in (
+        *mp4_path.parent.glob(f".{mp4_path.name}.*.tmp"),
+        *poster_path.parent.glob(f".{poster_path.name}.*.tmp"),
+    ):
+        stale.unlink(missing_ok=True)  # left by a pass that was killed mid-encode
+    last = None
+    try:
+        with tempfile.TemporaryFile() as errf:
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=errf)
+            try:
+                for _ts, frame, dets in per_frame:
+                    last = cv2.resize(annotate(frame, dets, title, count=False), (w, h), interpolation=cv2.INTER_AREA)
+                    proc.stdin.write(np.ascontiguousarray(last).tobytes())
+            except BrokenPipeError:
+                pass  # ffmpeg quit early; its exit code says why
+            finally:
+                try:
+                    proc.stdin.close()
+                except BrokenPipeError:
+                    pass
+                try:
+                    code = proc.wait(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+                    raise
+            errf.seek(0)
+            err = errf.read().decode(errors="replace")[-200:]
+        if code != 0:
+            raise RuntimeError(f"ffmpeg exited {code}: {err.strip()}")
+        ok, jpg = cv2.imencode(".jpg", last, [cv2.IMWRITE_JPEG_QUALITY, 82])
+        if not ok:
+            raise RuntimeError("poster encode failed")
+        tmp_jpg.write_bytes(jpg.tobytes())
+        os.replace(tmp_mp4, mp4_path)
+        os.replace(tmp_jpg, poster_path)
+    finally:
+        tmp_mp4.unlink(missing_ok=True)
+        tmp_jpg.unlink(missing_ok=True)
+    return mp4_path, poster_path
 
 
 def status_tile(text: str, size: tuple[int, int] = (640, 360), title: str = "") -> np.ndarray:

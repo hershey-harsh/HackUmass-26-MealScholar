@@ -146,7 +146,7 @@ def create_app(
     install_auth(app, auth)
     dining = dining or open_dining(settings)
     install_dining(app, dining)
-    install_busy(app, busy or open_busy(settings))
+    install_busy(app, busy or open_busy(settings), settings.home / "cams")
     prefs = prefs or open_prefs_store(auth.store)
     install_prefs(app, prefs, dining)
     app.add_middleware(_ResponseSecurity)

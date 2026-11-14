@@ -4182,7 +4182,7 @@ function ensureBusy() {
       const halls = new Map((Array.isArray(reply?.halls) ? reply.halls : []).map((h) => [Number(h.location_id), h]));
       busyNow.halls = halls;
       busyNow.at = Date.now();
-      const sig = JSON.stringify([...halls.values()].map((h) => [h.location_id, h.level, h.people]));
+      const sig = JSON.stringify([...halls.values()].map((h) => [h.location_id, h.level, h.people, Boolean(camClip(h))]));
       if (sig === busyNow.sig) return;
       busyNow.sig = sig;
       if (document.body.dataset.screen !== "app") return;
@@ -4207,19 +4207,79 @@ const busyHall = (id) => {
   return hall && BUSY_TEXT[hall.level] ? hall : null;
 };
 
-/** "Quiet now · 8 people in view · 2 min ago", from the hall's live cam. */
+const minsAgo = (iso) => {
+  const mins = Math.round((Date.now() - Date.parse(iso)) / 60_000);
+  return Number.isFinite(mins) ? (mins < 1 ? "just now" : `${mins} min ago`) : "";
+};
+
+/** The hall's boxed clip from the cams sampler, when the server links one (it does for 15 minutes). */
+const camClip = (hall) =>
+  typeof hall?.clip_url === "string" && hall.clip_url.startsWith("/api/dining/cams/")
+    ? {
+        clip: hall.clip_url,
+        poster: typeof hall.poster_url === "string" && hall.poster_url.startsWith("/api/dining/cams/") ? hall.poster_url : "",
+        at: typeof hall.clip_at === "string" ? hall.clip_at : hall.updated_at,
+        live: typeof hall.live_url === "string" && hall.live_url.startsWith("https://www.youtube.com/watch?v=") ? hall.live_url : "",
+      }
+    : null;
+
+/** "Quiet now · 8 people in view · 2 min ago", from the hall's live cam. With a clip it's a button that
+    opens the cam with the model's boxes. */
 function busyBadgeHtml(id) {
   const hall = busyHall(id);
   if (!hall) return "";
   const people = Number.isFinite(hall.people) ? `${hall.people} ${hall.people === 1 ? "person" : "people"} in view` : "";
-  const mins = Math.round((Date.now() - Date.parse(hall.updated_at)) / 60_000);
-  const ago = Number.isFinite(mins) ? (mins < 1 ? "just now" : `${mins} min ago`) : "";
-  const meta = [people, ago].filter(Boolean).join(" · ");
+  const meta = [people, minsAgo(hall.updated_at)].filter(Boolean).join(" · ");
+  const cam = camClip(hall);
+  // The chevron rides inside the last words so it never wraps onto a line of its own.
+  const chev = cam ? `<span class="visually-hidden">. See the hall cam</span><span class="busy__chev" aria-hidden="true">${icon("chevron-right")}</span>` : "";
+  const inner = `<span class="busy__dot" aria-hidden="true"></span><span class="busy__level">${BUSY_TEXT[hall.level]}${meta ? "" : chev}</span>${meta ? `<span class="busy__meta">${SEP}<span aria-hidden="true">· </span>${meta}${chev}</span>` : ""}`;
+  if (!cam) return `<p class="busy busy--${hall.level}" title="From the hall's live cam">${inner}</p>`;
   return `
-    <p class="busy busy--${hall.level}" title="From the hall's live cam">
-      <span class="busy__dot" aria-hidden="true"></span><span class="busy__level">${BUSY_TEXT[hall.level]}</span>${meta ? `<span class="busy__meta">${SEP}<span aria-hidden="true">· </span>${meta}</span>` : ""}
-    </p>`;
+    <button class="busy busy--${hall.level} busy--cam" type="button" data-cam="${esc(hall.location_id)}" aria-haspopup="dialog">${inner}</button>`;
 }
+
+/** The hall cam's last 16 seconds with a green box on each person the model counted, in the panel sheet. */
+function openCam(button) {
+  const hall = busyHall(button.dataset.cam);
+  const cam = camClip(hall);
+  if (!cam) return;
+  const name = hallLabel(Number(hall.location_id)) || hall.name;
+  const ago = minsAgo(cam.at);
+  const still = reducedMotion.matches; // no autoplay: the poster, with controls to play it
+  button.focus({ preventScroll: true }); // so closing the sheet comes back here (Safari doesn't focus on click)
+  openPanel({
+    kicker: "Hall cam",
+    title: `${name} right now`,
+    intro: `From the hall's live cam, ${ago || "a few minutes ago"}. Each green box is a person the model counted.`,
+    kind: "cam",
+    html: `
+      <figure class="cam">
+        <div class="cam__frame">
+          <video class="cam__video" src="${esc(cam.clip)}"${cam.poster ? ` poster="${esc(cam.poster)}"` : ""} muted loop playsinline ${still ? "controls preload=\"none\"" : "autoplay preload=\"auto\""} aria-label="${esc(`${name}'s dining room from the hall cam, with a green box on each person counted`)}"></video>
+        </div>
+        <figcaption class="cam__caption"><span class="busy busy--${hall.level}"><span class="busy__dot" aria-hidden="true"></span><span class="busy__level">${BUSY_TEXT[hall.level]}</span><span class="busy__meta"><span aria-hidden="true">· </span>${esc(hall.people)} ${hall.people === 1 ? "person" : "people"} in view</span></span></figcaption>
+      </figure>
+      ${cam.live ? `<a class="btn btn--soft cam__live" href="${esc(cam.live)}" target="_blank" rel="noopener">Watch the live cam${icon("arrow")}<span class="visually-hidden"> (opens YouTube in a new tab)</span></a>` : ""}
+      <p class="note cam__note">The model counts people and identifies no one. Only the latest 16 seconds are kept.</p>`,
+  });
+  els.panel.dataset.cam = String(hall.location_id);
+  const video = $(".cam__video", els.panelBody);
+  if (!video) return;
+  video.muted = true;
+  video.addEventListener("error", () => {
+    video.closest(".cam")?.classList.add("is-missing");
+    video.removeAttribute("autoplay");
+    video.controls = false;
+  });
+  // A blocked autoplay (Low Power Mode) gets a play button; a clip that won't load shows its poster and a note.
+  if (!still) video.play?.()?.catch?.(() => !video.error && (video.controls = true));
+}
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest?.("[data-cam]");
+  if (button && !button.closest("dialog")) openCam(button);
+});
 
 /** Draw the tab from what's known and fetch what isn't: every hall's next meal, side by side. */
 async function ensureMenus() {
@@ -4710,10 +4770,13 @@ els.panel.addEventListener("close", () => {
   els.panelBody.innerHTML = "";
   delete els.panel.dataset.kind;
   const dishRef = els.panel.dataset.dish;
+  const camRef = els.panel.dataset.cam;
   delete els.panel.dataset.dish;
+  delete els.panel.dataset.cam;
   // A dish row redrawn while its sheet was open (a favorite added): focus goes to the new row.
   let back = panelOpener;
   if (dishRef && !back?.isConnected) back = visibleOne(`[data-dish="${CSS.escape(dishRef)}"]`);
+  if (camRef && !back?.isConnected) back = visibleOne(`[data-cam="${CSS.escape(camRef)}"]`); // the busy line redrew
   panelOpener = null;
   if (panelRestore && back?.isConnected && !back.hidden && back.getClientRects().length) back.focus({ preventScroll: true });
   panelRestore = true;
