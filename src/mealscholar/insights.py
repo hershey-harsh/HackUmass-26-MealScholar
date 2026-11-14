@@ -2,16 +2,57 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 
+from pydantic import BaseModel
+
 from .compute import add_ranges, daily_value_pct
-from .nutrients import NUTRIENTS
+from .nutrients import BY_KEY, NUTRIENTS
 from .schemas import MealResult, Range
 
 LOW_DV_PCT = 50.0
 """A micronutrient day counts as low when the likely intake is under half the Daily Value."""
+
+# The day's "nutrient balance" score, 0 to 100, exactly as the app computes it: the likely amounts
+# against the FDA Daily Values. Points toward 100% of the DV for the nutrients most people get too
+# little of, points off past 100% for the ones most people get too much of. Information only: no
+# goals of ours are read, and it is never medical advice.
+SCORE_PLUS = (
+    "protein_g",
+    "fiber_g",
+    "calcium_mg",
+    "iron_mg",
+    "potassium_mg",
+    "vitamin_a_ug",
+    "vitamin_c_mg",
+    "vitamin_d_ug",
+)
+SCORE_MINUS = ("sat_fat_g", "sodium_mg")
+SUGARS_DV_G = 50.0
+"""The label's Daily Value for added sugars; total sugars have none (nutrients.py), so both score against it."""
+PLUS_POINTS = 100 / len(SCORE_PLUS)
+MINUS_POINTS = 10.0
+SCORE_NOTE = "A rough guide, not medical advice."
+
+
+class ScorePart(BaseModel):
+    key: str
+    label: str
+    pct: float | None
+    """Likely % of the Daily Value; None when the day has no number for this nutrient."""
+    points: float
+    plus: bool
+
+
+class HealthScore(BaseModel):
+    score: int | None
+    """0-100; None when no part has data."""
+    parts: list[ScorePart]
+    note: str = SCORE_NOTE
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,3 +106,46 @@ def period_report(first: date, last: date, meals: list[MealResult]) -> PeriodRep
             )
             trends.append(NutrientTrend(n.key, average, dv_pct, low_days))
     return PeriodReport(first, last, len(days), sum(len(d.meals) for d in days), trends)
+
+
+def likely_pct(
+    totals: Mapping[str, Range], dv_pct: Mapping[str, Range], key: str, dv: float | None = None
+) -> float | None:
+    """Likely % of the Daily Value: the computed one when there is one, else the total over `dv`
+    or the catalog's Daily Value; None without a number or a positive reference."""
+    given = dv_pct.get(key)
+    if given is not None and math.isfinite(given.likely):
+        return given.likely
+    total = totals.get(key)
+    nutrient = BY_KEY.get(key)
+    reference = dv if dv is not None else (nutrient.daily_value if nutrient else None)
+    if total is None or reference is None or reference <= 0:
+        return None
+    return total.likely / reference * 100
+
+
+def health_score(totals: Mapping[str, Range], dv_pct: Mapping[str, Range]) -> HealthScore:
+    """The app's nutrient-balance rules (site/app.js healthScore), with the same rounding."""
+
+    def label(key: str, fallback: str) -> str:
+        return BY_KEY[key].label if key in BY_KEY else fallback
+
+    parts: list[ScorePart] = []
+    total = 0.0
+    for key in SCORE_PLUS:
+        pct = likely_pct(totals, dv_pct, key)
+        points = 0.0 if pct is None else PLUS_POINTS * min(1.0, max(0.0, pct) / 100)
+        parts.append(ScorePart(key=key, label=label(key, key), pct=pct, points=points, plus=True))
+        total += points
+    # Sugars: added sugars when the data has them, else total sugars against the same 50 g.
+    sugars = ("added_sugars_g", "Added sugars") if "added_sugars_g" in totals else ("sugars_g", "Total sugars")
+    for key, fallback in (*((k, k) for k in SCORE_MINUS), sugars):
+        pct = likely_pct(totals, dv_pct, key, SUGARS_DV_G if key == sugars[0] else None)
+        over = 0.0 if pct is None else min(1.0, max(0.0, pct - 100) / 100)
+        points = -MINUS_POINTS * over if over else 0.0  # never -0.0 in the JSON
+        parts.append(ScorePart(key=key, label=label(key, fallback), pct=pct, points=points, plus=False))
+        total += points
+    if all(p.pct is None for p in parts):
+        return HealthScore(score=None, parts=parts)
+    # JS Math.round: halves round up (Python's round() would take 12.5 to 12).
+    return HealthScore(score=math.floor(min(100.0, max(0.0, total)) + 0.5), parts=parts)

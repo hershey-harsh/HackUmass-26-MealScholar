@@ -6,8 +6,11 @@ import zlib
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
+from test_metadata import IPHONE_HEIC, heic
 
 from mealscholar.config import load_settings
+from mealscholar.dining import Dining
+from mealscholar.insights import SCORE_MINUS, SCORE_PLUS
 from mealscholar.schemas import FoodItem, MealAnalysis
 from mealscholar.vision import VisionError
 from mealscholar.web import create_app
@@ -45,9 +48,102 @@ class DisplayCaseVision:
         raise AssertionError("not used")
 
 
-def client(home, vision) -> TestClient:
+class CampusVision:
+    """Gemini with Worcester's menu in the prompt: the rice is the listed Jasmine Rice."""
+
+    def analyze(self, jpeg, context):
+        rice = FoodItem(
+            name="white rice",
+            fdc_query="Rice, white, cooked",
+            cooking_method="steamed",
+            grams_low=150,
+            grams_likely=200,
+            grams_high=260,
+            box_2d=None,
+            hidden_fat_likely=False,
+            menu_item="Jasmine Rice",
+        )
+        return MealAnalysis(is_food=True, items=[rice], scale_reference=None, question=None)
+
+    def refine(self, analysis, question, answer):
+        raise AssertionError("not used")
+
+
+class SliceVision:
+    """Gemini with the menu in the prompt: one or two slices of the listed Cheese Pizza."""
+
+    def analyze(self, jpeg, context):
+        pizza = FoodItem(
+            name="pizza slice",
+            fdc_query="Pizza, cheese, from restaurant or fast food, thin crust",
+            cooking_method="baked",
+            grams_low=100,
+            grams_likely=120,
+            grams_high=150,
+            box_2d=None,
+            hidden_fat_likely=False,
+            menu_item="Cheese Pizza",
+            servings_low=1,
+            servings_likely=1.5,
+            servings_high=2,
+        )
+        return MealAnalysis(is_food=True, items=[pizza], scale_reference=None, question=None)
+
+    def refine(self, analysis, question, answer):
+        raise AssertionError("not used")
+
+
+def menu_doc(name, dish_id, serving, kcal, nutrition, day):
+    return {
+        "location_id": 1,
+        "date": day,
+        "name": name,
+        "meal": "lunch",
+        "category": None,
+        "dish_id": dish_id,
+        "serving_size": serving,
+        "calories": kcal,
+        "nutrition": nutrition,
+        "healthfulness_score": 5,
+    }
+
+
+class MenuSource:
+    """The umass_dining collections as the pipeline needs them: one hall, Jasmine Rice every day
+    and, with `pizza`, a Cheese Pizza listed per slice."""
+
+    def __init__(self, *, pizza=False):
+        self.pizza = pizza
+
+    def locations(self):
+        return [{"_id": 1, "name": "Worcester Dining Commons", "is_dining_commons": True, "dates_available": []}]
+
+    def daily_menus(self, ids, *, names_only=False):
+        return []
+
+    def menu_items(self, location_id, day):
+        if location_id != 1:
+            return []
+        rice = {"protein_g": 4, "total_carb_g": 41, "total_fat_g": 0, "sodium_mg": 5}
+        docs = [menu_doc("Jasmine Rice", "d1", "4 OZ", 186, rice, day)]
+        if self.pizza:
+            pizza = {"protein_g": 9, "total_carb_g": 26, "total_fat_g": 8}
+            docs.append(menu_doc("Cheese Pizza", "d2", "1 Slice", 212, pizza, day))
+        return docs
+
+    def dishes(self, pattern, limit):
+        return []
+
+
+class NoPlaces:
+    def at(self, latitude, longitude):
+        return None
+
+
+def client(home, vision, *, dining=None, places=None) -> TestClient:
     settings = load_settings({"MEALSCHOLAR_HOME": str(home), "MEALSCHOLAR_AUTH_REQUIRED": "0"})
-    return TestClient(create_app(settings, vision=vision), raise_server_exceptions=False)
+    app = create_app(settings, vision=vision, dining=dining, places=places)
+    return TestClient(app, raise_server_exceptions=False)
 
 
 @pytest.fixture
@@ -111,4 +207,154 @@ def test_a_photo_that_is_not_a_meal_is_not_logged(home):
     meal = res.json()
     assert (meal["id"], meal["items"], meal["totals"], meal["question"]) == (None, [], {}, None)
     assert meal["notes"] == ["No food or drink detected in the photo."]
-    assert app.get(f"/api/days/{meal['context']['taken_at'][:10]}").json()["meals"] == []
+    day = app.get(f"/api/days/{meal['context']['taken_at'][:10]}").json()
+    assert day["meals"] == [] and day["health"] is None
+
+
+def test_day_view_carries_the_score(home):
+    app = client(home, CampusVision())
+    meal = app.post("/api/meals", content=jpeg()).json()
+    day = app.get(f"/api/days/{meal['context']['taken_at'][:10]}").json()
+    assert len(day["meals"]) == 1
+    health = day["health"]
+    assert isinstance(health["score"], int) and 0 <= health["score"] <= 100
+    expected = [*SCORE_PLUS, *SCORE_MINUS, "sugars_g"]
+    assert [p["key"] for p in health["parts"]] == expected
+    assert health["parts"][0]["plus"] is True and health["parts"][-1]["plus"] is False
+    assert health["note"] == "A rough guide, not medical advice."
+
+
+# --- when the meal happened: EXIF from a HEIC, then the phone's clock, then the upload -----
+
+
+def on_day(app, day: str, meal_id: int) -> bool:
+    return meal_id in [m["id"] for m in app.get(f"/api/days/{day}").json()["meals"]]
+
+
+def test_heic_upload_is_dated_from_its_exif(home):
+    app = client(home, CampusVision())
+    res = app.post("/api/meals", content=heic(**IPHONE_HEIC), headers={"Content-Type": "image/heic"})
+    assert res.status_code == 200
+    meal = res.json()
+    assert meal["context"]["time_source"] == "exif"
+    assert meal["context"]["taken_at"].startswith("2026-11-13T12:34:56-05:00")
+    assert meal["context"]["place"] is None  # photo GPS stays opt-in, so no place lookup
+    assert on_day(app, "2026-11-13", meal["id"])
+
+
+def test_taken_at_dates_a_photo_without_exif(home):
+    app = client(home, CampusVision())
+    res = app.post("/api/meals?taken_at=2026-11-13T23:50:00%2B09:00", content=jpeg())
+    assert res.status_code == 200
+    meal = res.json()
+    assert meal["context"]["time_source"] == "device"
+    assert meal["context"]["taken_at"] == "2026-11-13T23:50:00+09:00"
+    assert not any("using upload time" in n for n in meal["notes"])
+    assert on_day(app, "2026-11-13", meal["id"]) and not on_day(app, "2026-11-14", meal["id"])
+
+
+def test_taken_at_in_utc_is_accepted_and_filed_under_that_clock(home):
+    app = client(home, CampusVision())
+    res = app.post("/api/meals?taken_at=2026-11-13T23:50:00Z", content=jpeg())
+    assert res.status_code == 200
+    meal = res.json()
+    assert meal["context"]["time_source"] == "device"
+    assert meal["context"]["taken_at"].endswith(("+00:00", "Z"))
+    assert on_day(app, "2026-11-13", meal["id"])  # UTC's date, not the phone's: send local time
+
+
+def test_taken_at_without_an_offset_is_refused(home):
+    app = client(home, CampusVision())
+    res = app.post("/api/meals?taken_at=2026-11-13T23:50:00", content=jpeg())
+    assert res.status_code == 400
+    assert res.json()["detail"] == "taken_at needs a UTC offset, such as 2026-11-14T12:30:00-05:00."
+    assert app.post("/api/meals?taken_at=2026-11-13T23:50:00+09:00", content=jpeg()).status_code == 422
+
+
+def test_exif_time_beats_taken_at(home):
+    app = client(home, CampusVision())
+    res = app.post("/api/meals?taken_at=2026-11-14T08:00:00-05:00", content=heic(**IPHONE_HEIC))
+    assert res.status_code == 200
+    assert res.json()["context"]["time_source"] == "exif"
+    assert res.json()["context"]["taken_at"].startswith("2026-11-13T12:34:56")
+
+
+# --- campus matching through the API: only an explicit location_id switches it on -----
+
+
+def test_campus_match_is_in_the_api_reply(home):
+    app = client(home, CampusVision(), dining=Dining(MenuSource()))
+    res = app.post("/api/meals?location_id=1", content=jpeg())
+    assert res.status_code == 200
+    meal = res.json()
+    (rice,) = meal["items"]
+    assert (rice["source"], rice["dish"]["name"], rice["dish"]["serving_size"]) == ("campus", "Jasmine Rice", "4 OZ")
+    assert rice["match"]["fdc_id"] == 1 and rice["dish"]["healthfulness_score"] == 5
+    assert rice["nutrients"]["energy_kcal"]["likely"] == pytest.approx(186 * 200 / 113.4)
+    assert rice["nutrients"]["energy_kcal"]["low"] < rice["nutrients"]["energy_kcal"]["high"]
+    assert (meal["menu"]["location_id"], meal["menu"]["location_name"]) == (1, "Worcester Dining Commons")
+    assert meal["menu"]["dishes"] == 1 and meal["name"] == "white rice"
+    assert any(n.startswith("Campus menu: Worcester Dining Commons, ") for n in meal["notes"])
+    assert app.get(f"/api/meals/{meal['id']}").json() == meal
+
+    assert app.post("/api/meals?location_id=0", content=jpeg()).status_code == 422
+
+
+def test_servings_and_grams_corrections_on_campus_items(home):
+    app = client(home, SliceVision(), dining=Dining(MenuSource(pizza=True)))
+    meal = app.post("/api/meals?location_id=1", content=jpeg()).json()
+    (slice_,) = meal["items"]
+    assert (slice_["source"], slice_["dish"]["serving_size"]) == ("campus", "1 Slice")
+    assert slice_["dish"]["serving_grams"] is None
+    assert meal["totals"]["energy_kcal"]["low"] < meal["totals"]["energy_kcal"]["high"]
+    url = f"/api/meals/{meal['id']}/items/0"
+
+    res = app.patch(url, json={"servings": 2})
+    assert res.status_code == 200
+    kcal = res.json()["totals"]["energy_kcal"]
+    assert kcal["low"] == kcal["likely"] == kcal["high"] == pytest.approx(424)
+    assert res.json()["items"][0]["source"] == "campus"
+    counted = res.json()["items"][0]["item"]
+    assert counted["servings_likely"] == 2
+    # The gram range follows the count (1.5 slices were 100/120/150 g) so the micros track it.
+    assert (counted["grams_low"], counted["grams_likely"], counted["grams_high"]) == (133, 160, 200)
+    assert res.json()["items"][0]["nutrients"]["vitamin_d_ug"]["likely"] == pytest.approx(0.2 * 1.6)
+    assert app.get(f"/api/meals/{meal['id']}").json() == res.json()  # the diary keeps the same pair
+
+    res = app.patch(url, json={"grams": 100})
+    assert res.status_code == 200
+    (slice_,) = res.json()["items"]
+    assert (slice_["source"], slice_["dish"], slice_["match"]["fdc_id"]) == ("usda", None, 6)
+    assert slice_["item"]["menu_item"] is None and slice_["item"]["servings_likely"] is None
+    assert slice_["nutrients"]["energy_kcal"]["likely"] == pytest.approx(266)
+    note = (
+        "'pizza slice' has an amount in grams now, so USDA numbers are used; the menu lists Cheese Pizza per 1 Slice."
+    )
+    assert note in res.json()["notes"]
+    assert not any("weigh" in n for n in res.json()["notes"])
+    assert app.get(f"/api/meals/{meal['id']}").json() == res.json()
+
+    res = app.patch(url, json={"servings": 1})
+    assert (res.status_code, res.json()["detail"]) == (400, "This food isn't a campus dish; send grams.")
+    res = app.patch(url, json={})
+    assert (res.status_code, res.json()["detail"]) == (400, "Send grams, servings and/or fdc_id.")
+    assert app.patch(url, json={"servings": 0}).status_code == 422
+    assert app.patch(url, json={"servings": 51}).status_code == 422
+
+
+def test_without_menus_location_id_is_a_note(home):
+    app = client(home, CampusVision(), dining=None)
+    res = app.post("/api/meals?location_id=1", content=jpeg())
+    assert res.status_code == 200
+    meal = res.json()
+    assert "Campus menus aren't connected; USDA used." in meal["notes"]
+    assert meal["items"][0]["source"] == "usda" and meal["menu"] is None
+
+
+def test_lat_lon_alone_never_matches(home):
+    app = client(home, CampusVision(), dining=Dining(MenuSource()), places=NoPlaces())
+    res = app.post("/api/meals?lat=42.3932825&lon=-72.5250891", content=jpeg())
+    assert res.status_code == 200
+    meal = res.json()
+    assert all(r["source"] == "usda" and r["dish"] is None for r in meal["items"])
+    assert meal["menu"] is None and not any("Campus" in n for n in meal["notes"])

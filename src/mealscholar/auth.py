@@ -223,10 +223,6 @@ class AuthService:
     ) -> AuthService:
         if store is None:
             store = open_store(settings)
-        if settings.email_provider == "smtp":
-            log.warning(
-                "MEALSCHOLAR_EMAIL_PROVIDER=smtp is a placeholder: account emails fail until it is implemented."
-            )
         if settings.demo_verify_link:
             log.warning(
                 "MEALSCHOLAR_DEMO_VERIFY_LINK=1: API responses include email links, so anyone who knows an "
@@ -243,7 +239,7 @@ class AuthService:
                 "cookie only over HTTPS (some also on localhost). Set MEALSCHOLAR_COOKIE_SECURE=0 to sign in "
                 "over plain HTTP, such as from a phone on the local network."
             )
-        return cls(store, make_sender(settings.email_provider, store), settings, clock=clock)
+        return cls(store, make_sender(settings.email_provider, store, settings.smtp), settings, clock=clock)
 
     # sessions
 
@@ -310,7 +306,8 @@ class AuthService:
         address = _normalized_email(email)
         if address is None:  # no account can have it: nothing to count or send
             return
-        self._limit((FORGOT_PER_IP, client.network), (FORGOT_PER_EMAIL, address))
+        # Per (network, email), so one network can't use up another person's attempts.
+        self._limit((FORGOT_PER_IP, client.network), (FORGOT_PER_EMAIL, (client.network, address)))
         user = self.store.user_by_email(address)
         if user:
             self._email_link(user, "reset_password")
