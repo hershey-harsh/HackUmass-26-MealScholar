@@ -513,7 +513,8 @@ main:focus,
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 4px;
   padding: 5px;
   border: 1px solid var(--line);
@@ -548,22 +549,6 @@ main:focus,
 .tab[aria-current="page"] {
   background: var(--ink);
   color: var(--on-ink);
-}
-
-/* A result finished while you were on Today. */
-.tab__badge {
-  width: 8px;
-  height: 8px;
-  margin-left: -2px;
-  border-radius: 50%;
-  background: var(--ink);
-  box-shadow: 0 0 0 2px var(--surface);
-  animation: pop-in var(--dur-2) var(--ease-out);
-}
-
-.tab[aria-current="page"] .tab__badge {
-  background: var(--on-ink);
-  box-shadow: none;
 }
 
 /* Snap a meal: the camera, one tap from anywhere. */
@@ -639,16 +624,19 @@ main:focus,
   animation: view-in var(--dur-2) var(--ease-out);
 }
 
-/* One view at a time: Today (the dashboard or a logged meal) or Analyze (capture or a new result). */
+/* One view at a time: a tab (Today, or a logged meal over it; Menu; Week), or the capture screen
+   (a photo being read, then its result). */
 body:not([data-view="analyze"]) #capture,
 body:not([data-view="today"]) #today,
+body:not([data-view="menu"]) #menu,
+body:not([data-view="week"]) #week,
 body[data-result] #capture,
 body[data-result] #today {
   display: none;
 }
 
 /* While the app works out who is here, nothing flashes; after half a second a quiet spinner shows. */
-body[data-screen="boot"] :is(.shell, .dock, .topnav, .snap--bar, .footer) {
+body[data-screen="boot"] :is(.shell, .dock, .rail, .footer) {
   visibility: hidden;
 }
 
@@ -668,7 +656,7 @@ body[data-screen="boot"]::after {
 }
 
 /* Account screens replace the app. */
-body[data-screen="auth"] :is(#today, #capture, #result, .dock, .topnav, .snap--bar) {
+body[data-screen="auth"] :is(#today, #menu, #week, #capture, #result, .dock, .rail, .plus) {
   display: none !important;
 }
 
@@ -1247,79 +1235,8 @@ body[data-screen="auth"] .footer {
 .corner--bl { bottom: 16px; left: 16px; border-bottom-width: 2px; border-left-width: 2px; border-bottom-left-radius: 10px; }
 .corner--br { bottom: 16px; right: 16px; border-bottom-width: 2px; border-right-width: 2px; border-bottom-right-radius: 10px; }
 
-.viewfinder[data-state="dragging"] {
-  box-shadow: inset 0 0 0 2px var(--ink);
-}
-
-.viewfinder[data-state="dragging"] .corner { border-color: var(--ink); }
-.viewfinder[data-state="dragging"] .corner--tl { transform: translate(10px, 10px); }
-.viewfinder[data-state="dragging"] .corner--tr { transform: translate(-10px, 10px); }
-.viewfinder[data-state="dragging"] .corner--bl { transform: translate(10px, -10px); }
-.viewfinder[data-state="dragging"] .corner--br { transform: translate(-10px, -10px); }
-
 .viewfinder[data-state="analyzing"] .corner {
   border-color: rgba(250, 250, 255, 0.85);
-}
-
-/* The content stays inside the frame the corners draw: 16px inset plus 26px of corner. */
-.viewfinder__empty {
-  display: grid;
-  justify-items: center;
-  align-content: center;
-  gap: 14px;
-  padding: 44px 24px 46px;
-  text-align: center;
-}
-
-.viewfinder__icon {
-  display: grid;
-  place-items: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: var(--shadow);
-  transition: transform var(--dur-2) var(--ease-out);
-}
-
-.viewfinder__icon .icon {
-  width: 28px;
-  height: 28px;
-}
-
-.viewfinder[data-state="dragging"] .viewfinder__icon {
-  transform: scale(1.08);
-}
-
-.viewfinder__title {
-  font: 300 1.5rem / 1.2 var(--font-sans);
-  letter-spacing: -0.02em;
-}
-
-.viewfinder__actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
-  width: 100%;
-  max-width: 360px;
-  margin-top: 6px;
-}
-
-.viewfinder__hint {
-  font: 400 0.8125rem / 1.4 var(--font-mono);
-  color: var(--ink-2);
-}
-
-/* WCAG's 320px reflow width: the call to action wraps instead of spilling out of the card. */
-@media (max-width: 22.49em) {
-  .viewfinder__empty {
-    padding-inline: 14px;
-  }
-
-  .cta__pill {
-    padding-inline: 16px;
-  }
 }
 
 /* Setup needed: its own card under the viewfinder, clear of the corners. */
@@ -1565,57 +1482,6 @@ body[data-screen="auth"] .footer {
 
 .setting__status.is-error {
   padding: 10px 12px;
-}
-
-/* How it works */
-.how {
-  display: grid;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.how__title {
-  padding-inline: 4px;
-}
-
-.how__list {
-  display: grid;
-  gap: 10px;
-}
-
-.how__list li {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
-  align-content: start;
-  gap: 14px;
-  padding: 16px;
-}
-
-.how__n {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--warm);
-  color: var(--ink);
-  font: 500 0.8125rem / 1 var(--font-mono);
-}
-
-.how__text {
-  font-size: 0.9375rem;
-  line-height: 1.5;
-  color: var(--ink-2);
-  text-wrap: pretty;
-}
-
-.how__text strong {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--ink);
-  font-size: 1rem;
-  font-weight: 500;
 }
 
 /* ------------------------------------------------------------------- result */
@@ -4097,33 +3963,6 @@ body[data-screen="auth"] .toast {
     font-size: 1.125rem;
   }
 
-  /* Analyze: the capture card, with how it works beside it. */
-  .capture {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 22rem);
-    column-gap: 32px;
-    align-items: start;
-  }
-
-  .capture > .view-head {
-    grid-column: 1 / -1;
-  }
-
-  .capture > .how {
-    margin-top: 0;
-  }
-
-  .viewfinder {
-    min-height: 400px;
-  }
-
-  .viewfinder__title {
-    font-size: 1.75rem;
-  }
-
-  .how__list li {
-    padding: 18px;
-  }
-
   /* A meal reads best at a comfortable measure. */
   .result {
     width: 100%;
@@ -5589,7 +5428,7 @@ html.install-open {
 
 /* ---- the set-up steps */
 
-body[data-screen="onboard"] :is(#today, #capture, #result, .dock, .topnav, .snap--bar, #account-button, #alerts-button, #plus-button) {
+body[data-screen="onboard"] :is(#today, #menu, #week, #capture, #result, .dock, .rail, #account-button, #alerts-button, #plus-button) {
   display: none !important;
 }
 
@@ -5862,19 +5701,20 @@ body[data-screen="onboard"] .toast {
     --pin-top: calc(var(--bar-h) + var(--safe-top) + 16px);
   }
 
-  body[data-prefs="on"] .snap--bar {
-    display: none;
-  }
-
   body[data-prefs="on"] .dash-head__greeting {
     display: none;
   }
 
   /* Title left, day arrows right, and the week strip centered on the page between them. */
+  /* The sidebar narrows this row at 1024: the date keeps one line and the strip gives way. */
   body[data-prefs="on"] .dash-head__row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 35rem) minmax(0, 1fr);
+    grid-template-columns: minmax(max-content, 1fr) minmax(0, 35rem) minmax(max-content, 1fr);
     gap: 20px;
+  }
+
+  body[data-prefs="on"] .dash-head__date {
+    white-space: nowrap;
   }
 
   body[data-prefs="on"] .strip {
@@ -5890,18 +5730,13 @@ body[data-screen="onboard"] .toast {
 
   body[data-prefs="on"] .dash-grid {
     grid-template-columns: minmax(0, 4fr) minmax(0, 5fr);
-    grid-template-areas:
-      "main mid"
-      "main micro";
-    grid-template-rows: auto 1fr;
+    grid-template-areas: "main mid";
     gap: 24px;
   }
 
   body[data-prefs="on"][data-dining="on"] .dash-grid {
     grid-template-columns: minmax(0, 4fr) minmax(0, 5fr) minmax(0, 3.6fr);
-    grid-template-areas:
-      "main mid side"
-      "main micro side";
+    grid-template-areas: "main mid side";
   }
 
   body[data-prefs="on"] .dash-col {
@@ -5957,8 +5792,8 @@ body[data-screen="onboard"] .toast {
     grid-column: auto;
   }
 
-  body[data-prefs="on"] .micro-card {
-    grid-area: micro;
+  body[data-prefs="on"] .week-grid .micro-card {
+    grid-area: auto;
     align-self: start;
   }
 
@@ -6142,7 +5977,7 @@ body[data-screen="onboard"] .toast {
     max-height: none;
   }
 
-  body[data-prefs="on"][data-screen="app"][data-view="today"]:not([data-result]) .plus {
+  body[data-screen="app"]:not([data-view="analyze"]):not([data-result]) .plus {
     display: grid;
   }
 
@@ -6479,12 +6314,6 @@ body[data-screen="onboard"] .toast {
 }
 @media (max-width: 24em) {
   .dock { width: calc(100% - 24px); gap: 6px; }
-  .tabbar { min-width: 0; flex: 1 1 auto; }
-  .tab { min-width: 0; flex: 1 1 0; padding-inline: 8px; }
-  .tab > span:not(.tab__badge) {
-    position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
-  }
-  .tab { position: relative; }
 }
 
 .score__empty {
@@ -6607,5 +6436,1665 @@ body[data-screen="onboard"] .toast {
 
   .data-ask .delete__row > .btn {
     flex: none;
+  }
+}
+
+/* ======================================================================================
+   Tabs, sidebar, Menu and Week. Phones: Today, Menu and Week in the dock's pill, the + beside it
+   opening the photo picker. Laptops: a sidebar with the same tabs, and Alerts and Settings at its
+   foot. A photo has no tab: the capture screen opens once one is chosen.
+   ====================================================================================== */
+
+/* ---- the dock: three tabs, icon over label, so every phone width fits them */
+.dock .tab {
+  flex-direction: column;
+  gap: 3px;
+  min-height: 52px;
+  padding: 6px 4px 5px;
+  font: 500 0.75rem / 1.1 var(--font-sans);
+  letter-spacing: 0.01em;
+}
+
+.dock .tab .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.snap--dock .icon {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2.2;
+}
+
+/* No campus menus, no Menu tab. */
+body:not([data-dining="on"]) .tab[data-view="menu"] {
+  display: none;
+}
+
+.rail {
+  display: none;
+}
+
+/* ---- page heads for Menu and Week, and the capture screen's */
+.page-head,
+.capture__head {
+  display: grid;
+  gap: 2px;
+  padding: 0 4px;
+}
+
+.page-head .view-title,
+.capture__head .view-title {
+  font-size: 1.75rem;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.page-head__sub {
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+.page-head__sub:empty {
+  display: none;
+}
+
+/* ---- Today on phones: the day, then the recent scans; the upcoming meal lives on Menu */
+@media (max-width: 63.99em) {
+  #dash-side {
+    display: none;
+  }
+
+  body[data-prefs="on"] .meals-block {
+    display: none;
+  }
+
+  body[data-prefs="on"] .recent-block {
+    display: grid;
+    gap: 10px;
+  }
+
+  body[data-prefs="on"] .recent {
+    gap: 10px;
+  }
+
+  body[data-prefs="on"] .recent-card {
+    gap: 12px;
+    padding: 10px 12px 10px 10px;
+  }
+}
+
+/* ---- the first-time location question */
+.locate-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px 14px;
+  padding: 16px;
+  animation: rise-in var(--dur-3) var(--ease-out);
+}
+
+.locate-card__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--warm);
+  color: var(--ink);
+}
+
+.locate-card__icon .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.locate-card__title {
+  font: 500 1rem / 1.3 var(--font-sans);
+}
+
+.locate-card__text p {
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.locate-card__actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+}
+
+.locate-card__actions .btn {
+  flex: 1 1 0;
+}
+
+@media (min-width: 40em) {
+  .locate-card {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .locate-card__actions {
+    grid-column: auto;
+  }
+
+  .locate-card__actions .btn {
+    flex: none;
+  }
+}
+
+/* ---- the capture screen and the photo options */
+.capture__work {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.capture .viewfinder {
+  min-height: min(56svh, 30rem);
+}
+
+.snap-tools {
+  display: grid;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.snap-tools__picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+}
+
+.pill-btn {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 0.875rem / 1.15 var(--font-sans);
+  cursor: pointer;
+  transition: background-color var(--dur-1) linear, transform var(--dur-1) var(--ease-out);
+}
+
+.pill-btn .icon {
+  width: 19px;
+  height: 19px;
+}
+
+
+.pill-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.pill-btn:disabled {
+  border-color: var(--line);
+  background: var(--surface-2);
+  color: var(--label);
+  cursor: not-allowed;
+}
+
+@media (hover: hover) {
+  .pill-btn:hover:not(:disabled) {
+    background: var(--surface-2);
+  }
+
+}
+
+.snap-tools__loc {
+  min-height: 52px;
+  margin-inline: 12px 10px;
+  padding-block: 6px;
+  border-top: 1px solid var(--line);
+  gap: 10px;
+}
+
+.snap-tools__loc .switch-row__icon {
+  width: 32px;
+  height: 32px;
+  background: none;
+}
+
+.snap-tools__loc .switch-row__title {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* The hint stays the switch's description for screen readers; on screen the title says enough. */
+.snap-tools__loc .switch-row__hint {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.snap-tools .setting__status {
+  margin: 0 10px 10px;
+}
+
+/* ---- dish rows that open their sheet */
+.dish.has-btn {
+  display: block;
+  padding: 0;
+}
+
+.dish__btn {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 2px 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 8px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-1) linear;
+}
+
+.dish__btn:focus-visible {
+  outline-offset: -2px;
+}
+
+.dish__btn:active {
+  background: var(--wash);
+}
+
+@media (hover: hover) {
+  .dish__btn:hover {
+    background: var(--wash);
+  }
+}
+
+/* ---- the Menu tab */
+.menu-view {
+  gap: 14px;
+}
+
+.halls-bar {
+  min-width: 0;
+  margin-inline: calc(-1 * var(--pad-l)) calc(-1 * var(--pad-r));
+}
+
+.halls-bar__track {
+  display: flex;
+  gap: 8px;
+  padding: 2px var(--pad-r) 4px var(--pad-l);
+  overflow-x: auto;
+  scroll-padding-inline: var(--pad-l);
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.halls-bar__track::-webkit-scrollbar {
+  display: none;
+}
+
+.hall-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 0.9375rem / 1 var(--font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: background-color var(--dur-1) linear, color var(--dur-1) linear, border-color var(--dur-1) linear, transform var(--dur-1) var(--ease-out);
+}
+
+.hall-chip:active {
+  transform: scale(0.97);
+}
+
+.hall-chip[aria-pressed="true"] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.hall-chip .icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.1;
+}
+
+.hall-chip__near {
+  display: inline-flex;
+}
+
+.hall-chip--edit {
+  border-style: dashed;
+  background: transparent;
+  color: var(--ink-2);
+}
+
+@media (hover: hover) {
+  .hall-chip:hover:not([aria-pressed="true"]) {
+    background: var(--surface-2);
+  }
+}
+
+.menu-body {
+  display: grid;
+  min-width: 0;
+}
+
+.menu-body.is-entering {
+  animation: view-in var(--dur-2) var(--ease-out);
+}
+
+.menu-card {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px 16px 16px;
+}
+
+.menu-card.is-skeleton {
+  gap: 12px;
+  min-height: 420px;
+}
+
+.menu-card--error {
+  justify-items: start;
+}
+
+.menu-card__head {
+  display: grid;
+  gap: 6px;
+  padding-inline: 4px;
+}
+
+.menu-card__meal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  font: 300 2rem / 1.1 var(--font-sans);
+  letter-spacing: -0.025em;
+}
+
+.menu-card__meal strong {
+  font-weight: 400;
+}
+
+.menu-card__when {
+  color: var(--ink-2);
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.menu-card__hint {
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+}
+
+.menu-card__head .legend {
+  margin-top: 4px;
+}
+
+.menu-cats {
+  column-gap: 32px;
+}
+
+.menu-cat {
+  break-inside: avoid;
+  padding-bottom: 6px;
+}
+
+.menu-cat .dishes__cat {
+  position: static;
+  padding: 12px 8px 6px;
+  background: none;
+}
+
+.menu-card__foot {
+  padding-inline: 4px;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+@media (min-width: 40em) {
+  .menu-card {
+    padding: 24px 22px 20px;
+  }
+
+  .menu-cats {
+    columns: 2 17rem;
+  }
+}
+
+/* ---- a dish's sheet */
+.dish-sheet__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font: 500 0.8125rem / 1.3 var(--font-sans);
+}
+
+.tag .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.tag--avoid {
+  background: var(--surface-2);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.tag--off {
+  background: var(--off-tag);
+  color: var(--off-ink);
+}
+
+.dish-sheet__fav {
+  display: grid;
+  gap: 8px;
+}
+
+.dish-sheet__fav .btn[aria-pressed="true"] .icon {
+  fill: currentColor;
+}
+
+.dish-sheet__facts {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.dish-sheet__facts .section-head {
+  align-items: center;
+}
+
+.facts {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.facts__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.facts__row dt {
+  flex: none;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+}
+
+.facts__row dd {
+  margin: 0;
+  min-width: 0;
+  font: 500 1rem / 1.3 var(--font-mono);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.facts__row--lead dd {
+  font: 300 1.75rem / 1 var(--font-sans);
+  letter-spacing: -0.02em;
+}
+
+.facts__row--chips {
+  align-items: center;
+}
+
+.facts__row--chips dd {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  font-family: var(--font-sans);
+}
+
+.facts__unit {
+  color: var(--ink-2);
+  font: 400 0.8125rem / 1 var(--font-sans);
+}
+
+.facts__none {
+  color: var(--label);
+  font: 400 0.9375rem / 1.3 var(--font-sans);
+}
+
+/* ---- the Week tab */
+.week-view {
+  gap: 14px;
+}
+
+.week-grid {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+  min-width: 0;
+}
+
+.week-view .week-block {
+  grid-column: auto;
+}
+
+.micro-card__titles {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.micro-card__day {
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.micro-card--empty {
+  display: grid;
+  gap: 8px;
+  padding: 18px 20px;
+}
+
+/* ---- a photo dragged over the app */
+body[data-drop="on"]::after {
+  content: "Drop the photo to analyze it";
+  position: fixed;
+  inset: 12px;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  border: 2px dashed var(--ink);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  color: var(--ink);
+  font: 300 2rem / 1.2 var(--font-sans);
+  letter-spacing: -0.02em;
+  pointer-events: none;
+  animation: fade-in var(--dur-1) linear;
+}
+
+/* ---- laptops: the sidebar */
+@media (min-width: 64em) {
+  :root {
+    --rail-w: 80px;
+    --bar-h: 64px;
+  }
+
+  body[data-screen="app"] {
+    padding-left: calc(var(--rail-w) + var(--safe-left));
+  }
+
+  body[data-screen="app"] .rail {
+    position: fixed;
+    z-index: 46;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    width: calc(var(--rail-w) + var(--safe-left));
+    padding: calc(var(--safe-top) + 12px) 8px 20px calc(8px + var(--safe-left));
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  body[data-screen="app"] .topbar .brand {
+    display: none;
+  }
+
+  .rail__brand {
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .rail__mark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .rail__name {
+    display: none;
+  }
+
+  .rail__nav,
+  .rail__foot {
+    display: grid;
+    gap: 6px;
+  }
+
+  .rail__foot {
+    margin-top: auto;
+  }
+
+  .rail .tab {
+    position: relative;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 62px;
+    padding: 8px 4px;
+    border: 0;
+    border-radius: 18px;
+    background: none;
+    color: var(--ink-2);
+    font: 500 0.75rem / 1.1 var(--font-sans);
+    cursor: pointer;
+  }
+
+  .rail .tab .icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .rail .tab[aria-current="page"] {
+    background: var(--ink);
+    color: var(--on-ink);
+  }
+
+  .rail__dot {
+    top: 9px;
+    right: calc(50% - 15px);
+    box-shadow: 0 0 0 2px var(--surface);
+  }
+
+  .capture {
+    width: 100%;
+    max-width: 56rem;
+    margin-inline: auto;
+  }
+
+  .page-head {
+    gap: 4px;
+    padding-top: 12px;
+  }
+
+  .page-head .view-title,
+  .capture__head .view-title {
+    font-size: 3rem;
+    line-height: 1.05;
+  }
+
+  .page-head__sub {
+    font-size: 1.0625rem;
+  }
+
+  .menu-view,
+  .week-view {
+    gap: 20px;
+    padding-bottom: 72px; /* clear of the + */
+  }
+
+  .halls-bar {
+    margin-inline: 0;
+  }
+
+  .halls-bar__track {
+    flex-wrap: wrap;
+    padding: 2px;
+    overflow: visible;
+  }
+
+  .menu-card {
+    gap: 18px;
+    padding: 28px 32px 24px;
+  }
+
+  .menu-card__meal {
+    font-size: 2.75rem;
+  }
+
+  .week-grid {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 28px;
+  }
+}
+
+@media (hover: hover) and (min-width: 64em) {
+  .rail .tab:hover:not([aria-current="page"]) {
+    background: var(--surface-2);
+    color: var(--ink);
+  }
+}
+
+@media (min-width: 80em) {
+  :root {
+    --rail-w: 224px;
+  }
+
+  body[data-screen="app"] .rail {
+    padding-inline: calc(16px + var(--safe-left)) 16px;
+  }
+
+  .rail__brand {
+    justify-content: flex-start;
+    gap: 10px;
+    padding-inline: 10px;
+  }
+
+  .rail__name {
+    display: inline;
+  }
+
+  .rail .tab {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: 48px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-size: 0.9375rem;
+  }
+
+  .rail .tab .icon {
+    width: 21px;
+    height: 21px;
+  }
+
+  .rail__dot {
+    top: 13px;
+    right: auto;
+    left: 31px;
+  }
+
+  .menu-cats {
+    columns: 3 17rem;
+  }
+}
+
+/* Recently uploaded: the chevron sits in its own column, centered on the card. */
+.recent-card .meal__chev {
+  grid-area: auto;
+  align-self: center;
+}
+
+.facts__row--text dd {
+  font-family: var(--font-sans);
+  font-weight: 400;
+}
+
+.upcoming__count {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.upcoming__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  margin: -10px -8px -10px 0;
+  padding: 0 4px 0 10px;
+  border-radius: 999px;
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.upcoming__more .icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.2;
+}
+
+@media (hover: hover) {
+  .upcoming__more:hover {
+    background: var(--surface-2);
+  }
+}
+
+@media (min-width: 64em) {
+  .week-view .week-block {
+    position: sticky;
+    top: calc(var(--bar-h) + var(--safe-top) + 16px);
+  }
+
+  .week-view .wk__plot {
+    height: 15rem;
+  }
+}
+
+/* Laptops up to 80em: the sidebar is a narrow rail, so the shell gives up a little side padding and
+   the left column a larger share, and its nutrient tiles still sit three to a row. */
+@media (min-width: 64em) and (max-width: 79.99em) {
+  body[data-screen="app"] .shell,
+  body[data-screen="app"] .topbar__inner {
+    padding-inline: 24px;
+  }
+
+  body[data-prefs="on"][data-dining="on"] .dash-grid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 4.4fr) minmax(0, 3.6fr);
+  }
+}
+
+.upcoming__more {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* Without preferences the week moved to its own tab, so the meals take the row's full width. */
+@media (min-width: 64em) {
+  body:not([data-prefs="on"]) :is(.meals-block, .dash-empty) {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ======================================================================================
+   Quiet shell. One page, one job: every tab opens with a small label, its title and one sentence,
+   its quiet actions on the right, so the content starts at the same height on every tab. Neutral
+   text and hairlines; colour only where it means something. Lists are rows divided by hairlines;
+   the raised boxes are the calorie panel, the upcoming meal and the things that float (the dock,
+   the + and the sheets).
+   ====================================================================================== */
+
+:root {
+  /* The current link in the sidebar and the dock: a quiet fill of the ink. */
+  --sel: rgba(28, 28, 28, 0.075);
+  --hover-fill: rgba(28, 28, 28, 0.045);
+  --hair: var(--line);
+}
+
+:root[data-theme="dark"] {
+  --sel: rgba(238, 240, 242, 0.1);
+  --hover-fill: rgba(238, 240, 242, 0.06);
+}
+
+/* Small labels in sentence case, never spaced capitals. */
+.eyebrow,
+.dishes__cat {
+  font: 500 0.78125rem / 1.45 var(--font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ---- the top bar: slim, on the surface, a hairline under it */
+.topbar {
+  background: var(--surface);
+  box-shadow: 0 1px 0 var(--hair);
+}
+
+.topbar.is-scrolled {
+  box-shadow: 0 1px 0 var(--hair);
+}
+
+.pilot {
+  box-shadow: none;
+}
+
+/* The account button: initials on a quiet fill, not an ink disc. */
+.avatar {
+  background: var(--surface-2);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  font-size: 0.875rem;
+}
+
+@media (hover: hover) {
+  button.avatar:hover {
+    background: var(--line);
+  }
+}
+
+.icon-btn.bell {
+  background: none;
+}
+
+@media (hover: hover) {
+  .icon-btn.bell:hover {
+    background: var(--hover-fill);
+  }
+}
+
+/* ---- page heads: label, title, one sentence with its quiet actions */
+.page-head,
+.dash-head {
+  display: grid;
+  gap: 2px;
+  padding: 4px 4px 0;
+}
+
+.page-head__label {
+  min-height: 1.2em;
+  color: var(--label);
+  font: 500 0.78125rem / 1.45 var(--font-sans);
+}
+
+.page-head .view-title,
+.dash-head .view-title {
+  font: 400 2rem / 1.1 var(--font-sans);
+  letter-spacing: -0.025em;
+}
+
+.intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 44px;
+  margin-top: 4px;
+}
+
+.intro__text {
+  flex: 1 1 16rem;
+  min-width: 0;
+  max-width: 80ch;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.intro__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  margin-left: auto;
+}
+
+.intro__actions:empty {
+  display: none;
+}
+
+/* Quiet actions in the intro row: our outline button, a size smaller. */
+.intro-btn {
+  min-height: 44px;
+  padding: 0 16px 0 14px;
+  gap: 7px;
+  font-size: 0.875rem;
+  box-shadow: none;
+}
+
+.intro-btn .icon {
+  width: 17px;
+  height: 17px;
+}
+
+@media (hover: hover) {
+  .intro-btn:hover {
+    background: var(--surface-2);
+  }
+}
+
+.datenav {
+  gap: 4px;
+}
+
+.datenav__btn,
+.datenav__today {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+
+.datenav__btn:disabled {
+  box-shadow: none;
+}
+
+/* The page under its head: the same gap on every tab. */
+.today,
+.menu-view,
+.week-view {
+  gap: 20px;
+}
+
+/* ---- section titles inside a page: small and plain */
+:is(.today, .menu-view, .week-view) .section-head {
+  padding: 0 4px;
+}
+
+:is(.today, .menu-view, .week-view) .section-title {
+  font: 500 1rem / 1.35 var(--font-sans);
+  letter-spacing: -0.005em;
+}
+
+/* ---- the first-time location question: a quiet row, not a card */
+.locate-card {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--hair);
+  animation: none;
+}
+
+.locate-card__icon {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+
+/* ---- the health score and the nutrients: open on the page, divided by hairlines */
+.today .score {
+  padding: 14px 4px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-bottom: 1px solid var(--hair);
+}
+
+.today .score__bar {
+  height: 6px;
+}
+
+.today .stats-block {
+  gap: 0;
+}
+
+.today .stats {
+  gap: 0;
+}
+
+.today .stat {
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-bottom: 1px solid var(--hair);
+  padding: 12px 4px;
+}
+
+@container stats (min-width: 20rem) {
+  .today .stats {
+    gap: 0;
+  }
+
+  .today .stat {
+    padding: 12px 14px 14px;
+    border-left: 1px solid var(--hair);
+  }
+
+  .today .stat:nth-child(3n + 1) {
+    padding-left: 4px;
+    border-left: 0;
+  }
+}
+
+.today .stats__note {
+  padding-top: 10px;
+  font-size: 0.8125rem;
+}
+
+/* ---- Recently uploaded: rows, not cards */
+.recent {
+  gap: 0;
+}
+
+.recent > li + li {
+  border-top: 1px solid var(--hair);
+}
+
+.recent-card {
+  grid-template-columns: 44px minmax(0, 1fr) auto 18px;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 2px;
+  min-height: 64px;
+  padding: 12px 6px;
+  border-radius: 12px;
+  background: none;
+  box-shadow: none;
+  transition: background-color var(--dur-1) linear;
+}
+
+.recent-card:active {
+  transform: none;
+  background: var(--sel);
+}
+
+.recent-card[aria-current="true"] {
+  background: var(--sel);
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  .recent-card:hover:not([aria-current="true"]) {
+    background: var(--hover-fill);
+    box-shadow: none;
+  }
+}
+
+.recent-card__photo {
+  grid-row: 1 / 3;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+
+.recent-card__photo .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.recent-card__body {
+  display: contents;
+}
+
+.recent-card__when {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  font: 500 0.9375rem / 1.35 var(--font-sans);
+}
+
+.recent-card__time::before,
+.recent-card__place::before {
+  content: "\00a0· ";
+}
+
+.recent-card__foods {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
+  font-size: 0.8125rem;
+  -webkit-line-clamp: 1;
+}
+
+.recent-card__kcal {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  margin: 0;
+  text-align: right;
+}
+
+.recent-card__kcal .value--stack {
+  justify-items: end;
+}
+
+.recent-card__kcal strong {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.recent-card__kcal .value__range {
+  font-size: 0.78125rem;
+}
+
+.recent-card .meal__chev {
+  grid-column: 4;
+  grid-row: 1 / 3;
+  color: var(--label);
+}
+
+.recent-card .meal__chev .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.recent__empty {
+  padding: 14px 4px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-top: 1px solid var(--hair);
+}
+
+/* The list starts with a hairline under its title. */
+.recent {
+  border-top: 1px solid var(--hair);
+}
+
+.recent-block {
+  gap: 8px;
+}
+
+/* ---- the week strip: open on the page, no box */
+.strip {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* ---- Menu: the meal on the page itself; rows stay hairline-divided */
+#menu-body > .menu-card {
+  padding: 4px 4px 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+#menu-body > .menu-card .menu-card__head {
+  padding-inline: 0;
+}
+
+#menu-body .menu-cat .dishes__cat {
+  padding-inline: 4px;
+}
+
+.menu-card__meal {
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.menu-card__meal strong {
+  font-weight: 500;
+}
+
+.hall-chip {
+  font-size: 0.875rem;
+}
+
+.hall-chip:not([aria-pressed="true"]) {
+  border-color: var(--hair);
+  background: none;
+}
+
+/* ---- Week: the chart and the vitamins open on the page */
+.week-view .week {
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-top: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair);
+}
+
+.week-view .micro-card {
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-top: 1px solid var(--hair);
+}
+
+/* ---- Alerts and lists in sheets: rows */
+.options.alerts {
+  gap: 0;
+  border-top: 1px solid var(--hair);
+}
+
+.options.alerts > li {
+  border-bottom: 1px solid var(--hair);
+}
+
+.alerts .option {
+  min-height: 60px;
+  padding: 10px 6px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+}
+
+@media (hover: hover) {
+  .alerts .option:hover:not(:disabled) {
+    background: var(--hover-fill);
+  }
+}
+
+.alerts .option__meta {
+  font: 400 0.78125rem / 1.35 var(--font-sans);
+  color: var(--label);
+}
+
+/* ---- sheets: the intro sentence under the title */
+.sheet__intro {
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.sheet__title {
+  font-weight: 400;
+}
+
+/* ---- the dock: the same quiet current tab as the sidebar */
+.dock .tab[aria-current="page"] {
+  background: var(--sel);
+  color: var(--ink);
+}
+
+/* ---- laptops: the 240px sidebar */
+@media (min-width: 64em) {
+  :root {
+    --rail-w: 240px;
+    --bar-h: 56px;
+  }
+
+  body[data-screen="app"] .rail {
+    gap: 0;
+    padding: calc(var(--safe-top) + 14px) 12px 16px calc(12px + var(--safe-left));
+    border-right: 1px solid var(--hair);
+  }
+
+  .rail__brand {
+    justify-content: flex-start;
+    gap: 10px;
+    min-height: 44px;
+    padding-inline: 8px;
+    font-size: 1.0625rem;
+    font-weight: 500;
+  }
+
+  .rail__mark {
+    width: 28px;
+    height: 28px;
+  }
+
+  .rail__name {
+    display: inline;
+  }
+
+  .rail__nav {
+    margin-top: 14px;
+  }
+
+  .rail__nav,
+  .rail__foot {
+    gap: 2px;
+  }
+
+  .rail__foot {
+    padding-top: 12px;
+  }
+
+  .rail .tab {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 11px;
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 10px;
+    background: none;
+    color: var(--ink-2);
+    font: 400 0.875rem / 1.2 var(--font-sans);
+    transition: background-color var(--dur-1) linear, color var(--dur-1) linear;
+  }
+
+  .rail .tab .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .rail .tab[aria-current="page"] {
+    background: var(--sel);
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .rail__dot {
+    top: 12px;
+    right: auto;
+    left: 25px;
+  }
+
+  body[data-screen="app"] .topbar__inner {
+    height: var(--bar-h);
+  }
+
+  .page-head,
+  .dash-head {
+    padding-top: 8px;
+  }
+
+  .page-head .view-title,
+  .dash-head .view-title {
+    font-size: 2.25rem;
+  }
+
+  .today,
+  .menu-view,
+  .week-view {
+    gap: 24px;
+  }
+
+  /* The week strip sits under the intro, on the left, like a toolbar. */
+  body[data-prefs="on"] .strip {
+    display: grid;
+    justify-self: start;
+    width: 100%;
+    max-width: 30rem;
+    margin: -8px 0 0 -6px;
+  }
+
+  .menu-card__meal {
+    font-size: 1.75rem;
+  }
+
+  #menu-body > .menu-card {
+    padding: 0 4px;
+  }
+}
+
+@media (hover: hover) and (min-width: 64em) {
+  .rail .tab:hover:not([aria-current="page"]) {
+    background: var(--hover-fill);
+    color: var(--ink);
+  }
+}
+
+@media (min-width: 80em) {
+  .rail .tab {
+    gap: 11px;
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 10px;
+    font-size: 0.875rem;
+  }
+
+  .rail .tab .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .rail__dot {
+    top: 12px;
+    left: 25px;
+  }
+}
+
+@media (min-width: 64em) and (max-width: 79.99em) {
+  body[data-screen="app"] .rail {
+    padding-inline: calc(12px + var(--safe-left)) 12px;
+  }
+}
+
+/* ---- pass 2 */
+.intro__text {
+  flex: 1 1 0;
+  min-width: 10rem;
+}
+
+.recent-card {
+  align-content: center;
+}
+
+.strip__name {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Laptops with the week strip: the strip picks the day, so the day arrows would only repeat it. */
+@media (min-width: 64em) {
+  body[data-prefs="on"] .datenav__btn {
+    display: none;
+  }
+}
+
+body .week-view .micro-card {
+  padding-inline: 4px;
+}
+
+.week-view .micro-card__title {
+  font-size: 1rem;
+}
+
+/* ---- pass 3: the open score and nutrient grid line up with the panel's edge on laptops too */
+body[data-prefs="on"] .today .dash-col .score {
+  padding: 12px 4px;
+}
+
+body[data-prefs="on"] .today .dash-col .stat {
+  padding: 10px 12px 12px;
+}
+
+@container stats (min-width: 20rem) {
+  body[data-prefs="on"] .today .dash-col .stat:nth-child(3n + 1) {
+    padding-left: 4px;
+  }
+}
+
+@container stats (max-width: 19.99rem) {
+  body .today .stat {
+    padding-inline: 4px;
+    border-left: 0;
+  }
+}
+
+/* The narrowest phones: the meal rows give the thumbnail's room to the words. */
+@media (max-width: 22.49em) {
+  .recent-card {
+    grid-template-columns: minmax(0, 1fr) auto 18px;
+    column-gap: 10px;
+  }
+
+  .recent-card__photo {
+    display: none;
+  }
+
+  .recent-card__when,
+  .recent-card__foods {
+    grid-column: 1;
+  }
+
+  .recent-card__kcal {
+    grid-column: 2;
+  }
+
+  .recent-card .meal__chev {
+    grid-column: 3;
+  }
+}
+
+/* Laptops up to 80em: beside the 240px sidebar, two columns. The day on the left; the scans and,
+   under them, the upcoming meal on the right. */
+@media (min-width: 64em) and (max-width: 79.99em) {
+  body[data-prefs="on"] .dash-grid,
+  body[data-prefs="on"][data-dining="on"] .dash-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "main mid"
+      "main side";
+    gap: 24px 28px;
+    align-items: start;
+  }
+
+  body[data-prefs="on"] .dash-col--side {
+    position: static;
+  }
+
+  body[data-prefs="on"] .dash-col--side .upcoming {
+    max-height: none;
+  }
+}
+
+@media (min-width: 64em) and (max-width: 79.99em) {
+  body[data-prefs="on"] .dash-col--side .upcoming {
+    max-height: none;
+  }
+}
+
+@media (min-width: 64em) and (max-width: 79.99em) {
+  body[data-prefs="on"] .dash-col--side .upcoming {
+    max-height: 36rem;
+  }
+}
+
+/* Settings: each section named in sentence case, as a small plain title. */
+.account__section-title {
+  color: var(--ink);
+  font: 500 0.9375rem / 1.4 var(--font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.field-label,
+.meal-group__title {
+  font-size: 0.78125rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Today's head is the same shape as every other tab's, whatever the older day-head rules say. */
+body .today .dash-head {
+  gap: 2px;
+  padding: 4px 4px 0;
+}
+
+body .today .dash-head .view-title {
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+@media (min-width: 64em) {
+  body .today .dash-head {
+    padding-top: 8px;
+  }
+
+  body .today .dash-head .view-title {
+    font-size: 2.25rem;
+  }
+}
+
+/* Laptops: the head starts at the same x on every tab (Menu and Week sit 4px further left). */
+@media (min-width: 64em) {
+  body .today .dash-head {
+    padding-inline: 0;
+  }
+
+  body :is(.menu-view, .week-view) .page-head {
+    padding-inline: 4px 0;
+  }
+}
+
+body .recent .recent-card {
+  row-gap: 2px;
+  column-gap: 14px;
+  padding: 12px 6px;
+}
+
+@media (max-width: 22.49em) {
+  body .recent .recent-card {
+    column-gap: 10px;
   }
 }
