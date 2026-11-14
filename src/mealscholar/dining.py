@@ -3,7 +3,8 @@ reads it.
 
 The /api/dining routes are public. The /api/me ones add the user's preferences (prefs.py): the
 next meal with their flags on each dish, and their favorites on upcoming menus, which feed the
-in-app bell and the favorites email.
+in-app bell and the favorites email. Dining.dishes_on reads a hall's dishes for a day with their
+own nutrition labels (the menu_items collection), for campus.py to match a photo against.
 
 Reads are cached in process for 5 minutes. Queries are built only from ints, ISO dates and an
 escaped search pattern; nothing from a request body goes into one.
@@ -32,8 +33,9 @@ from pymongo.database import Database
 from pymongo.errors import PyMongoError
 
 from .auth_store import AuthStore, open_store, utc_now
+from .campus import serving_grams
 from .config import Settings
-from .mailer import Email, EmailSender
+from .mailer import Email, EmailSender, describe_error, mask_address
 from .prefs import ALLERGENS, DIETS, MAX_LOCATION_ID, MyPrefs, Prefs, PrefsStore, dish_key, no_store, open_prefs_store
 
 log = logging.getLogger(__name__)
@@ -195,6 +197,25 @@ class Location:
     """Dates with a menu, in order."""
 
 
+class DishFacts(_Frozen):
+    """A dish on a hall's menu with its own nutrition label, for campus.py; not an API answer."""
+
+    dish_id: str | None
+    name: str
+    meal: str
+    """A MEALS key, or whatever the menu says, in lower case."""
+    category: str | None
+    serving_size: str | None
+    """As labelled: '3 OZ', '20 OZL', '1 Slice'."""
+    serving_grams: float | None
+    """campus.serving_grams(serving_size); None for a counted serving."""
+    per_serving: dict[str, float]
+    """Nutrient keys (LABEL_KEYS) with the label's value for one serving. A nutrient the label
+    lacks is left out, so the meal's totals report it as partial rather than count it as 0."""
+    healthfulness_score: int | None
+    """UMass Dining's own score, 0 to 7."""
+
+
 # --- reading the database -----------------------------------------------------
 
 
@@ -206,6 +227,11 @@ class DiningSource(Protocol):
     def daily_menus(self, ids: Sequence[str], *, names_only: bool = False) -> Iterable[Mapping[str, Any]]:
         """The daily_menus documents with these _ids ("<tid>|<YYYY-MM-DD>"). With names_only,
         items carry only their name."""
+        ...
+
+    def menu_items(self, location_id: int, day: str) -> Iterable[Mapping[str, Any]]:
+        """The menu_items documents of one location on one day (YYYY-MM-DD), in menu order, with
+        their nutrition facts."""
         ...
 
     def dishes(self, pattern: str, limit: int) -> Iterable[Mapping[str, Any]]:
@@ -226,10 +252,11 @@ _ITEM_FIELDS = (
     "allergens",
     "diets",
 )
+_FACT_FIELDS = ("name", "meal", "category", "dish_id", "serving_size", "calories", "nutrition", "healthfulness_score")
 
 
 class MongoDiningSource:
-    """Reads the locations, daily_menus and dishes collections. Never writes."""
+    """Reads the locations, daily_menus, menu_items and dishes collections. Never writes."""
 
     def __init__(self, db: Database) -> None:
         self._db = db
@@ -247,6 +274,12 @@ class MongoDiningSource:
         fields = ["location_name", "meals.meal", "meals.meal_raw", "meals.categories.category"]
         fields += [f"meals.categories.items.{name}" for name in (("name",) if names_only else _ITEM_FIELDS)]
         return self._db["daily_menus"].find({"_id": {"$in": [str(i) for i in ids]}}, dict.fromkeys(fields, True))
+
+    def menu_items(self, location_id: int, day: str) -> Iterable[Mapping[str, Any]]:
+        # One query, on the location_id_1_date_1 index. Never the dishes collection: documents
+        # with the same name differ by hall.
+        query = {"location_id": int(location_id), "date": str(day)}
+        return self._db["menu_items"].find(query, dict.fromkeys(_FACT_FIELDS, True))
 
     def dishes(self, pattern: str, limit: int) -> Iterable[Mapping[str, Any]]:
         fields = ("name", "calories", "location_ids", "occurrence_count")
@@ -300,7 +333,8 @@ class _Cache:
 
 
 class Dining:
-    """Menus through a 5-minute cache, the next meal by typical hours, dish search and favorite alerts."""
+    """Menus through a 5-minute cache, the next meal by typical hours, dish search, favorite alerts
+    and a day's dishes with their labels."""
 
     def __init__(self, source: DiningSource, *, clock: Callable[[], datetime] = utc_now) -> None:
         self.source = source
@@ -317,6 +351,9 @@ class Dining:
 
     def location_ids(self) -> frozenset[int]:
         return frozenset(location.id for location in self.locations())
+
+    def location_name(self, location_id: int) -> str | None:
+        return next((loc.name for loc in self.locations() if loc.id == location_id), None)
 
     def open_locations(self) -> list[LocationInfo]:
         """Locations with a menu today or later."""
@@ -336,6 +373,13 @@ class Dining:
 
     def menu(self, location_id: int, day: date) -> Menu | None:
         return self._menus([(location_id, day)])[location_id, day]
+
+    def dishes_on(self, location_id: int, day: date) -> tuple[DishFacts, ...]:
+        """The location's dishes on `day` with their nutrition labels, in menu order, once per meal
+        and dish name; a dish whose label can't be right is left out (_dish_facts). Empty when
+        there is no menu."""
+        key = ("facts", int(location_id), day)
+        return self._cached(key, lambda: _dish_facts_on(self.source.menu_items(int(location_id), day.isoformat())))
 
     def next_meal(self, location_id: int) -> NextMeal:
         """The meal on now, or the next one, at the location, by MEAL_HOURS. Meals that aren't on
@@ -414,9 +458,7 @@ class Dining:
         return menus
 
     def _menu(self, doc: Mapping[str, Any], location_id: int, day: date) -> Menu:
-        name = _text(doc.get("location_name"))
-        if name is None:
-            name = next((loc.name for loc in self.locations() if loc.id == location_id), "")
+        name = _text(doc.get("location_name")) or self.location_name(location_id) or ""
         return _parse_menu(doc, LocationRef(id=location_id, name=name), day)
 
     def _search(self, text: str) -> tuple[Dish, ...]:
@@ -600,6 +642,73 @@ def _item(doc: Mapping[str, Any]) -> Item | None:
         price=_number(doc.get("price")),
         serving_size=_text(doc.get("serving_size")),
     )
+
+
+LABEL_KEYS: dict[str, tuple[str, ...]] = {
+    "energy_kcal": ("calories",),
+    "protein_g": ("nutrition", "protein_g"),
+    "carbs_g": ("nutrition", "total_carb_g"),
+    "fat_g": ("nutrition", "total_fat_g"),
+    "sat_fat_g": ("nutrition", "sat_fat_g"),
+    "fiber_g": ("nutrition", "dietary_fiber_g"),
+    "sugars_g": ("nutrition", "sugars_g"),
+    "sodium_mg": ("nutrition", "sodium_mg"),
+    "cholesterol_mg": ("nutrition", "cholesterol_mg"),
+}
+"""Nutrient keys (nutrients.py) and the field of a menu_items document that holds each, per serving."""
+_MACROS = ("protein_g", "carbs_g", "fat_g")
+MAX_HEALTHFULNESS = 7
+
+
+def _dish_facts_on(docs: Iterable[Mapping[str, Any]]) -> tuple[DishFacts, ...]:
+    """In document order, which is menu order. A dish listed twice at one meal (two categories)
+    counts once, the first time."""
+    found: dict[tuple[str, str], DishFacts] = {}
+    for doc in docs:
+        if (dish := _dish_facts(doc)) is not None:
+            found.setdefault((dish.meal, dish_key(dish.name)), dish)
+    return tuple(found.values())
+
+
+def _dish_facts(doc: Mapping[str, Any]) -> DishFacts | None:
+    """A menu_items document as a dish with its label, or None when it has no name or meal, or a
+    label that can't be right: calories missing ('Fountain Drink'), or 0 next to protein, carbs or
+    fat that aren't ('20 oz Latte'). A 0-kcal label with all three at 0 is kept (water, black
+    coffee); whether to trust it is decided per plate by campus.label_fits. A nutrient that is
+    missing, unreadable or negative is left out of per_serving rather than read as 0."""
+    name = _text(doc.get("name"))
+    meal = (_text(doc.get("meal")) or "").lower()
+    if name is None or not meal:
+        return None
+    per_serving = {}
+    for key, path in LABEL_KEYS.items():
+        value = _number(_lookup(doc, path))
+        if value is not None and value >= 0:
+            per_serving[key] = value
+    kcal = per_serving.get("energy_kcal")
+    if kcal is None or (kcal == 0 and any(per_serving.get(key) != 0 for key in _MACROS)):
+        return None
+    serving_size = _text(doc.get("serving_size"))
+    score = doc.get("healthfulness_score")
+    return DishFacts(
+        dish_id=_text(doc.get("dish_id")),
+        name=name,
+        meal=meal,
+        category=_text(doc.get("category")),
+        serving_size=serving_size,
+        serving_grams=serving_grams(serving_size),
+        per_serving=per_serving,
+        healthfulness_score=score if _whole(score) and 0 <= score <= MAX_HEALTHFULNESS else None,
+    )
+
+
+def _lookup(doc: Mapping[str, Any], path: tuple[str, ...]) -> Any:
+    value: Any = doc
+    for name in path:
+        if not isinstance(value, Mapping):
+            return None
+        value = value.get(name)
+    return value
 
 
 def _docs(value: Any) -> list[Mapping[str, Any]]:
@@ -887,8 +996,10 @@ def send_favorites_digests(
             continue
         try:
             sender.send(favorites_email(user.email, alerts, public_url))
-        except Exception:
-            log.exception("Couldn't send a favorites email")  # best effort, like the account emails
+        except Exception as exc:  # best effort, like the account emails; one line per failure, no address in it
+            log.warning(
+                "Couldn't send the favorites_digest email to %s: %s", mask_address(user.email), describe_error(exc)
+            )
             failed += 1
         else:
             queued += 1

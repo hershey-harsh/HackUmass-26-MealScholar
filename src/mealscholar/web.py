@@ -9,8 +9,9 @@ import io
 import logging
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
@@ -25,11 +26,11 @@ from .config import USER_AGENT, Settings
 from .context import NominatimPlaces, PlaceLookup
 from .diary import Diary
 from .dining import Dining, install_dining, open_dining
-from .insights import summarize_days
+from .insights import HealthScore, health_score, summarize_days
 from .nutrients import NUTRIENTS
 from .nutrition import FoodDatabase, FoodDatabaseMissing
-from .pipeline import UnknownFood, Workflow, correct
-from .prefs import LOCAL_USER, PrefsStore, install_prefs, open_prefs_store
+from .pipeline import BadCorrection, UnknownFood, Workflow, correct
+from .prefs import LOCAL_USER, MAX_LOCATION_ID, PrefsStore, install_prefs, open_prefs_store
 from .schemas import MealResult, Range
 from .vision import GeminiVision, VisionError, VisionModel
 
@@ -73,6 +74,8 @@ class Answer(BaseModel):
 
 class Correction(BaseModel):
     grams: int | None = Field(default=None, gt=0, le=10_000)
+    servings: float | None = Field(default=None, gt=0, le=50)
+    """How many of the campus dish's listed serving ('1 Slice'); only for an item with a `dish`."""
     fdc_id: int | None = None
 
 
@@ -85,6 +88,8 @@ class DayView(BaseModel):
     meals: list[MealResult]
     totals: dict[str, Range]
     daily_value_pct: dict[str, Range]
+    health: HealthScore | None = None
+    """The day's nutrient-balance score (insights.health_score); None for a day with no meals."""
 
 
 def create_app(
@@ -124,7 +129,7 @@ def create_app(
     def workflow(foods: FoodDatabase) -> Workflow:
         if vision is None:
             raise HTTPException(503, "Set GEMINI_API_KEY in .env, then restart `mealscholar serve`.")
-        return Workflow(vision=vision, foods=foods, places=places)
+        return Workflow(vision=vision, foods=foods, places=places, menus=dining)
 
     def logged(diary: Diary, meal_id: int) -> MealResult:
         result = diary.get(meal_id)
@@ -148,6 +153,7 @@ def create_app(
     app.add_exception_handler(FoodDatabaseMissing, error(503, "The food database isn't set up on the server yet."))
     app.add_exception_handler(VisionError, error(502, "Couldn't analyze the photo right now. Try again in a moment."))
     app.add_exception_handler(UnknownFood, error(404))
+    app.add_exception_handler(BadCorrection, error(400))
 
     @app.get("/api/status")
     def status() -> Status:
@@ -167,11 +173,26 @@ def create_app(
 
     @app.post("/api/meals")
     async def analyze(
-        request: Request, owner: DiaryOwner, lat: float | None = None, lon: float | None = None
+        request: Request,
+        owner: DiaryOwner,
+        lat: float | None = None,
+        lon: float | None = None,
+        location_id: Annotated[int | None, Query(ge=1, le=MAX_LOCATION_ID)] = None,
+        taken_at: datetime | None = None,
     ) -> MealResult:
-        """Body: the photo bytes (JPEG, PNG, HEIC). `lat`/`lon`: device location, opt-in."""
+        """Body: the photo bytes (JPEG, PNG, HEIC). `lat`/`lon`: device location, opt-in.
+        `location_id`: the dining location whose menu the foods are matched against (from
+        /api/dining/nearest or the user's dining halls); without it nutrients come from USDA only.
+        `taken_at`: the phone's local time at capture with its UTC offset, ISO 8601 such as
+        2026-11-14T12:30:00-05:00 (URL-encode a '+'; an unencoded '+' is read as a space and
+        answers 422). Used only when the photo carries no EXIF time; `context.time_source` is
+        then 'device'. Send local time with its offset, not UTC: a 'Z' or +00:00 time is accepted
+        but the diary files the meal under that clock's date, so an evening meal sent as UTC
+        lands on the next day."""
         if (lat is None) != (lon is None):
             raise HTTPException(400, "lat and lon go together.")
+        if taken_at is not None and taken_at.tzinfo is None:
+            raise HTTPException(400, "taken_at needs a UTC offset, such as 2026-11-14T12:30:00-05:00.")
         photo = bytearray()
         async for chunk in request.stream():
             photo += chunk
@@ -180,13 +201,23 @@ def create_app(
         if not photo:
             raise HTTPException(400, "Send the photo as the request body.")
         location = (lat, lon) if lat is not None and lon is not None else None
-        return await run_in_threadpool(_analyze, bytes(photo), location, owner)
+        return await run_in_threadpool(_analyze, bytes(photo), location, owner, location_id, taken_at)
 
-    def _analyze(photo: bytes, location: tuple[float, float] | None, owner: str | None) -> MealResult:
+    def _analyze(
+        photo: bytes,
+        location: tuple[float, float] | None,
+        owner: str | None,
+        location_id: int | None,
+        taken_at: datetime | None,
+    ) -> MealResult:
         with stores(owner) as (foods, diary):
             try:
                 result = workflow(foods).analyze(
-                    io.BytesIO(photo), device_location=location, usual_portions=diary.usual_portions()
+                    io.BytesIO(photo),
+                    device_time=taken_at,
+                    device_location=location,
+                    usual_portions=diary.usual_portions(),
+                    location_id=location_id,
                 )
             except Image.DecompressionBombError as exc:
                 raise HTTPException(413, "That photo has too many pixels. Send a regular camera photo.") from exc
@@ -242,14 +273,18 @@ def create_app(
 
     @app.patch("/api/meals/{meal_id}/items/{index}")
     def fix(meal_id: int, index: int, body: Correction, owner: DiaryOwner) -> MealResult:
-        """Exact grams collapse the item's range and become a usual portion; fdc_id swaps the match."""
-        if body.grams is None and body.fdc_id is None:
-            raise HTTPException(400, "Send grams and/or fdc_id.")
+        """Exact grams collapse the item's range and become a usual portion; fdc_id swaps the match.
+        `servings` counts a campus dish's listed serving and keeps its label; grams on a dish listed
+        per count ('1 Slice') switch the item to USDA, with a note. 400 for servings on a food that
+        isn't a campus dish, or grams together with servings (see pipeline.correct)."""
+        if body.grams is None and body.servings is None and body.fdc_id is None:
+            raise HTTPException(400, "Send grams, servings and/or fdc_id.")
         with stores(owner) as (foods, diary):
             result = logged(diary, meal_id)
             if not 0 <= index < len(result.items):
                 raise HTTPException(404, f"Meal #{meal_id} has no item {index}.")
-            result = diary.save(correct(result, index, foods, grams=body.grams, fdc_id=body.fdc_id))
+            corrected = correct(result, index, foods, grams=body.grams, servings=body.servings, fdc_id=body.fdc_id)
+            result = diary.save(corrected)
             if body.grams is not None:
                 diary.remember_portion(result.items[index].item.name, body.grams)
             return result
@@ -279,7 +314,13 @@ def create_app(
         if not summaries:
             return DayView(day=day, meals=[], totals={}, daily_value_pct={})
         s = summaries[0]
-        return DayView(day=s.day, meals=s.meals, totals=s.totals, daily_value_pct=s.daily_value_pct)
+        return DayView(
+            day=s.day,
+            meals=s.meals,
+            totals=s.totals,
+            daily_value_pct=s.daily_value_pct,
+            health=health_score(s.totals, s.daily_value_pct),
+        )
 
     app.mount("/", StaticFiles(directory=SITE, html=True), name="site")
     return app

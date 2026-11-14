@@ -1,12 +1,15 @@
 """Dining menus over HTTP from a fake umass_dining source: locations, menus, the next meal by
-typical hours, dish search, the user's flags and alerts, the favorites email and its command.
+typical hours, dish search, the user's flags and alerts, the favorites email and its command, and
+a day's dishes with their nutrition labels (for campus.py).
 
 MongoDB is never contacted; MongoDiningSource's queries are checked against stand-in collections.
 """
 
 import copy
 import hashlib
+import logging
 import re
+import smtplib
 from collections import Counter
 from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
@@ -15,21 +18,22 @@ import pytest
 from fastapi.testclient import TestClient
 from pymongo.errors import ServerSelectionTimeoutError
 
-from mealscholar import cli
+from mealscholar import cli, mailer
 from mealscholar.auth import AuthService
 from mealscholar.auth_store import MemoryAuthStore, utc_now
-from mealscholar.config import load_settings
+from mealscholar.config import SmtpSettings, load_settings
 from mealscholar.dining import (
     MEALS,
     Alert,
     DigestReport,
     Dining,
+    DiningUnavailable,
     MongoDiningSource,
     favorites_email,
     send_favorites_digests,
     starts_hint,
 )
-from mealscholar.mailer import OutboxSender, SmtpSender
+from mealscholar.mailer import OutboxSender, SmtpSender, make_sender
 from mealscholar.prefs import LOCAL_USER, MemoryPrefsStore, Prefs, PrefsService
 from mealscholar.web import create_app
 
@@ -45,8 +49,8 @@ UNAVAILABLE = {"detail": "Dining menus aren't available right now. Try again in 
 # --- the fake umass_dining database -------------------------------------------
 
 
-def item(name, kcal, protein, carbs, fat, allergens=(), diets=(), *, serving="1 serving", price=None):
-    """A daily_menus item as the scraper writes it."""
+def item(name, kcal, protein, carbs, fat, allergens=(), diets=(), *, serving="1 serving", price=None, sodium=None):
+    """A daily_menus item as the scraper writes it. Sodium is on the menu_items rows only (menu_rows)."""
     return {
         "dish_id": hashlib.sha1(name.encode()).hexdigest(),
         "name": name,
@@ -56,6 +60,7 @@ def item(name, kcal, protein, carbs, fat, allergens=(), diets=(), *, serving="1 
         "protein_g": protein,
         "total_carb_g": carbs,
         "total_fat_g": fat,
+        "sodium_mg": sodium,
         "allergens": list(allergens),
         "diets": list(diets),
         "carbon_rating": "low",
@@ -68,8 +73,8 @@ WAFFLE = item(
     "Belgian Waffle", 410, 9, 52, 18, ["Milk", "Eggs", "Wheat", "Gluten"], ["Vegetarian", "VGT"], serving="1 waffle"
 )
 EGGS = item("Scrambled Eggs", 180, 12, 2, 13, ["Eggs"], ["Vegetarian", "Halal"])
-TIKKA = item("Chicken Tikka Masala", 320, 24, 14, 18, ["Milk"], ["Halal"])
-CHILI = item("Vegan Chili", 240, 11, 38, 5, ["Soy"], ["Plant Based", "Vegetarian", "Local"])
+TIKKA = item("Chicken Tikka Masala", 320, 24, 14, 18, ["Milk"], ["Halal"], serving="6 OZ", sodium=620)
+CHILI = item("Vegan Chili", 240, 11, 38, 5, ["Soy"], ["Plant Based", "Vegetarian", "Local"], serving="8 OZL")
 PIZZA = item("Cheese Pizza", 280, 12, 33, 11, ["Milk", "Wheat", "Gluten"], ["Vegetarian"], serving="1 slice")
 PAD_THAI = item("Pad Thai", 450, 15, 60, 16, ["Peanuts", "Soy", "Eggs", "Fish"])
 SALAD = item("Garden Salad", 60, 2, 10, 1, [], ["Plant Based", "Vegetarian", "Local"])
@@ -103,6 +108,40 @@ def menu(tid, name, day, meals):
         ],
         "item_count": sum(len(items) for categories in meals.values() for items in categories.values()),
     }
+
+
+def menu_rows(menus):
+    """The menu_items documents the scraper writes next to the daily_menus ones: one per listed
+    item (the odd documents of test_odd_documents_are_read_carefully have none)."""
+    rows = []
+    for doc in menus:
+        for meal in doc["meals"]:
+            if not isinstance(meal, dict):
+                continue
+            for category in meal["categories"]:
+                for i in category["items"]:
+                    if not isinstance(i, dict) or "dish_id" not in i:
+                        continue
+                    rows.append(
+                        {
+                            "location_id": doc["location_id"],
+                            "date": doc["date"],
+                            "name": i["name"],
+                            "meal": meal["meal"],
+                            "category": category["category"],
+                            "dish_id": i["dish_id"],
+                            "serving_size": i["serving_size"],
+                            "calories": i["calories"],
+                            "nutrition": {
+                                "protein_g": i["protein_g"],
+                                "total_carb_g": i["total_carb_g"],
+                                "total_fat_g": i["total_fat_g"],
+                                "sodium_mg": i["sodium_mg"],
+                            },
+                            "healthfulness_score": i["healthfulness_score"],
+                        }
+                    )
+    return rows
 
 
 def dates(*days):
@@ -177,9 +216,10 @@ DISHES = [
 class FakeDining:
     """The umass_dining collections in memory, answering as MongoDiningSource does."""
 
-    def __init__(self, locations=LOCATIONS, menus=MENUS, dishes=DISHES):
+    def __init__(self, locations=LOCATIONS, menus=MENUS, dishes=DISHES, items=None):
         self._locations = locations
         self._menus = {doc["_id"]: doc for doc in menus}
+        self._items = menu_rows(menus) if items is None else items
         self._dishes = dishes
         self.reads = Counter()
         self.down = False
@@ -202,6 +242,10 @@ class FakeDining:
                     for category in meal["categories"]:
                         category["items"] = [{"name": i["name"]} for i in category["items"]]
         return docs
+
+    def menu_items(self, location_id, day):
+        self._read("menu_items")
+        return copy.deepcopy([r for r in self._items if r.get("location_id") == location_id and r.get("date") == day])
 
     def dishes(self, pattern, limit):
         self._read("dishes")
@@ -695,7 +739,7 @@ def accounts_with_prefs():
     return users, prefs
 
 
-def test_digest_emails_confirmed_users_with_email_alerts_on(source, clock):
+def test_digest_emails_confirmed_users_with_email_alerts_on(source, clock, monkeypatch, caplog):
     users, prefs = accounts_with_prefs()
     dining = Dining(source, clock=clock)
     report = send_favorites_digests(users, prefs, dining, OutboxSender(users), "https://meals.example", days=1)
@@ -706,8 +750,70 @@ def test_digest_emails_confirmed_users_with_email_alerts_on(source, clock):
     assert email.expires_at - email.created_at == timedelta(days=7)
     assert "Sunday, November 15\n  Dinner at Berkshire Dining Commons: Pad Thai\n" in email.text
 
-    failing = send_favorites_digests(users, prefs, dining, SmtpSender(), "https://meals.example", days=1)
-    assert failing == DigestReport(users=4, queued=0, failed=1)
+    def refuse(host, port, timeout=None):
+        raise OSError(f"[Errno 61] Connection refused: {host}:{port}")
+
+    monkeypatch.setattr(mailer.smtplib, "SMTP", refuse)
+    smtp = SmtpSender(SmtpSettings(host="smtp.invalid", sender="x@example.com"), background=False)
+    with caplog.at_level(logging.WARNING, logger="mealscholar.dining"):
+        failing = send_favorites_digests(users, prefs, dining, smtp, "https://meals.example", days=1)
+    assert failing == DigestReport(users=4, queued=0, failed=1)  # synchronous: the command counts the failure
+    assert "Couldn't send the favorites_digest email to s***@example.com: OSError" in caplog.text
+    assert "sam@example.com" not in caplog.text
+    with pytest.raises(ValueError, match="MEALSCHOLAR_SMTP_HOST"):
+        make_sender("smtp", users, None)
+
+    # A bounce or an auth refusal: the relay's reply text (which repeats the address and the login
+    # user) and the traceback stay out of the log, same as the account emails in background mode.
+    class Relay:
+        error: Exception
+
+        def __init__(self, host, port, timeout=None):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def ehlo(self):
+            pass
+
+        def starttls(self, context=None):
+            pass
+
+        def login(self, user, password):
+            if isinstance(Relay.error, smtplib.SMTPAuthenticationError):
+                raise Relay.error
+
+        def send_message(self, msg):
+            raise Relay.error
+
+    monkeypatch.setattr(mailer.smtplib, "SMTP", Relay)
+    relay = SmtpSettings(host="smtp.invalid", sender="x@example.com", user="harsh@gmail.com", password="pw")
+    for Relay.error, logged in [
+        (
+            smtplib.SMTPRecipientsRefused({"sam@example.com": (550, b"5.1.1 user unknown")}),
+            "SMTPRecipientsRefused (550)",
+        ),
+        (
+            smtplib.SMTPAuthenticationError(535, b"5.7.8 not accepted for user harsh@gmail.com"),
+            "SMTPAuthenticationError (535)",
+        ),
+    ]:
+        caplog.clear()
+        with caplog.at_level(logging.WARNING, logger="mealscholar.dining"):
+            report = send_favorites_digests(
+                users, prefs, dining, SmtpSender(relay, background=False), "https://x", days=1
+            )
+        assert report == DigestReport(users=4, queued=0, failed=1)
+        (record,) = caplog.records
+        assert record.getMessage() == f"Couldn't send the favorites_digest email to s***@example.com: {logged}"
+        assert record.exc_info is None  # no traceback: its last line would be the relay's reply
+        assert "sam@example.com" not in caplog.text
+        assert "user unknown" not in caplog.text
+        assert "harsh@gmail.com" not in caplog.text
 
     kim = users.user_by_email("kim@example.com")  # confirmed; a broken document is skipped, not fatal
     prefs.update(kim.id, {"notify.email": True, "favorites": "not a list"})
@@ -747,6 +853,44 @@ def test_alerts_digest_command_needs_mongodb(monkeypatch, capsys, tmp_path):
         assert capsys.readouterr().err == f"error: {error}\n"
 
 
+# --- a day's dishes with their labels, for campus.py --------------------------
+
+
+def test_dishes_on_reads_one_query_and_caches(source, clock):
+    dining = Dining(source, clock=clock)
+    facts = dining.dishes_on(1, TODAY)
+    assert dining.dishes_on(1, TODAY) is facts  # the cached object
+    assert source.reads == {"menu_items": 1}
+    assert [(dish.meal, dish.name) for dish in facts] == [  # menu order
+        ("dinner", "Pad Thai"),
+        ("dinner", "Chicken Tikka Masala"),  # in two categories, listed once
+        ("breakfast", "Belgian Waffle"),
+        ("breakfast", "Scrambled Eggs"),
+        ("lunch", "Chicken Tikka Masala"),
+        ("lunch", "Vegan Chili"),
+        ("lunch", "Cheese Pizza"),
+        ("late_night", "Cheese Pizza"),
+        ("daily_offerings", "Garden Salad"),
+    ]
+    tikka, waffle, chili, pizza = facts[1], facts[2], facts[5], facts[6]
+    assert waffle.model_dump() == {
+        "dish_id": WAFFLE["dish_id"],
+        "name": "Belgian Waffle",
+        "meal": "breakfast",
+        "category": "Breakfast Entrées",
+        "serving_size": "1 waffle",
+        "serving_grams": None,
+        "per_serving": {"energy_kcal": 410, "protein_g": 9, "carbs_g": 52, "fat_g": 18},  # no sodium on the label
+        "healthfulness_score": 3,
+    }
+    assert (pizza.serving_size, pizza.serving_grams) == ("1 slice", None)
+    assert (tikka.serving_size, tikka.serving_grams, tikka.per_serving["sodium_mg"]) == ("6 OZ", 170.1, 620)
+    assert (chili.serving_size, chili.serving_grams) == ("8 OZL", 236.56)
+    assert dining.dishes_on(7, TODAY) == ()  # Blue Wall has no menu today
+    assert dining.location_name(1) == WORCESTER
+    assert dining.location_name(999) is None
+
+
 # --- MongoDB queries and odd documents ----------------------------------------
 
 
@@ -775,12 +919,34 @@ class StubCollection:
 
 
 def test_mongo_queries_are_built_from_checked_values(clock):
-    db = {"locations": StubCollection(LOCATIONS), "daily_menus": StubCollection(MENUS[1:3]), "dishes": StubCollection()}
+    db = {
+        "locations": StubCollection(LOCATIONS),
+        "daily_menus": StubCollection(MENUS[1:3]),
+        "dishes": StubCollection(),
+        "menu_items": StubCollection(menu_rows(MENUS[1:2])),
+    }
     dining = Dining(MongoDiningSource(db), clock=clock)
 
     assert dining.menu(1, TODAY).location.name == WORCESTER
     dining.dishes("Mac & Cheese (GF)", 5)
     dining.alerts(Prefs.model_validate({"favorites": [{"name": "Pad Thai"}], "dining_halls": [1]}), 1)
+    assert [dish.name for dish in dining.dishes_on(1, TODAY)][:2] == ["Pad Thai", "Chicken Tikka Masala"]
+
+    assert db["menu_items"].finds == [
+        (
+            {"location_id": 1, "date": "2026-11-14"},
+            {
+                "name": True,
+                "meal": True,
+                "category": True,
+                "dish_id": True,
+                "serving_size": True,
+                "calories": True,
+                "nutrition": True,
+                "healthfulness_score": True,
+            },
+        )
+    ]
 
     (full, full_fields), (names, names_fields) = db["daily_menus"].finds
     assert full == {"_id": {"$in": ["1|2026-11-14"]}}
@@ -865,6 +1031,67 @@ def test_odd_documents_are_read_carefully(clock):
         "price": 2.5,
         "serving_size": "4",
     }
+
+
+def test_odd_menu_items_are_read_carefully(clock):
+    """Each menu_items row is checked field by field; a label that can't be right is left out."""
+
+    def row(name, meal="lunch", **fields):
+        return {"location_id": 5, "date": "2026-11-14", "name": name, "meal": meal, **fields}
+
+    def label(kcal, protein=0, carbs=0, fat=0, **more):
+        nutrition = {"protein_g": protein, "total_carb_g": carbs, "total_fat_g": fat, **more}
+        return {"calories": kcal, "nutrition": nutrition}
+
+    odd = label("150", 2, sodium_mg=-5, sugars_g="x")  # a negative or unreadable nutrient is left out
+    rows = [
+        row(" Hash  Browns ", "Lunch", serving_size=4, healthfulness_score=9, **odd),
+        row("Fountain Drink", **label(None)),  # no calories: dropped
+        row("12 oz Regular Coffee", serving_size="12 OZL", healthfulness_score=7, **label(0)),  # 0 kcal, 0/0/0: kept
+        row("20 oz Latte", **label(0, protein=5)),  # 0 kcal next to protein: dropped
+        row("Add Wasabi", **label(0, carbs=1)),
+        row("Tea", calories=0, nutrition={"protein_g": 0, "total_fat_g": 0}),  # 0 kcal, carbs unknown: dropped
+        row("Soup", calories="abc", nutrition={"protein_g": 3}),  # unreadable calories: dropped
+        row("Toast", calories=90, nutrition="none"),  # calories only
+        row("", **label(100)),  # no name
+        row("Nameless", "", **label(100)),  # no meal
+        row("Water", None, calories=0),
+        row("hash browns", serving_size="3 oz", **label(160)),  # the same dish at the same meal: the first wins
+        row("Hash Browns", "dinner", **label(160)),  # at another meal: listed again
+        row("Elsewhere", **{**label(100), "location_id": 6}),  # another location
+        row("Yesterday", **{**label(100), "date": "2026-11-13"}),
+    ]
+    source = FakeDining(locations=[{"_id": 5, "name": "Roots Café"}], menus=[], items=rows)
+    dining = Dining(source, clock=clock)
+
+    found = dining.dishes_on(5, TODAY)
+    assert [(dish.meal, dish.name) for dish in found] == [
+        ("lunch", "Hash Browns"),
+        ("lunch", "12 oz Regular Coffee"),
+        ("lunch", "Toast"),
+        ("dinner", "Hash Browns"),
+    ]
+    hash_browns, coffee, toast = found[:3]
+    assert hash_browns.model_dump() == {
+        "dish_id": None,
+        "name": "Hash Browns",
+        "meal": "lunch",
+        "category": None,
+        "serving_size": "4",
+        "serving_grams": None,
+        "per_serving": {"energy_kcal": 150.0, "protein_g": 2.0, "carbs_g": 0.0, "fat_g": 0.0},  # not -5 mg sodium
+        "healthfulness_score": None,  # 9 is off the scale
+    }
+    assert coffee.per_serving == {"energy_kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}
+    assert (coffee.serving_grams, coffee.healthfulness_score) == (354.84, 7)
+    assert toast.per_serving == {"energy_kcal": 90}
+
+    source.down = True
+    with pytest.raises(DiningUnavailable):
+        dining.dishes_on(5, TOMORROW)
+    source.down = False
+    assert dining.dishes_on(5, TOMORROW) == ()  # the failure wasn't cached: read again
+    assert source.reads == {"menu_items": 2}
 
 
 # --- nearest dining hall ---------------------------------------------------------

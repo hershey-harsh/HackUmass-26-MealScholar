@@ -11,7 +11,24 @@ DEFAULT_MODEL = "gemini-4-hydrogen"
 DEFAULT_NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
 DEFAULT_PUBLIC_URL = "http://127.0.0.1:8000"
 EMAIL_PROVIDERS = ("outbox", "smtp")
+THINKING_LEVELS = ("minimal", "low", "medium", "high", "xhigh")
+"""Gemini thinking levels the installed SDK accepts (google.genai.interactions.ThinkingLevel)."""
 USER_AGENT = "MealScholar/0.1 (HackUMass prototype; https://github.com/hershey-harsh/HackUmass-26-MealScholar)"
+
+
+@dataclass(frozen=True, slots=True)
+class SmtpSettings:
+    """A mail relay for MEALSCHOLAR_EMAIL_PROVIDER=smtp: STARTTLS on port 587, or plain on a local relay."""
+
+    host: str
+    port: int = 587
+    user: str | None = None
+    password: str | None = None
+    sender: str = ""
+    """The From header, such as "MealScholar <no-reply@example.com>"."""
+    starttls: bool = True
+    timeout: float = 10.0
+    """Seconds per socket operation, so one dead relay never holds a worker for long."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +53,8 @@ class Settings:
     demo_verify_link: bool = False
     """Return email links in API responses so a demo works without email. Never on a public server."""
     dev_outbox: bool = False
+    smtp: SmtpSettings | None = None
+    """Set when MEALSCHOLAR_SMTP_HOST is; required with email_provider "smtp"."""
 
     @property
     def food_db(self) -> Path:
@@ -51,10 +70,14 @@ class Settings:
 
 
 def load_settings(env: Mapping[str, str] = os.environ) -> Settings:
+    email_provider = _email_provider(env.get("MEALSCHOLAR_EMAIL_PROVIDER") or "outbox")
+    smtp = _smtp(env)
+    if email_provider == "smtp" and (smtp is None or not smtp.sender):
+        raise ValueError("MEALSCHOLAR_EMAIL_PROVIDER=smtp needs MEALSCHOLAR_SMTP_HOST and MEALSCHOLAR_EMAIL_FROM.")
     return Settings(
         gemini_api_key=env.get("GEMINI_API_KEY") or None,
         gemini_model=env.get("MEALSCHOLAR_MODEL", DEFAULT_MODEL),
-        thinking_level=env.get("MEALSCHOLAR_THINKING", "low"),
+        thinking_level=_thinking_level(env.get("MEALSCHOLAR_THINKING") or "low"),
         home=Path(env.get("MEALSCHOLAR_HOME", "~/.mealscholar")).expanduser(),
         nominatim_url=env.get("MEALSCHOLAR_NOMINATIM_URL", DEFAULT_NOMINATIM_URL),
         mongodb_uri=env.get("MONGODB_URI") or None,
@@ -63,10 +86,46 @@ def load_settings(env: Mapping[str, str] = os.environ) -> Settings:
         auth_required=_flag(env, "MEALSCHOLAR_AUTH_REQUIRED", True),
         public_url=_public_url(env.get("MEALSCHOLAR_PUBLIC_URL") or DEFAULT_PUBLIC_URL),
         cookie_secure=_flag(env, "MEALSCHOLAR_COOKIE_SECURE", True),
-        email_provider=_email_provider(env.get("MEALSCHOLAR_EMAIL_PROVIDER") or "outbox"),
+        email_provider=email_provider,
         demo_verify_link=_flag(env, "MEALSCHOLAR_DEMO_VERIFY_LINK", False),
         dev_outbox=_flag(env, "MEALSCHOLAR_DEV_OUTBOX", False),
+        smtp=smtp,
     )
+
+
+def _smtp(env: Mapping[str, str]) -> SmtpSettings | None:
+    host = env.get("MEALSCHOLAR_SMTP_HOST", "").strip()
+    if not host:
+        return None
+    return SmtpSettings(
+        host=host,
+        port=_port(env.get("MEALSCHOLAR_SMTP_PORT") or "587"),
+        user=env.get("MEALSCHOLAR_SMTP_USER") or None,
+        password=env.get("MEALSCHOLAR_SMTP_PASSWORD") or None,
+        sender=env.get("MEALSCHOLAR_EMAIL_FROM", "").strip(),
+        starttls=_flag(env, "MEALSCHOLAR_SMTP_STARTTLS", True),
+        timeout=_timeout(env.get("MEALSCHOLAR_SMTP_TIMEOUT") or "10"),
+    )
+
+
+def _port(value: str) -> int:
+    try:
+        port = int(value.strip())
+    except ValueError:
+        port = 0
+    if not 1 <= port <= 65535:
+        raise ValueError(f"MEALSCHOLAR_SMTP_PORT must be a port number from 1 to 65535, not {value!r}.")
+    return port
+
+
+def _timeout(value: str) -> float:
+    try:
+        seconds = float(value.strip())
+    except ValueError:
+        seconds = 0.0
+    if not seconds > 0:
+        raise ValueError(f"MEALSCHOLAR_SMTP_TIMEOUT must be a number of seconds above 0, not {value!r}.")
+    return seconds
 
 
 def _flag(env: Mapping[str, str], name: str, default: bool) -> bool:
@@ -92,3 +151,10 @@ def _email_provider(value: str) -> str:
     if provider not in EMAIL_PROVIDERS:
         raise ValueError(f"MEALSCHOLAR_EMAIL_PROVIDER must be one of {', '.join(EMAIL_PROVIDERS)}, not {value!r}.")
     return provider
+
+
+def _thinking_level(value: str) -> str:
+    level = value.strip().lower()
+    if level not in THINKING_LEVELS:
+        raise ValueError(f"MEALSCHOLAR_THINKING must be one of {', '.join(THINKING_LEVELS)}, not {value!r}.")
+    return level
