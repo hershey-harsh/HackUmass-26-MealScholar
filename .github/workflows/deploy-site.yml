@@ -95,6 +95,9 @@ jobs:
           B="$HOME/Services/mealscholar"
           rsync -a --delete --exclude '.git' --exclude '.venv' --exclude 'web/' ./ "$B/app/"
           printf '%s\n' "$GITHUB_SHA" > "$B/app/.deployed-sha"
+          # Cloudflare caches the app's .js and .css for 4 h, so the page asks for them
+          # with ?v=<commit>; __COMMIT__ in the app's index.html becomes this commit.
+          find "$B/app/src/foodsmart/site" -name '*.html' -exec env LC_ALL=C sed -i '' -e "s/__COMMIT__/${GITHUB_SHA:0:7}/g" {} +
           cd "$B/app"
           /usr/bin/sandbox-exec -f "$B/sync.sb" /opt/homebrew/bin/uv sync --frozen --no-dev
           launchctl kickstart -k "gui/$(id -u)/org.mannava.mealscholar.app"
