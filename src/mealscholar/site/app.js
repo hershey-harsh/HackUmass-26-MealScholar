@@ -58,6 +58,7 @@ const els = {
   account: $("#account"),
   accountKicker: $("#account-kicker"),
   accountTitle: $("#account-title"),
+  accountIntro: $("#account-intro"),
   accountBody: $("#account-body"),
   sheet: $("#sheet"),
   sheetKicker: $("#sheet-kicker"),
@@ -70,6 +71,8 @@ const els = {
   panel: $("#panel"),
   panelKicker: $("#panel-kicker"),
   panelTitle: $("#panel-title"),
+  panelIntro: $("#panel-intro"),
+  menuActions: $("#menu-actions"),
   panelBody: $("#panel-body"),
   onboard: $("#onboard"),
   dashSide: $("#dash-side"),
@@ -1517,10 +1520,11 @@ function greetingText() {
 function renderDashHead() {
   const key = state.day;
   const { title, sub } = dayTitle(key);
+  const isToday = key === state.todayKey;
   els.todayTitle.textContent = title;
   els.todayDate.textContent = sub;
-  els.greeting.textContent = greetingText(); // text, never HTML: the name comes from the server
-  const isToday = key === state.todayKey;
+  // Text, never HTML: the name comes from the server.
+  els.greeting.textContent = isToday ? `${greetingText()}. Your day so far, every amount a range.` : "What you ate that day, every amount a range.";
   const active = document.activeElement;
   els.dayNext.disabled = isToday; // never a future day
   els.dayToday.hidden = isToday;
@@ -2030,7 +2034,7 @@ function renderWeekSub() {
   const days = lastDays(state.todayKey, 7);
   const first = parseDay(days[0]);
   const last = parseDay(days[6]);
-  els.weekSub.textContent = `${monthDay.format(first)} to ${monthDay.format(last)}`;
+  els.weekSub.textContent = `Last 7 days, ${monthDay.format(first)} to ${monthDay.format(last)}`;
 }
 
 function weekErrorHtml(days) {
@@ -3079,6 +3083,8 @@ function renderAccountBody() {
   if (!user) return;
   els.accountKicker.textContent = "Account";
   els.accountTitle.textContent = user.name || "Your account";
+  els.accountIntro.textContent = "Your sign-in, your password and how the app looks.";
+  els.accountIntro.hidden = false;
   els.accountBody.innerHTML = `
     ${accountIdHtml(user)}
     ${appearanceSectionHtml()}
@@ -3871,6 +3877,7 @@ async function ensureMenus() {
 function renderMenu() {
   if (!diningOn()) {
     els.menuHalls.innerHTML = "";
+    els.menuActions.innerHTML = "";
     els.menuBody.innerHTML = "";
     return;
   }
@@ -3890,12 +3897,15 @@ function renderMenu() {
         </button>`
         )
         .join("")}
-      <button class="hall-chip hall-chip--edit" type="button" data-action="settings" data-section="dining">${icon(noHalls ? "plus" : "gear")}<span>${noHalls ? "Choose halls" : "Edit halls"}</span></button>
     </div>`;
+  const actionLabel = noHalls ? "Choose halls" : "Edit halls";
+  if (els.menuActions.textContent.trim() !== actionLabel) {
+    els.menuActions.innerHTML = `<button class="btn btn--secondary intro-btn" type="button" data-action="settings" data-section="dining" aria-haspopup="dialog">${icon(noHalls ? "plus" : "gear")}<span>${actionLabel}</span></button>`;
+  }
   const entry = menus.data.get(pick);
   els.menuBody.setAttribute("aria-busy", String(!entry || Boolean(entry.pending)));
   els.menuBody.innerHTML = !entry || entry.pending ? menuSkeletonHtml() : entry.error ? menuErrorHtml(pick, entry.error) : menuCardHtml(pick, entry.meal, near);
-  els.menuSub.textContent = ids.length > 1 ? `The next meal at your ${ids.length} dining halls` : "The next meal at your dining hall";
+  els.menuSub.textContent = ids.length > 1 ? `The next meal at your ${ids.length} dining halls, dish by dish.` : "The next meal at your dining hall, dish by dish.";
   if (focusedHall != null) $(`[data-hall="${CSS.escape(focusedHall)}"]`, els.menuHalls)?.focus({ preventScroll: true });
   else if (focusedDish != null) $(`[data-dish="${CSS.escape(focusedDish)}"]`, els.menuBody)?.focus({ preventScroll: true });
 }
@@ -4130,7 +4140,7 @@ function recentCardHtml(m) {
             place ? `<span class="recent-card__place">${SEP}${esc(place)}</span>` : ""
           }</span>
           <span class="recent-card__foods">${SEP}${names ? esc(names) : "No foods found"}</span>
-          <span class="recent-card__kcal">${SEP}${kcal ? rangeHtml(kcal, "kcal") : '<span class="value__none">Not counted</span>'}</span>
+          <span class="recent-card__kcal">${SEP}${kcal ? rangeHtml(kcal, "kcal", undefined, { stack: true }) : '<span class="value__none">Not counted</span>'}</span>
         </span>
         <span class="meal__chev" aria-hidden="true">${icon("chevron-right")}</span>
       </button>
@@ -4238,10 +4248,12 @@ let panelRestore = true;
 let panelOpener = null;
 let pressedPanelBackdrop = false;
 
-function setPanelContent({ kicker, title, html, kind }) {
+function setPanelContent({ kicker, title, intro = "", html, kind }) {
   els.panel.dataset.kind = kind;
   els.panelKicker.textContent = kicker;
   els.panelTitle.textContent = title;
+  els.panelIntro.textContent = intro;
+  els.panelIntro.hidden = !intro;
   els.panelBody.innerHTML = html;
 }
 
@@ -4337,8 +4349,9 @@ function renderAlertsPanel({ refocus = true } = {}) {
          <p class="auth-switch">${settingsLinkHtml("Add favorites", "favorites")}</p>`;
   openPanel(
     {
-      kicker: "Next 7 days",
+      kicker: "Alerts",
       title: alerts.length ? "Your favorites on the menu" : "Nothing on the menu yet",
+      intro: "When a dish you starred is served at your halls in the next 7 days.",
       html,
       kind: "alerts",
     },
@@ -5107,6 +5120,8 @@ function renderSettingsBody() {
   if (!prefs) return;
   els.accountKicker.textContent = user ? "Settings" : "MealScholar";
   els.accountTitle.textContent = user ? user.name || "Your account" : "Settings";
+  els.accountIntro.textContent = diningOn() ? "Your goal, your halls and diet, your alerts and how the app looks." : "Your goal, your diet and how the app looks.";
+  els.accountIntro.hidden = false;
   const section = (id, title, body) => `
     <section class="account__section settings" id="settings-${id}" aria-labelledby="settings-${id}-title" data-prefs-root data-mode="settings" data-section="${id}">
       <h3 id="settings-${id}-title" class="account__section-title" tabindex="-1">${title}</h3>

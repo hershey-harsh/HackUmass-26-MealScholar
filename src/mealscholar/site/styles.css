@@ -7244,3 +7244,635 @@ body[data-drop="on"]::after {
     grid-column: 1 / -1;
   }
 }
+
+/* ======================================================================================
+   Quiet shell. One page, one job: every tab opens with a small label, its title and one sentence,
+   its quiet actions on the right, so the content starts at the same height on every tab. Neutral
+   text and hairlines; colour only where it means something. Lists are rows divided by hairlines;
+   the raised boxes are the calorie panel, the upcoming meal and the things that float (the dock,
+   the + and the sheets).
+   ====================================================================================== */
+
+:root {
+  /* The current link in the sidebar and the dock: a quiet fill of the ink. */
+  --sel: rgba(28, 28, 28, 0.075);
+  --hover-fill: rgba(28, 28, 28, 0.045);
+  --hair: var(--line);
+}
+
+:root[data-theme="dark"] {
+  --sel: rgba(238, 240, 242, 0.1);
+  --hover-fill: rgba(238, 240, 242, 0.06);
+}
+
+/* Small labels in sentence case, never spaced capitals. */
+.eyebrow,
+.dishes__cat {
+  font: 500 0.78125rem / 1.45 var(--font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* ---- the top bar: slim, on the surface, a hairline under it */
+.topbar {
+  background: var(--surface);
+  box-shadow: 0 1px 0 var(--hair);
+}
+
+.topbar.is-scrolled {
+  box-shadow: 0 1px 0 var(--hair);
+}
+
+.pilot {
+  box-shadow: none;
+}
+
+/* The account button: initials on a quiet fill, not an ink disc. */
+.avatar {
+  background: var(--surface-2);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--hair);
+  font-size: 0.875rem;
+}
+
+@media (hover: hover) {
+  button.avatar:hover {
+    background: var(--line);
+  }
+}
+
+.icon-btn.bell {
+  background: none;
+}
+
+@media (hover: hover) {
+  .icon-btn.bell:hover {
+    background: var(--hover-fill);
+  }
+}
+
+/* ---- page heads: label, title, one sentence with its quiet actions */
+.page-head,
+.dash-head {
+  display: grid;
+  gap: 2px;
+  padding: 4px 4px 0;
+}
+
+.page-head__label {
+  min-height: 1.2em;
+  color: var(--label);
+  font: 500 0.78125rem / 1.45 var(--font-sans);
+}
+
+.page-head .view-title,
+.dash-head .view-title {
+  font: 400 2rem / 1.1 var(--font-sans);
+  letter-spacing: -0.025em;
+}
+
+.intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 44px;
+  margin-top: 4px;
+}
+
+.intro__text {
+  flex: 1 1 16rem;
+  min-width: 0;
+  max-width: 80ch;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.intro__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  margin-left: auto;
+}
+
+.intro__actions:empty {
+  display: none;
+}
+
+/* Quiet actions in the intro row: our outline button, a size smaller. */
+.intro-btn {
+  min-height: 44px;
+  padding: 0 16px 0 14px;
+  gap: 7px;
+  font-size: 0.875rem;
+  box-shadow: none;
+}
+
+.intro-btn .icon {
+  width: 17px;
+  height: 17px;
+}
+
+@media (hover: hover) {
+  .intro-btn:hover {
+    background: var(--surface-2);
+  }
+}
+
+.datenav {
+  gap: 4px;
+}
+
+.datenav__btn,
+.datenav__today {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+
+.datenav__btn:disabled {
+  box-shadow: none;
+}
+
+/* The page under its head: the same gap on every tab. */
+.today,
+.menu-view,
+.week-view {
+  gap: 20px;
+}
+
+/* ---- section titles inside a page: small and plain */
+:is(.today, .menu-view, .week-view) .section-head {
+  padding: 0 4px;
+}
+
+:is(.today, .menu-view, .week-view) .section-title {
+  font: 500 1rem / 1.35 var(--font-sans);
+  letter-spacing: -0.005em;
+}
+
+/* ---- the first-time location question: a quiet row, not a card */
+.locate-card {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--hair);
+  animation: none;
+}
+
+.locate-card__icon {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+
+/* ---- the health score and the nutrients: open on the page, divided by hairlines */
+.today .score {
+  padding: 14px 4px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-bottom: 1px solid var(--hair);
+}
+
+.today .score__bar {
+  height: 6px;
+}
+
+.today .stats-block {
+  gap: 0;
+}
+
+.today .stats {
+  gap: 0;
+}
+
+.today .stat {
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-bottom: 1px solid var(--hair);
+  padding: 12px 4px;
+}
+
+@container stats (min-width: 20rem) {
+  .today .stats {
+    gap: 0;
+  }
+
+  .today .stat {
+    padding: 12px 14px 14px;
+    border-left: 1px solid var(--hair);
+  }
+
+  .today .stat:nth-child(3n + 1) {
+    padding-left: 4px;
+    border-left: 0;
+  }
+}
+
+.today .stats__note {
+  padding-top: 10px;
+  font-size: 0.8125rem;
+}
+
+/* ---- Recently uploaded: rows, not cards */
+.recent {
+  gap: 0;
+}
+
+.recent > li + li {
+  border-top: 1px solid var(--hair);
+}
+
+.recent-card {
+  grid-template-columns: 44px minmax(0, 1fr) auto 18px;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 2px;
+  min-height: 64px;
+  padding: 12px 6px;
+  border-radius: 12px;
+  background: none;
+  box-shadow: none;
+  transition: background-color var(--dur-1) linear;
+}
+
+.recent-card:active {
+  transform: none;
+  background: var(--sel);
+}
+
+.recent-card[aria-current="true"] {
+  background: var(--sel);
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  .recent-card:hover:not([aria-current="true"]) {
+    background: var(--hover-fill);
+    box-shadow: none;
+  }
+}
+
+.recent-card__photo {
+  grid-row: 1 / 3;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--hair);
+}
+
+.recent-card__photo .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.recent-card__body {
+  display: contents;
+}
+
+.recent-card__when {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  font: 500 0.9375rem / 1.35 var(--font-sans);
+}
+
+.recent-card__time::before,
+.recent-card__place::before {
+  content: "\00a0· ";
+}
+
+.recent-card__foods {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: start;
+  font-size: 0.8125rem;
+  -webkit-line-clamp: 1;
+}
+
+.recent-card__kcal {
+  grid-column: 3;
+  grid-row: 1 / 3;
+  margin: 0;
+  text-align: right;
+}
+
+.recent-card__kcal .value--stack {
+  justify-items: end;
+}
+
+.recent-card__kcal strong {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.recent-card__kcal .value__range {
+  font-size: 0.78125rem;
+}
+
+.recent-card .meal__chev {
+  grid-column: 4;
+  grid-row: 1 / 3;
+  color: var(--label);
+}
+
+.recent-card .meal__chev .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.recent__empty {
+  padding: 14px 4px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-top: 1px solid var(--hair);
+}
+
+/* The list starts with a hairline under its title. */
+.recent {
+  border-top: 1px solid var(--hair);
+}
+
+.recent-block {
+  gap: 8px;
+}
+
+/* ---- the week strip: open on the page, no box */
+.strip {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* ---- Menu: the meal on the page itself; rows stay hairline-divided */
+#menu-body > .menu-card {
+  padding: 4px 4px 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+#menu-body > .menu-card .menu-card__head {
+  padding-inline: 0;
+}
+
+#menu-body .menu-cat .dishes__cat {
+  padding-inline: 4px;
+}
+
+.menu-card__meal {
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.menu-card__meal strong {
+  font-weight: 500;
+}
+
+.hall-chip {
+  font-size: 0.875rem;
+}
+
+.hall-chip:not([aria-pressed="true"]) {
+  border-color: var(--hair);
+  background: none;
+}
+
+/* ---- Week: the chart and the vitamins open on the page */
+.week-view .week {
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-top: 1px solid var(--hair);
+  border-bottom: 1px solid var(--hair);
+}
+
+.week-view .micro-card {
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  border-top: 1px solid var(--hair);
+}
+
+/* ---- Alerts and lists in sheets: rows */
+.options.alerts {
+  gap: 0;
+  border-top: 1px solid var(--hair);
+}
+
+.options.alerts > li {
+  border-bottom: 1px solid var(--hair);
+}
+
+.alerts .option {
+  min-height: 60px;
+  padding: 10px 6px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+}
+
+@media (hover: hover) {
+  .alerts .option:hover:not(:disabled) {
+    background: var(--hover-fill);
+  }
+}
+
+.alerts .option__meta {
+  font: 400 0.78125rem / 1.35 var(--font-sans);
+  color: var(--label);
+}
+
+/* ---- sheets: the intro sentence under the title */
+.sheet__intro {
+  margin-top: 2px;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.sheet__title {
+  font-weight: 400;
+}
+
+/* ---- the dock: the same quiet current tab as the sidebar */
+.dock .tab[aria-current="page"] {
+  background: var(--sel);
+  color: var(--ink);
+}
+
+/* ---- laptops: the 240px sidebar */
+@media (min-width: 64em) {
+  :root {
+    --rail-w: 240px;
+    --bar-h: 56px;
+  }
+
+  body[data-screen="app"] .rail {
+    gap: 0;
+    padding: calc(var(--safe-top) + 14px) 12px 16px calc(12px + var(--safe-left));
+    border-right: 1px solid var(--hair);
+  }
+
+  .rail__brand {
+    justify-content: flex-start;
+    gap: 10px;
+    min-height: 44px;
+    padding-inline: 8px;
+    font-size: 1.0625rem;
+    font-weight: 500;
+  }
+
+  .rail__mark {
+    width: 28px;
+    height: 28px;
+  }
+
+  .rail__name {
+    display: inline;
+  }
+
+  .rail__nav {
+    margin-top: 14px;
+  }
+
+  .rail__nav,
+  .rail__foot {
+    gap: 2px;
+  }
+
+  .rail__foot {
+    padding-top: 12px;
+  }
+
+  .rail .tab {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 11px;
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 10px;
+    background: none;
+    color: var(--ink-2);
+    font: 400 0.875rem / 1.2 var(--font-sans);
+    transition: background-color var(--dur-1) linear, color var(--dur-1) linear;
+  }
+
+  .rail .tab .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .rail .tab[aria-current="page"] {
+    background: var(--sel);
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .rail__dot {
+    top: 12px;
+    right: auto;
+    left: 25px;
+  }
+
+  body[data-screen="app"] .topbar__inner {
+    height: var(--bar-h);
+  }
+
+  .page-head,
+  .dash-head {
+    padding-top: 8px;
+  }
+
+  .page-head .view-title,
+  .dash-head .view-title {
+    font-size: 2.25rem;
+  }
+
+  .today,
+  .menu-view,
+  .week-view {
+    gap: 24px;
+  }
+
+  /* The week strip sits under the intro, on the left, like a toolbar. */
+  body[data-prefs="on"] .strip {
+    display: grid;
+    justify-self: start;
+    width: 100%;
+    max-width: 30rem;
+    margin: -8px 0 0 -6px;
+  }
+
+  .menu-card__meal {
+    font-size: 1.75rem;
+  }
+
+  #menu-body > .menu-card {
+    padding: 0 4px;
+  }
+}
+
+@media (hover: hover) and (min-width: 64em) {
+  .rail .tab:hover:not([aria-current="page"]) {
+    background: var(--hover-fill);
+    color: var(--ink);
+  }
+}
+
+@media (min-width: 80em) {
+  .rail .tab {
+    gap: 11px;
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 10px;
+    font-size: 0.875rem;
+  }
+
+  .rail .tab .icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .rail__dot {
+    top: 12px;
+    left: 25px;
+  }
+}
+
+@media (min-width: 64em) and (max-width: 79.99em) {
+  body[data-screen="app"] .rail {
+    padding-inline: calc(12px + var(--safe-left)) 12px;
+  }
+}
+
+/* ---- pass 2 */
+.intro__text {
+  flex: 1 1 0;
+  min-width: 10rem;
+}
+
+.recent-card {
+  align-content: center;
+}
+
+.strip__name {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Laptops with the week strip: the strip picks the day, so the day arrows would only repeat it. */
+@media (min-width: 64em) {
+  body[data-prefs="on"] .datenav__btn {
+    display: none;
+  }
+}
