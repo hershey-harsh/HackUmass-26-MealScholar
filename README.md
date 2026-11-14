@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://mealscholar.mannava.org">
+<a href="https://app.mealscholar.health">
   <img src="brand/mark.svg" alt="MealScholar logo: a smiling plate wearing a graduation cap, with fork and knife eyes" width="88" height="88">
 </a>
 
@@ -21,7 +21,7 @@ A HackUMass XIV project, piloting at UMass.
   <img alt="JavaScript" src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&amp;logoColor=black">
 </p>
 
-[Open the app](https://mealscholar.mannava.org) · [Visit the website](https://hackumass.mannava.org)
+[Open the app](https://app.mealscholar.health) · [Visit the website](https://mealscholar.health)
 
 [Features](#at-a-glance) · [Quick start](#quick-start) · [Workflow](#workflow) · [Development](#development) · [Team](#team)
 
@@ -30,39 +30,43 @@ A HackUMass XIV project, piloting at UMass.
 ---
 
 MealScholar is a photo-based food diary built for students, piloting at UMass.
-Gemini identifies the foods and estimates their portions; USDA FoodData Central supplies
-the nutrition facts. Review the sources, correct a match and log your meal.
+Gemini identifies foods and estimates their portions; campus dining labels and USDA FoodData Central
+supply the nutrition facts. Review the sources, correct a match and log your meal.
 
 > [!IMPORTANT]
-> **The AI never invents nutrient numbers.** Nutrients come from USDA FoodData Central and
-> arithmetic, not from the model.
+> **The AI never invents nutrient numbers.** Nutrients come from campus labels or USDA FoodData
+> Central and arithmetic, not from the model.
 
 <p align="center">
-  <a href="https://mealscholar.mannava.org">
-    <img src=".github/assets/mealscholar-app.png" alt="MealScholar's Analyze screen with photo upload, an opt-in location switch and an explanation of the nutrition workflow." width="960">
+  <a href="https://app.mealscholar.health">
+    <img src=".github/assets/mealscholar-app.png" alt="MealScholar's photo upload screen with an opt-in location switch and an explanation of the nutrition workflow." width="960">
   </a>
   <br>
-  <sub>The Analyze screen, captured from the local app. Choose a meal photo to get started.</sub>
+  <sub>Photo upload, captured from an earlier local app build.</sub>
 </p>
 
 ## At a glance
 
 | Feature | What you get |
 |---|---|
-| **Photo analysis** | JPEG, PNG and HEIC uploads up to 25 MB; foods and portion estimates with boxes on the photo. |
+| **Photo analysis** | JPEG, PNG and HEIC uploads up to 25 MB and 50 megapixels; foods and portion estimates with boxes on the photo. |
 | **Honest uncertainty** | Low, likely and high values for portions and nutrients, with at most one clarifying question. |
 | **Check the match** | Inspect the USDA source, search alternatives and correct the selected food. |
 | **Your food diary** | Meals by day, calorie and nutrient totals, % Daily Value and weekly views. |
-| **Phone-first app** | Today and Analyze tabs, camera entry points and Add to Home Screen. |
+| **Phone-first app** | Today, Menu and Week views, camera entry points and Add to Home Screen. |
 | **Campus dining APIs** | UMass Dining locations, menus, dish search, nearby halls and favorites alerts. |
 
 ### Current limitations
 
-- **USDA-only photo matching.** Dining-menu browsing is implemented, but campus-menu nutrients
-  are not yet part of photo analysis.
-- **Account UI in progress.** Registration, sessions, per-user diaries, goals and preference
-  APIs exist; the sign-in and onboarding screens are still being completed.
-- **No email delivery yet.** Account emails queue to an outbox; SMTP delivery is not implemented.
+- **Campus matching still needs app integration.** The backend can use a campus label when
+  `POST /api/meals` receives an explicit `location_id`; it does not infer a hall from GPS or saved
+  preferences. The browser upload does not yet send that hall, so its photo results still use USDA.
+- **Accounts depend on deployment settings.** Sign-in and onboarding screens exist. Production must
+  require authentication; disabling it shares one local diary and preferences among all visitors,
+  not a private diary per device.
+- **Email delivery is opt-in configuration.** SMTP is implemented, but the default `outbox` provider
+  only queues messages. The app's SMTP-availability wording and delivered-email smoke checks remain
+  open in [TODO.md](TODO.md).
 
 See [TODO.md](TODO.md) for remaining work.
 
@@ -101,7 +105,8 @@ uv run mealscholar serve
 
 Open **[localhost:8000](http://127.0.0.1:8000)**, choose a photo and review the detected foods.
 The one-time import downloads roughly 17 MB and creates `~/.mealscholar/fdc.sqlite`.
-Interactive API documentation is at **[/api/docs](http://127.0.0.1:8000/api/docs)**.
+The local interactive API documentation is at **[/api/docs](http://127.0.0.1:8000/api/docs)**;
+the public deployment may restrict developer-documentation routes.
 
 <details>
 <summary><strong>Testing from your phone</strong></summary>
@@ -121,16 +126,18 @@ Keep this single-user development server on a trusted network.
 ```mermaid
 flowchart LR
     Photo(["Photo + context<br/>Location is opt-in"]) --> Vision["Gemini vision<br/>Foods + portions"]
-    Vision --> USDA[("USDA lookup<br/>Matches + alternatives")]
-    USDA --> Math["Nutrient math<br/>Low · likely · high"]
+    Menu[("Optional campus menu<br/>Explicit hall required")] --> Vision
+    Vision --> Sources["Matched campus label<br/>USDA otherwise"]
+    Sources --> Math["Nutrient math<br/>Low · likely · high"]
     Math --> Result["Meal result<br/>Ranges + % Daily Value"]
     Result --> Diary(["Food diary<br/>Daily + weekly views"])
     Result -.->|Optional answer| Refine["Gemini refinement<br/>Text only"]
-    Refine --> USDA
+    Refine --> Sources
 ```
 
-Loose USDA matches are suggestions, not counted foods, until a match is selected.
-Choosing another USDA food recomputes the result without another photo analysis.
+USDA-only foods without a close match are suggestions, not counted foods, until a match is selected.
+Choosing another USDA food recomputes the result without another photo analysis; doing so on a
+campus item switches its nutrient source to USDA.
 
 
 ## Command line
@@ -195,18 +202,31 @@ Set these in `.env` or your shell.
 | `MEALSCHOLAR_AUTH_REQUIRED` | `1` | Require sign-in for meal and diary routes. |
 | `MEALSCHOLAR_PUBLIC_URL` | `http://127.0.0.1:8000` | Public origin for account links and cross-site checks. |
 | `MEALSCHOLAR_COOKIE_SECURE` | `1` | HTTPS-only session cookies. Set to `0` only when testing accounts over local HTTP. |
-| `MEALSCHOLAR_EMAIL_PROVIDER` | `outbox` | Queue account emails; SMTP delivery is not implemented yet. |
+| `MEALSCHOLAR_EMAIL_PROVIDER` | `outbox` | `outbox` queues account mail without sending; `smtp` sends through the configured relay. |
+| `MEALSCHOLAR_SMTP_HOST` | Not set | SMTP relay hostname; required with the `smtp` provider. |
+| `MEALSCHOLAR_SMTP_PORT` | `587` | SMTP submission port. The sender uses STARTTLS, not implicit TLS on port 465. |
+| `MEALSCHOLAR_SMTP_USER` | Not set | Relay username, when authentication is required. |
+| `MEALSCHOLAR_SMTP_PASSWORD` | Not set | Relay password; keep it outside version control. |
+| `MEALSCHOLAR_SMTP_STARTTLS` | `1` | Upgrade the SMTP connection with STARTTLS. Disable only for a trusted local relay. |
+| `MEALSCHOLAR_SMTP_TIMEOUT` | `10` | Timeout in seconds for each SMTP socket operation. |
+| `MEALSCHOLAR_EMAIL_FROM` | Not set | From address, optionally `MealScholar <no-reply@example.com>`; required with `smtp`. |
 | `MEALSCHOLAR_DEMO_VERIFY_LINK` | `0` | Demo-only verification links in responses; never enable publicly. |
 | `MEALSCHOLAR_DEV_OUTBOX` | `0` | Development-only outbox endpoint; never enable publicly. |
 
-Do not deploy with in-memory accounts or expose the development outbox. Email delivery must be
-configured and implemented before relying on password-reset emails.
+For production, use persistent accounts, require sign-in and set `MEALSCHOLAR_PUBLIC_URL` to
+`https://app.mealscholar.health`. Keep secure cookies enabled and both development email flags off.
+Configure SMTP and verify delivered confirmation/reset links before relying on email. Favorites
+digests also need an explicit schedule; SMTP configuration alone does not schedule them.
+
+Meals and learned portions remain in `MEALSCHOLAR_HOME/diary.sqlite`; MongoDB stores accounts and
+preferences, not the diary. Back up both stores and verify restoration.
 
 </details>
 
 ## Rules the code enforces
 
-- **Data, not guesses:** the model estimates foods and grams; USDA data supplies the nutrients.
+- **Data, not guesses:** the model estimates foods and amounts; a matching campus label supplies
+  the main nutrients when a hall is explicitly selected, with USDA as fallback and micronutrient source.
 - **Ranges stay visible:** photo-based amounts have low/likely/high estimates. A meal's or a day's
   range adds its foods' errors as partly correlated (`compute.SHARED_ERROR`), not every low and
   every high at once. Exact-weight corrections through the CLI or API can collapse a range.
@@ -216,18 +236,24 @@ configured and implemented before relying on password-reset emails.
   only days with logged meals.
 - **Your goals, not prescriptions:** calorie goals are optional and user-selected. % Daily Value
   is a label reference, not a prescribed goal. No insulin or carb-dosing advice.
+- **Bounded image decoding:** photos over 50 megapixels are refused before their pixels are decoded.
+  Web uploads also have a 25 MB encoded-body limit and return 413 with resizing guidance.
 
 ## Sites and deployment
 
 | Site | Address | Source |
 |---|---|---|
-| **App** | [mealscholar.mannava.org](https://mealscholar.mannava.org) | [`src/mealscholar/site/`](src/mealscholar/site/) + [`web.py`](src/mealscholar/web.py) |
-| **Landing page** | [hackumass.mannava.org](https://hackumass.mannava.org) | [`web/`](web/) |
+| **App** | [app.mealscholar.health](https://app.mealscholar.health) | [`src/mealscholar/site/`](src/mealscholar/site/) + [`web.py`](src/mealscholar/web.py) |
+| **Landing page** | [mealscholar.health](https://mealscholar.health) | [`web/`](web/) |
 
 Both sites deploy on pushes to `main` through
 [`deploy-site.yml`](.github/workflows/deploy-site.yml) on Harsh's Mac mini. Both frontends use
 plain HTML/CSS/JavaScript, with no build step. Coordinate deploy changes through the team board
 as described in [AGENTS.md](AGENTS.md).
+
+The app sends `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`
+and `X-Frame-Options: DENY` on pages, static files and handled API errors. HTTPS upgrading/HSTS and
+the landing page's response policy are configured separately at the deployment layer.
 
 ## Development
 
