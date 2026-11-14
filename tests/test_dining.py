@@ -109,30 +109,37 @@ def menu(tid, name, day, meals):
 
 
 def menu_rows(menus):
-    """The menu_items documents the scraper writes next to the daily_menus ones: one per listed item."""
-    return [
-        {
-            "location_id": doc["location_id"],
-            "date": doc["date"],
-            "name": i["name"],
-            "meal": meal["meal"],
-            "category": category["category"],
-            "dish_id": i["dish_id"],
-            "serving_size": i["serving_size"],
-            "calories": i["calories"],
-            "nutrition": {
-                "protein_g": i["protein_g"],
-                "total_carb_g": i["total_carb_g"],
-                "total_fat_g": i["total_fat_g"],
-                "sodium_mg": i["sodium_mg"],
-            },
-            "healthfulness_score": i["healthfulness_score"],
-        }
-        for doc in menus
-        for meal in doc["meals"]
-        for category in meal["categories"]
-        for i in category["items"]
-    ]
+    """The menu_items documents the scraper writes next to the daily_menus ones: one per listed
+    item (the odd documents of test_odd_documents_are_read_carefully have none)."""
+    rows = []
+    for doc in menus:
+        for meal in doc["meals"]:
+            if not isinstance(meal, dict):
+                continue
+            for category in meal["categories"]:
+                for i in category["items"]:
+                    if not isinstance(i, dict) or "dish_id" not in i:
+                        continue
+                    rows.append(
+                        {
+                            "location_id": doc["location_id"],
+                            "date": doc["date"],
+                            "name": i["name"],
+                            "meal": meal["meal"],
+                            "category": category["category"],
+                            "dish_id": i["dish_id"],
+                            "serving_size": i["serving_size"],
+                            "calories": i["calories"],
+                            "nutrition": {
+                                "protein_g": i["protein_g"],
+                                "total_carb_g": i["total_carb_g"],
+                                "total_fat_g": i["total_fat_g"],
+                                "sodium_mg": i["sodium_mg"],
+                            },
+                            "healthfulness_score": i["healthfulness_score"],
+                        }
+                    )
+    return rows
 
 
 def dates(*days):
@@ -972,8 +979,9 @@ def test_odd_menu_items_are_read_carefully(clock):
         nutrition = {"protein_g": protein, "total_carb_g": carbs, "total_fat_g": fat, **more}
         return {"calories": kcal, "nutrition": nutrition}
 
+    odd = label("150", 2, sodium_mg=-5, sugars_g="x")  # a negative or unreadable nutrient is left out
     rows = [
-        row(" Hash  Browns ", "Lunch", serving_size=4, healthfulness_score=9, **label("150", 2, sodium_mg=-5, sugars_g="x")),
+        row(" Hash  Browns ", "Lunch", serving_size=4, healthfulness_score=9, **odd),
         row("Fountain Drink", **label(None)),  # no calories: dropped
         row("12 oz Regular Coffee", serving_size="12 OZL", healthfulness_score=7, **label(0)),  # 0 kcal, 0/0/0: kept
         row("20 oz Latte", **label(0, protein=5)),  # 0 kcal next to protein: dropped
