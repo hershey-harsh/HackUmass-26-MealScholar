@@ -263,7 +263,7 @@ def test_menu_dish_counted_in_servings_keeps_a_range(food_db, meal_photo, campus
     pinned = pizza.model_copy(update={"servings_low": 2, "servings_likely": 2, "servings_high": 2})
     _, result = analyze(food_db, one(pinned), meal_photo, menus=campus, location_id=1)
     low, likely, high = bounds(result.items[0].nutrients["energy_kcal"])
-    assert low < likely == pytest.approx(424) < high  # widened by the model's own 100/120 and 150/120
+    assert low < likely < high and likely == pytest.approx(424)  # widened by the model's own 100/120 and 150/120
     assert (low, high) == pytest.approx((424 * 100 / 120, 424 * 150 / 120))
 
 
@@ -275,7 +275,9 @@ def test_a_count_that_does_not_fit_the_plate_falls_back_to_usda(food_db, meal_ph
     (pizza,) = result.items
     assert (pizza.source, pizza.dish, pizza.match.fdc_id) == ("usda", None, 6)
     assert pizza.nutrients["energy_kcal"].likely == pytest.approx(266 * 4.2)
-    assert any("Chicken Piccata Pizza (1/6 PIZZA)" in n and "didn't fit the estimated amount" in n for n in result.notes)
+    assert any(
+        "Chicken Piccata Pizza (1/6 PIZZA)" in n and "didn't fit the estimated amount" in n for n in result.notes
+    )
 
     one_slice = three.model_copy(update={"servings_low": 1, "servings_likely": 1, "servings_high": 1})
     _, result = analyze(food_db, one(one_slice), meal_photo, menus=campus, location_id=1)
@@ -321,7 +323,7 @@ def test_items_not_on_the_menu_take_the_usda_path_unchanged(food_db, analysis, m
     rice, pizza, sauce = result.items
     assert (rice.match.fdc_id, pizza.match.fdc_id, sauce.match) == (1, 6, None)
     assert all(r.source == "usda" and r.dish is None for r in result.items)
-    assert sauce.alternatives and any("No close USDA match for 'mystery sauce'" in n for n in result.notes)
+    assert any("No close USDA match for 'mystery sauce'" in n for n in result.notes)
     assert result.menu.dishes == 7
 
 

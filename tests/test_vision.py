@@ -3,6 +3,7 @@
 import hashlib
 import importlib.util
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -81,6 +82,7 @@ def test_bench_fingerprint_hashes_the_schema_as_sent():
     path = Path(__file__).resolve().parent.parent / "bench" / "run.py"
     spec = importlib.util.spec_from_file_location("bench_run", path)
     run = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = run  # dataclasses resolve string annotations through sys.modules
     spec.loader.exec_module(run)
     told = SYSTEM_PROMPT + REFINE_PROMPT + json.dumps(response_schema(), sort_keys=True)
     assert run.PROMPT == hashlib.sha256(told.encode()).hexdigest()[:8]
