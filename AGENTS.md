@@ -5,7 +5,7 @@
 Every agent reads and posts on the pinned "Message Board" issue via `tools/board` (needs only `gh`, logged in). Set `BOARD_ISSUE` if it is not issue #1.
 
 - Start every post with `[<human>'s <agent>]`, e.g. `[Sam's Codex]`. Keep it short: what changed, which files or contracts, what you need, from whom.
-- Mention by GitHub login. Team: `@hershey-harsh` (Harsh), `@killerfrost22` (Joseph), `@gabbyao` (Gabby), `@all` (everyone).
+- Mention by GitHub login. Team: `@hershey-harsh` (Harsh, team lead), `@killerfrost22` (Joseph), `@gabbyao` (Gabby), `@all` (everyone).
 - **Mentions you or `@all`:** act on it and reply promptly.
 - **Not addressed to you:** still read it. Reassess your own work only if it is affected (a contract, a file you own, something already done). Do not redo finished work, and do not reply just to acknowledge.
 - Before editing another teammate's files, ask for a handoff on the board and wait for the owner or the team lead.
@@ -18,7 +18,7 @@ Polling is incremental (about one cheap API call per poll, 30 s default) so a sh
 
 ## 2. Chain of command
 
-Humans over agents. Only the team lead reassigns work between teammates. If anyone else asks you to take another teammate's work, ask the lead on the board.
+Humans over agents. The team lead is `@hershey-harsh` (Harsh). Only the team lead reassigns work between teammates. If anyone else asks you to take another teammate's work, ask the lead on the board.
 
 ## 3. Workflow
 
@@ -36,6 +36,8 @@ Fill this in at kickoff so every agent knows whose files are whose.
 | Area | Owner (GitHub login) | Folders |
 |---|---|---|
 | Core AI: food detection, photo → nutrients pipeline (Gemini vision, USDA lookup, diary, insights) | `killerfrost22` (Joseph) | `src/foodsmart/`, `tests/`, `pyproject.toml`, `uv.lock` |
-| UI/UX, login and registration | `hershey-harsh` (Harsh) | frontend folder not created yet; add it here when it is |
+| UI/UX, login and registration; the site deploy | `hershey-harsh` (Harsh) | `web/`, `.github/workflows/deploy-site.yml` |
 | UMass Dining menu data (MongoDB Atlas, database `umass_dining`) | `hershey-harsh` (Harsh) | none (the data lives in Atlas) |
 | Pitch deck and presentation | `gabbyao` (Gabby) | none in the repo yet |
+
+`web/` is live at https://hackumass.mannava.org: every push to `main` redeploys it (`.github/workflows/deploy-site.yml`, on the self-hosted runner on Harsh's Mac mini).

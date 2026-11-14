@@ -1,0 +1,50 @@
+# Deploys web/ to https://hackumass.mannava.org on every push to main.
+#
+# It runs on the self-hosted runner on Harsh's Mac mini (label hackumass-deploy),
+# which copies web/ into ~/Services/hackumass/site. A local server (launchd job
+# org.mannava.hackumass.site) serves that folder and the hackumass Cloudflare
+# tunnel publishes it, so the new version is live when this job goes green.
+# Any __COMMIT__ / __DEPLOYED_AT__ in an .html file is replaced with the
+# deployed commit and time.
+name: Deploy site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time; a newer push waits for the running one, then deploys.
+concurrency:
+  group: deploy-site
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, hackumass-deploy]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Publish web/ to the site folder
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE="$HOME/Services/hackumass/site"
+          SHORT="${GITHUB_SHA:0:7}"
+          STAMP="$(date -u '+%Y-%m-%d %H:%M UTC')"
+          STAGE="$(mktemp -d)"
+          trap 'rm -rf "$STAGE"' EXIT
+          rsync -a --exclude '.*' web/ "$STAGE/"
+          find "$STAGE" -name '*.html' -exec sed -i '' -e "s/__COMMIT__/$SHORT/g" -e "s/__DEPLOYED_AT__/$STAMP/g" {} +
+          mkdir -p "$SITE"
+          rsync -a --delete --exclude '.*' "$STAGE/" "$SITE/"
+
+      - name: Check the site serves this commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS http://127.0.0.1:8710/ | grep -q "${GITHUB_SHA:0:7}"
+          echo "Live: https://hackumass.mannava.org (commit ${GITHUB_SHA:0:7})"
