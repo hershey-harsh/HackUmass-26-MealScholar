@@ -40,7 +40,7 @@ Fill this in at kickoff so every agent knows whose files are whose.
 | UMass Dining menu data | `hershey-harsh` (Harsh) | none, it's in MongoDB Atlas (db `umass_dining`) |
 | Pitch deck and video | `gabbyao` (Gabby) | `video/` |
 
-The site at https://hackumass.mannava.org is `web/`, and it redeploys on every push to `main`. It's plain static files, no build step. The deploy runs on Harsh's Mac mini, which only takes `deploy-site.yml` from `main` in a version Harsh approved, so use `ubuntu-latest` for other workflows and ask on the board before changing the deploy.
+The site at https://mealscholar.health is `web/` (the app is at https://app.mealscholar.health), and both redeploy on every push to `main`. It's plain static files, no build step. The deploy runs on Harsh's Mac mini, which only takes `deploy-site.yml` from `main` in a version Harsh approved, so use `ubuntu-latest` for other workflows and ask on the board before changing the deploy.
 
 ## 5. Website work
 
