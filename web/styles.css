@@ -871,6 +871,16 @@ html:not(.js) .theme { display: none; }
 .fan.is-fan .fan-card.is-jump, .fan.is-fan .fan-card.is-jump::after { transition: none; }
 .fan.is-fan .fan-card:not(.is-active) .fan-card__btns { opacity: .6; }
 .fan.is-fan .fan__ctrl { margin-top: -10px; }
+/* Phones: a smaller fan, one card peeking out on each side of the front one. */
+@media (max-width: 759px) {
+  .fan.is-fan {
+    --card-w: min(64vw, 250px);
+    --step: min(22vw, 92px);
+    overflow-x: clip;
+    margin-inline: -16px;
+    padding-inline: 16px;
+  }
+}
 /* Narrow fans (760–1100px) keep each title on one line, so the screen above it keeps its height. */
 .fan.is-fan .fan-card__title { font-size: clamp(16px, 1.25vw, 20px); }
 /* The text block barely shrinks with the card, so every fanned card gets a fixed 34px more

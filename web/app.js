@@ -144,10 +144,11 @@
   mark();
 })();
 
-// The hero's screens. From 760px they fan out: the active one in front, the others tucked
-// behind on both sides (each card gets --o, its place from the front, and --a, how far that is).
-// They move on every few seconds unless reduced motion is on; hovering, focusing or the pause
-// button stops that. Below 760px it is a sideways row that snaps, and the dots follow it.
+// The hero's screens fan out at every width: the active one in front, the others tucked behind
+// on both sides (each card gets --o, its place from the front, and --a, how far that is). Phones
+// get a smaller fan (styles.css). They move on every few seconds unless reduced motion is on;
+// hovering, focusing or the pause button stops that. Without JavaScript it stays a sideways row
+// that snaps.
 (function () {
   var d = document, w = window;
   var fan = d.querySelector('[data-fan]');
@@ -159,7 +160,7 @@
   var pauseBtn = fan.querySelector('[data-fan-pause]');
   var live = fan.querySelector('[data-fan-live]');
   var n = cards.length, half = Math.floor(n / 2);
-  var wide = w.matchMedia('(min-width: 760px)');
+  var wide = { matches: true, addEventListener: function () {} }; // fanned at every width
   var reduce = w.matchMedia('(prefers-reduced-motion: reduce)');
   var active = 0, timer = 0, held = false, userPaused = false, inView = true, lastO = [];
   var DELAY = 6000;
