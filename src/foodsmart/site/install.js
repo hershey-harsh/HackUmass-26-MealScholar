@@ -1,86 +1,207 @@
 // Add to Home Screen.
-// Android/Chrome: the browser's own install prompt, caught from beforeinstallprompt.
-// iPhone/iPad: Safari has no prompt, so a sheet shows the Share > Add to Home Screen steps.
-// Opens by itself when the page is loaded with ?install=1 (the landing page's button) and
-// never again once the app is already running from the Home Screen.
+// Chrome (Android and desktop): the browser's own install prompt, caught from beforeinstallprompt.
+// Safari on iPhone and iPad: there is no prompt, so a sheet shows the Share > Add to Home Screen steps.
+// [data-install] buttons stay hidden until one of those can work, and never show once the app runs
+// from the Home Screen. ?install=1 (the landing page's button) opens the sheet on load.
+// The sheet is a <dialog> opened with showModal(), like the app's other sheets: it sits above them
+// (the account sheet included), the page behind it is inert, Escape closes it, and focus goes back
+// to the button that opened it.
 (function () {
   var d = document, w = window;
   var standalone = w.matchMedia('(display-mode: standalone)').matches || w.navigator.standalone === true;
   var ua = w.navigator.userAgent || '';
-  var iOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && w.navigator.maxTouchPoints > 1);
-  var deferred = null;
+  var iPad = /iPad/.test(ua) || (/Macintosh/.test(ua) && w.navigator.maxTouchPoints > 1);
+  var iOS = iPad || /iPhone|iPod/.test(ua);
+  // Safari itself can add to the Home Screen; other browsers and in-app views on iOS may not.
+  var iosSafari = iOS && /Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA\/|DuckDuckGo|YaBrowser|FBAN|FBAV|Instagram|Line\//.test(ua);
+  var reduced = w.matchMedia('(prefers-reduced-motion: reduce)');
+  var bottomSheet = w.matchMedia('(max-width: 39.99em)');
+  var deferred = null; // the browser's install prompt, while there is one to show
+  var offered = false; // the browser has offered an install: it can install, prompt or not
+  var installed = false;
+  var opener = null;
+  var closeTimer = 0;
+
+  function available() {
+    return !standalone && !installed && (offered || iosSafari);
+  }
+
+  function sync() {
+    d.querySelectorAll('[data-install]').forEach(function (b) { b.hidden = !available(); });
+    var now = d.querySelector('#install-sheet [data-install-now]');
+    if (now) now.hidden = !deferred;
+  }
 
   w.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
     deferred = e;
-    d.querySelectorAll('[data-install]').forEach(function (b) { b.hidden = false; });
+    offered = true;
+    sync();
   });
-  w.addEventListener('appinstalled', function () { deferred = null; close(); });
+  w.addEventListener('appinstalled', function () {
+    deferred = null;
+    installed = true;
+    sync();
+    hide(true);
+  });
+
+  var share = '<svg class="install__glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11M8 7.5l4-4 4 4M7 11H6a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 18 11h-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var steps = iOS
+    ? ['Tap the <b>Share</b> button ' + share + ' at the ' + (iPad ? 'top' : 'bottom') + ' of Safari.',
+       'Scroll down and tap <b>Add to Home Screen</b>.',
+       'Tap <b>Add</b>. MealScholar appears with your other apps.']
+    : ['Open the browser <b>menu</b> (the three dots).',
+       'Tap <b>Add to Home screen</b> or <b>Install app</b>.',
+       'Tap <b>Add</b>. MealScholar appears with your other apps.'];
 
   function sheet() {
     var el = d.getElementById('install-sheet');
     if (el) return el;
-    el = d.createElement('div');
+    el = d.createElement('dialog');
     el.id = 'install-sheet';
-    el.className = 'install';
-    el.hidden = true;
+    el.className = 'sheet sheet--install';
+    el.setAttribute('aria-labelledby', 'install-title');
+    el.setAttribute('aria-describedby', 'install-lede');
     el.innerHTML =
-      '<div class="install__backdrop" data-install-close></div>' +
-      '<div class="install__card" role="dialog" aria-modal="true" aria-labelledby="install-title">' +
-        '<div class="install__grab" aria-hidden="true"></div>' +
-        '<div class="install__head"><img class="install__icon" src="icons/icon-192.png" alt="" width="56" height="56">' +
-          '<div><h2 id="install-title">Add MealScholar to your Home Screen</h2>' +
-          '<p>Opens like an app, with no app store download.</p></div></div>' +
-        '<ol class="install__steps">' +
-          (iOS
-            ? '<li><span class="install__num">1</span><span>Tap the <b>Share</b> button <svg class="install__glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5v11M8 7.5l4-4 4 4M7 11H6a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 18 11h-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> at the bottom of Safari.</span></li>' +
-              '<li><span class="install__num">2</span><span>Scroll down and tap <b>Add to Home Screen</b>.</span></li>' +
-              '<li><span class="install__num">3</span><span>Tap <b>Add</b>. MealScholar appears with your other apps.</span></li>'
-            : '<li><span class="install__num">1</span><span>Open the browser <b>menu</b> (the three dots).</span></li>' +
-              '<li><span class="install__num">2</span><span>Tap <b>Add to Home screen</b> or <b>Install app</b>.</span></li>' +
-              '<li><span class="install__num">3</span><span>Tap <b>Add</b>. MealScholar appears with your other apps.</span></li>') +
-        '</ol>' +
-        '<div class="install__actions">' +
-          (deferred ? '<button type="button" class="btn btn--primary" data-install-now>Install now</button>' : '') +
-          '<button type="button" class="btn" data-install-close>Not now</button>' +
+      '<div class="sheet__inner">' +
+        '<div class="sheet__grab" aria-hidden="true"><span></span></div>' +
+        '<div class="sheet__head">' +
+          '<div class="install__head">' +
+            '<img class="install__icon" src="/icons/icon-192.png" alt="" width="56" height="56">' +
+            '<div><h2 id="install-title" class="install__title" tabindex="-1">Add MealScholar to your Home Screen</h2>' +
+            '<p id="install-lede" class="install__lede">Opens like an app, with no app store download.</p></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="sheet__body">' +
+          '<ol class="install__steps">' + steps.map(function (s, i) {
+            return '<li><span class="install__num" aria-hidden="true">' + (i + 1) + '</span><span>' + s + '</span></li>';
+          }).join('') + '</ol>' +
+          '<div class="install__actions">' +
+            '<button type="button" class="btn btn--primary btn--block" data-install-now hidden>Install now</button>' +
+            '<button type="button" class="btn btn--secondary btn--block" data-install-close>Not now</button>' +
+          '</div>' +
         '</div>' +
       '</div>';
     d.body.appendChild(el);
+
+    var pressedBackdrop = false;
+    el.addEventListener('pointerdown', function (e) { pressedBackdrop = e.target === el; });
     el.addEventListener('click', function (e) {
-      if (e.target.closest('[data-install-close]')) close();
-      if (e.target.closest('[data-install-now]')) promptNow();
+      if (e.target === el && pressedBackdrop) return hide(); // a tap on the dimmed page
+      if (e.target.closest('[data-install-close]')) hide();
+      else if (e.target.closest('[data-install-now]')) promptNow(opener);
     });
+    // Escape and the Android back gesture: animate out like the other sheets.
+    el.addEventListener('cancel', function (e) { e.preventDefault(); hide(); });
+    el.addEventListener('close', function () {
+      clearTimeout(closeTimer);
+      el.classList.remove('is-closing');
+      el.style.transition = '';
+      el.style.transform = '';
+      d.documentElement.classList.remove('install-open');
+      var back = opener;
+      opener = null;
+      var usable = back && back.isConnected && !back.hidden && back.getClientRects().length;
+      // The button that opened the sheet, else the heading of the sheet it sat in, else the page.
+      var host = back && back.isConnected && back.closest && back.closest('dialog[open]');
+      var target = usable ? back : host ? host.querySelector('[tabindex="-1"]') : d.getElementById('main');
+      if (target && d.activeElement !== target) target.focus({ preventScroll: true });
+    });
+    draggable(el);
     return el;
   }
 
-  function open() {
-    if (standalone) return;
-    var el = sheet();
-    if (deferred && !iOS) { promptNow(); return; }
-    el.hidden = false;
-    d.documentElement.classList.add('install-open');
-    var first = el.querySelector('button');
-    if (first) first.focus();
-  }
-  function close() {
-    var el = d.getElementById('install-sheet');
-    if (el) el.hidden = true;
-    d.documentElement.classList.remove('install-open');
-  }
-  function promptNow() {
-    if (!deferred) { open(); return; }
-    var p = deferred; deferred = null;
-    p.prompt();
-    p.userChoice.then(function () { close(); }).catch(close);
+  /** Drag the sheet down by its grabber or header to dismiss it, as with the app's sheets. */
+  function draggable(el) {
+    var drag = null;
+    el.addEventListener('pointerdown', function (e) {
+      if (!bottomSheet.matches || e.button !== 0 || e.target.closest('button')) return;
+      if (!e.target.closest('.sheet__grab, .sheet__head')) return;
+      drag = { id: e.pointerId, y: e.clientY, dy: 0 };
+      el.setPointerCapture(e.pointerId);
+      el.style.transition = 'none';
+    });
+    el.addEventListener('pointermove', function (e) {
+      if (!drag || drag.id !== e.pointerId) return;
+      drag.dy = Math.max(0, e.clientY - drag.y);
+      el.style.transform = 'translateY(' + drag.dy + 'px)';
+    });
+    function end(e) {
+      if (!drag || drag.id !== e.pointerId) return;
+      var dy = drag.dy;
+      drag = null;
+      if (dy > 80) {
+        el.style.transition = 'transform 200ms ease-in';
+        el.style.transform = 'translateY(100%)';
+        clearTimeout(closeTimer);
+        closeTimer = w.setTimeout(function () { if (el.open) el.close(); }, 190);
+        return;
+      }
+      el.style.transition = 'transform 240ms cubic-bezier(0.16, 1, 0.3, 1)';
+      el.style.transform = '';
+    }
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
   }
 
-  d.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  /** `from`: the button that opened the sheet. Safari doesn't focus a tapped button, so it's passed in. */
+  function show(from) {
+    if (standalone || installed) return;
+    var el = sheet();
+    sync();
+    clearTimeout(closeTimer);
+    el.classList.remove('is-closing');
+    el.style.transform = '';
+    if (el.open) return;
+    opener = from || d.activeElement;
+    d.documentElement.classList.add('install-open');
+    el.showModal();
+    el.querySelector('#install-title').focus();
+  }
+
+  function hide(now) {
+    var el = d.getElementById('install-sheet');
+    if (!el || !el.open) return;
+    clearTimeout(closeTimer);
+    if (now || reduced.matches) return el.close();
+    el.classList.add('is-closing');
+    closeTimer = w.setTimeout(function () { if (el.open) el.close(); }, 190);
+  }
+
+  /** The browser's own prompt. It needs a tap, so it runs from a button, never on page load. */
+  function promptNow(from) {
+    var p = deferred;
+    if (!p) return show(from);
+    var shown;
+    try {
+      shown = p.prompt();
+    } catch (err) {
+      return show(from); // the browser said no: the steps still work
+    }
+    deferred = null; // each prompt can be shown once
+    sync();
+    hide(true);
+    Promise.resolve(shown).then(function () { return p.userChoice; }).catch(function () { show(from); });
+  }
+
+  /** From an Add to Home Screen button: the browser's prompt while it has one, else the steps
+      (after a dismissed prompt, the browser menu still installs). */
+  function open(from) {
+    if (standalone || installed) return;
+    if (deferred && !iOS) return promptNow(from);
+    show(from);
+  }
+
   d.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-install]');
-    if (b) { e.preventDefault(); open(); }
+    var b = e.target.closest && e.target.closest('[data-install]');
+    if (!b) return;
+    e.preventDefault();
+    open(b);
   });
 
-  // From the landing page's "Add to Home Screen" button.
-  if (w.__wantInstall && !standalone) w.setTimeout(open, 350);
-  w.MealScholarInstall = { open: open, close: close };
+  sync();
+  // From the landing page's "Add to Home Screen" button. No tap has happened on this page yet, so
+  // this shows the steps; "Install now" appears in them as soon as the browser offers a prompt.
+  if (w.__wantInstall && !standalone) w.setTimeout(show, 350);
+  w.MealScholarInstall = { open: open, close: hide, available: available };
 })();

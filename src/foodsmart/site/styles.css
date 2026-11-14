@@ -345,11 +345,13 @@ main:focus,
 
 /* Signed in on a narrow phone: the badge keeps its mark and the account button fits beside it. */
 @media (max-width: 29.99em) {
-  body[data-account="on"] .pilot {
+  body[data-account="on"] .pilot,
+  body[data-prefs="on"] .pilot {
     padding: 7px 8px;
   }
 
-  body[data-account="on"] .pilot__text {
+  body[data-account="on"] .pilot__text,
+  body[data-prefs="on"] .pilot__text {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -2077,6 +2079,11 @@ body[data-screen="auth"] .footer {
 
 /* ---------------------------------------------------------------- dashboard */
 
+.today__banner {
+  display: grid;
+  gap: 12px;
+}
+
 .today__banner:empty {
   display: none;
 }
@@ -2191,6 +2198,14 @@ body[data-screen="auth"] .footer {
 /* The day's parts take their places in the grid as if the wrappers weren't there. */
 .dash-region {
   display: contents;
+}
+
+/* The markup puts the side column (the upcoming meal) after the middle column, so keyboard and
+   reading order follow the laptop columns left to right; in the phone and tablet stack the week
+   chart and the vitamins card still come after it. */
+.week-block,
+.micro-card {
+  order: 1;
 }
 
 /* The day's calories: the one dark panel, leading with the likely number. */
@@ -2627,7 +2642,8 @@ body[data-screen="auth"] .footer {
 }
 
 /* The week: likely kcal per day as a bar, the range as a whisker, the day on show in ink. A day with
-   no meals is an empty dashed slot, never a zero. Narrow screens list the days as rows. */
+   no meals is an empty dashed slot, never a zero; a logged day with no calories counted shows a
+   plate, and a day that didn't load shows an alert. Narrow screens list the days as rows. */
 .week-block {
   container: week / inline-size;
 }
@@ -2759,6 +2775,31 @@ body[data-screen="auth"] .footer {
   border-color: var(--line);
 }
 
+.wk__mark {
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  color: var(--ink-2);
+  transform: translateY(-50%);
+}
+
+.wk__mark .icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+
+/* The one place the week uses the error red: a day it couldn't load. */
+.wk__mark--error {
+  background: var(--danger);
+  -webkit-mask: var(--icon-alert) center / contain no-repeat;
+  mask: var(--icon-alert) center / contain no-repeat;
+}
+
 .wk__name {
   grid-area: name;
   font: 500 0.8125rem / 1.2 var(--font-sans);
@@ -2780,6 +2821,16 @@ body[data-screen="auth"] .footer {
 
 .wk__val--short {
   display: none;
+}
+
+/* Words instead of a number ("Not counted", "Couldn't load") fit the row in the sans. */
+.wk__val--note {
+  font-family: var(--font-sans);
+}
+
+.wk__col.is-failed .wk__val {
+  color: var(--danger);
+  font-weight: 500;
 }
 
 @container week (min-width: 19.5rem) {
@@ -2873,6 +2924,13 @@ body[data-screen="auth"] .footer {
     border-style: solid;
   }
 
+  .wk__mark {
+    top: auto;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
   .wk__val {
     text-align: center;
   }
@@ -2915,6 +2973,74 @@ body[data-screen="auth"] .footer {
 
 .wk__avg-value .value strong {
   font-size: 1.0625rem;
+}
+
+/* Under the average, what the plate means; it shows only when a day has one. */
+.wk__key {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.wk__key .icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+
+.wk__avg .sk--line {
+  width: 60%;
+  margin-block: 4px;
+}
+
+/* Some days didn't load: no average (it would leave them out), and a way to try again. */
+.wk__avg--error {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.wk__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--danger);
+}
+
+.wk__error::before {
+  content: "";
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  background: currentColor;
+  -webkit-mask: var(--icon-alert) center / contain no-repeat;
+  mask: var(--icon-alert) center / contain no-repeat;
+}
+
+/* Every day failed: the reason and Try again, in place of a chart that would never arrive. */
+.week--error {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 16px;
+}
+
+.week--error .status.is-error {
+  border: 0;
+  padding: 0;
+}
+
+/* Headings that take focus after Try again, like the view titles. */
+.section-title:focus {
+  outline: none;
 }
 
 .wk__tip {
@@ -3244,7 +3370,7 @@ body[data-screen="auth"] .footer {
   margin-top: 1px;
 }
 
-/* A calm message, such as a sign-in that ended. */
+/* A calm message, such as a sign-in that ended. It takes focus so it is read first. */
 .notice {
   display: flex;
   align-items: flex-start;
@@ -3254,6 +3380,10 @@ body[data-screen="auth"] .footer {
   background: var(--warm);
   color: var(--ink);
   font-size: 0.9375rem;
+}
+
+.notice:focus {
+  outline: none;
 }
 
 .sent {
@@ -4095,35 +4225,1433 @@ body[data-screen="auth"] .toast {
     display: none;
   }
 }
-/* Add to Home Screen sheet (install.js). */
-.install { position: fixed; inset: 0; z-index: 90; display: grid; align-items: end; }
-.install[hidden] { display: none; }
-.install__backdrop { position: absolute; inset: 0; background: rgba(28, 28, 28, .42); }
-.install__card {
-  position: relative; width: 100%; max-width: 32rem; margin: 0 auto;
-  padding: .75rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
-  border-radius: 1.5rem 1.5rem 0 0; background: #FAFAFF; color: #1C1C1C;
-  box-shadow: 0 -12px 40px rgba(28, 28, 28, .18);
-  animation: install-up .32s cubic-bezier(.2, .7, .2, 1);
+/* --------------------------------------------------------- add to home screen */
+/* install.js: the Share > Add to Home Screen steps, in the same modal sheet as the others (a
+   <dialog> opened with showModal, so it sits above the account sheet and the page behind is inert). */
+.sheet--install .sheet__head {
+  padding-bottom: 6px;
 }
+
+.install__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.install__icon {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+}
+
+.install__title {
+  font: 500 1.1875rem / 1.3 var(--font-sans);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.install__title:focus {
+  outline: none;
+}
+
+.install__lede {
+  margin-top: 2px;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.sheet--install .sheet__body {
+  gap: 20px;
+}
+
+.install__steps {
+  display: grid;
+  gap: 12px;
+}
+
+.install__steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  line-height: 1.45;
+}
+
+.install__steps b {
+  font-weight: 600;
+}
+
+.install__num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--on-ink);
+  font: 600 0.8125rem / 1 var(--font-sans);
+}
+
+.install__glyph {
+  width: 1.1em;
+  height: 1.1em;
+  vertical-align: -0.2em;
+}
+
+.install__actions {
+  display: grid;
+  gap: 10px;
+}
+
 @media (min-width: 40em) {
-  .install { align-items: center; }
-  .install__card { border-radius: 1.5rem; margin: 1rem auto; animation-name: install-in; }
+  .sheet--install {
+    width: min(30rem, 100% - 48px);
+  }
 }
-@keyframes install-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes install-in { from { transform: scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .install__card { animation: none; } }
-.install__grab { width: 2.5rem; height: .3rem; margin: 0 auto .9rem; border-radius: 999px; background: #DADDD8; }
-@media (min-width: 40em) { .install__grab { display: none; } }
-.install__head { display: flex; gap: .9rem; align-items: center; }
-.install__icon { flex: none; border-radius: 1rem; }
-.install__head h2 { margin: 0; font-size: 1.15rem; font-weight: 500; line-height: 1.3; letter-spacing: -0.01em; }
-.install__head p { margin: .2rem 0 0; font-size: .95rem; color: #4A4A48; }
-.install__steps { list-style: none; margin: 1.1rem 0 0; padding: 0; display: grid; gap: .65rem; }
-.install__steps li { display: flex; gap: .8rem; align-items: flex-start; font-size: 1rem; line-height: 1.45; }
-.install__steps b { font-weight: 500; }
-.install__num { flex: none; display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: #1C1C1C; color: #FAFAFF; font-size: .8rem; font-weight: 600; }
-.install__glyph { width: 1.1em; height: 1.1em; vertical-align: -.2em; }
-.install__actions { display: flex; gap: .6rem; margin-top: 1.2rem; }
-.install__actions .btn { flex: 1; min-height: 2.75rem; }
-.install-open { overflow: hidden; }
+
+html.install-open {
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------ preferences */
+/* Everything from here on exists only with the preferences layer (body[data-prefs="on"]): goals on
+   the dashboard, the laptop columns, the set-up steps, Settings, the alerts bell and the menus.
+   Without it, none of these rules match and the page is as it was. */
+
+/* The alerts bell in the top bar, with a dot while a favorite is on the menu this week. */
+.bell {
+  position: relative;
+}
+
+.bell__dot {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: 0 0 0 2px var(--surface-2);
+  animation: pop-in var(--dur-2) var(--ease-out);
+}
+
+/* The account button without an account: a gear for Settings. */
+.avatar--gear {
+  background: var(--surface-2);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+@media (hover: hover) {
+  button.avatar--gear:hover {
+    background: var(--line);
+  }
+}
+
+/* A text button inside a sentence: the line keeps its spacing, the tap target stays 44px tall. */
+.link-btn--inline {
+  display: inline;
+  min-height: 0;
+  padding: 12px 2px;
+  margin-block: -12px;
+  line-height: inherit;
+}
+
+.link-btn--light {
+  color: var(--on-ink);
+  text-decoration-color: rgba(250, 250, 255, 0.55);
+}
+
+@media (hover: hover) {
+  .link-btn--light:hover {
+    text-decoration-color: var(--on-ink);
+  }
+}
+
+/* The calorie panel with a goal: what's left, under the bar. */
+.hero__left {
+  display: grid;
+  gap: 2px;
+  font-size: 1.0625rem;
+}
+
+.hero__left strong {
+  font-weight: 500;
+}
+
+.hero__left-range {
+  font: 400 0.8125rem / 1.4 var(--font-mono);
+  color: var(--on-ink-2);
+}
+
+.stat__left {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+/* The nearest dining hall, under a result and in the side column. */
+.nearest-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.nearest-note .icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--ink);
+}
+
+.nearest-note--result {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--warm);
+  color: var(--ink);
+}
+
+.nearest-note--picker {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--warm);
+  color: var(--ink);
+}
+
+/* ---- the welcome card and health score (the left column on laptops) */
+
+.welcome {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.welcome__text {
+  min-width: 0;
+}
+
+.welcome__greet {
+  font: 300 1.5rem / 1.2 var(--font-sans);
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.welcome__greet strong {
+  font-weight: 500;
+}
+
+.welcome__sub {
+  margin-top: 4px;
+  font-size: 0.9375rem;
+  color: var(--ink-2);
+}
+
+.welcome__avatar {
+  width: 48px;
+  height: 48px;
+}
+
+.score {
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px 14px;
+  min-width: 0;
+}
+
+.score__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.score__main {
+  display: grid;
+  gap: 10px;
+}
+
+.score__value {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: lining-nums proportional-nums;
+}
+
+.score__num {
+  font: 300 2.75rem / 1 var(--font-sans);
+  letter-spacing: -0.03em;
+}
+
+.score__of {
+  font: 500 0.9375rem / 1 var(--font-sans);
+  color: var(--ink-2);
+}
+
+.score__bar {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.score__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--ink);
+  transition: width var(--dur-3) var(--ease-out);
+}
+
+.score__note {
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
+
+.score__parts {
+  display: grid;
+}
+
+.score__part {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.875rem;
+}
+
+.score__part-pct {
+  color: var(--ink-2);
+  font: 400 0.8125rem / 1.3 var(--font-mono);
+}
+
+.score__part-pts {
+  min-width: 3.25rem;
+  text-align: right;
+  font: 500 0.875rem / 1.3 var(--font-mono);
+}
+
+/* ---- a folded section: nutrient goals, more places, how the score works, a menu's meals */
+
+.disclosure {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-inner);
+  background: var(--surface);
+}
+
+.disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 16px;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure > summary::after {
+  content: "";
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin-left: auto;
+  border-right: 2px solid var(--ink-2);
+  border-bottom: 2px solid var(--ink-2);
+  transform: translateY(-3px) rotate(45deg);
+  transition: transform var(--dur-2) var(--ease-out);
+}
+
+.disclosure > summary .chip {
+  margin-right: 10px;
+}
+
+.disclosure[open] > summary::after {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.disclosure__body {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 16px;
+}
+
+/* ---- the upcoming meal: the right column on laptops, a card on phones */
+
+.upcoming {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 18px 18px 14px;
+}
+
+.upcoming__head {
+  display: grid;
+  gap: 4px;
+}
+
+.upcoming__hall {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  font: 500 1.0625rem / 1.3 var(--font-sans);
+  overflow-wrap: anywhere;
+}
+
+.upcoming__hall .link-btn {
+  font-size: 0.9375rem;
+}
+
+.upcoming__meal {
+  font-size: 1.25rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.upcoming__meal strong {
+  font-weight: 500;
+}
+
+.upcoming__when {
+  margin-left: 6px;
+  color: var(--ink-2);
+  font-size: 1rem;
+}
+
+.upcoming__hint {
+  margin-top: -6px;
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend .icon {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.2;
+  color: var(--ink);
+}
+
+.legend__item:first-child .icon {
+  fill: var(--ink);
+}
+
+.legend__dim {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--line);
+}
+
+/* The list is the one thing that scrolls in that column. */
+.dishes {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 22rem;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dishes:focus-visible {
+  outline-offset: -2px;
+}
+
+.dishes__groups {
+  display: grid;
+}
+
+.dishes__cat {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 0 4px;
+  background: var(--surface);
+  font: 500 0.75rem / 1.45 var(--font-sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+.dishes__list {
+  display: grid;
+}
+
+.dish {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 2px 8px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+
+.dish__marks {
+  display: inline-flex;
+  gap: 2px;
+  min-width: 18px;
+  padding-top: 1px;
+  color: var(--ink);
+}
+
+.dish__marks .icon {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2;
+}
+
+.dish.is-fav .dish__marks .icon:first-child {
+  fill: var(--ink);
+}
+
+.dish__text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.dish__name {
+  overflow-wrap: anywhere;
+}
+
+.dish__warn {
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.dish__kcal {
+  color: var(--ink-2);
+  font: 400 0.8125rem / 1.5 var(--font-mono);
+  white-space: nowrap;
+}
+
+/* Not in the diet the person chose: still listed, but faded. Faded with the lighter ink token
+   rather than opacity, so the words keep 4.5:1 (#595959 is 6.7:1 on the card); only the marks
+   go translucent. */
+.dish.is-off .dish__name,
+.dish.is-off .dish__kcal,
+.dish.is-off .dish__warn {
+  color: var(--label);
+}
+
+.dish.is-off .dish__marks {
+  opacity: 0.78;
+}
+
+.upcoming__count {
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.upcoming.is-skeleton {
+  gap: 12px;
+  min-height: 240px;
+}
+
+/* ---- Recently uploaded (the middle column on laptops) */
+
+.dash-recent:empty {
+  display: none;
+}
+
+.recent-block {
+  display: none;
+}
+
+.recent {
+  display: grid;
+  gap: 12px;
+}
+
+.recent-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 14px 12px 12px;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow var(--dur-1) linear, transform var(--dur-1) var(--ease-out);
+}
+
+.recent-card:active {
+  transform: scale(0.99);
+}
+
+.recent-card[aria-current="true"] {
+  box-shadow: 0 0 0 2px var(--ink), var(--shadow);
+}
+
+@media (hover: hover) {
+  .recent-card:hover:not([aria-current="true"]) {
+    box-shadow: 0 0 0 1px var(--line-hover), var(--shadow-lift);
+  }
+}
+
+/* Saved meals keep their foods, not their photo: a plate stands in. */
+.recent-card__photo {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background: var(--warm);
+  color: var(--ink);
+}
+
+.recent-card__photo .icon {
+  width: 26px;
+  height: 26px;
+}
+
+.recent-card__body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.recent-card__when {
+  font: 500 1rem / 1.35 var(--font-sans);
+  overflow-wrap: anywhere;
+}
+
+.recent-card__time,
+.recent-card__place {
+  color: var(--ink-2);
+  font-weight: 400;
+}
+
+.recent-card__time::before,
+.recent-card__place::before {
+  content: "· ";
+}
+
+.recent-card__foods {
+  display: -webkit-box;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--ink-2);
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.recent-card__kcal {
+  margin-top: 2px;
+}
+
+.recent__empty {
+  padding: 18px;
+  color: var(--ink-2);
+}
+
+/* ---- the week strip (laptops): Monday to Sunday, today ringed, the day on show filled in */
+
+.strip {
+  display: none;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  flex: 1 1 auto;
+  max-width: 30rem;
+  margin-inline: auto;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.strip__day {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-height: 56px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-2);
+  font: 500 0.75rem / 1 var(--font-sans);
+  cursor: pointer;
+  transition: background-color var(--dur-1) linear;
+}
+
+.strip__name {
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.strip__num {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--ink);
+  font: 500 0.9375rem / 1 var(--font-sans);
+}
+
+.strip__day.is-today .strip__num {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.strip__day[aria-current="date"] {
+  color: var(--ink);
+}
+
+.strip__day[aria-current="date"] .strip__num {
+  background: var(--ink);
+  color: var(--on-ink);
+  box-shadow: none;
+}
+
+.strip__day:disabled {
+  color: var(--line-strong);
+  cursor: not-allowed;
+}
+
+.strip__day:disabled .strip__num {
+  color: var(--line-strong);
+}
+
+@media (hover: hover) {
+  .strip__day:hover:not(:disabled):not([aria-current="date"]) {
+    background: var(--surface-2);
+  }
+}
+
+/* The round "+" at the bottom right of the laptop dashboard: straight to Analyze. */
+.plus {
+  display: none;
+  position: fixed;
+  z-index: 45;
+  right: 28px;
+  bottom: 28px;
+  width: 60px;
+  height: 60px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--on-ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-lift);
+  transition: background-color var(--dur-1) linear, transform var(--dur-1) var(--ease-out);
+}
+
+.plus .icon {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2.2;
+}
+
+.plus:active {
+  transform: scale(0.96);
+}
+
+@media (hover: hover) {
+  .plus:hover {
+    background: var(--ink-hover);
+  }
+}
+
+/* ---- the settings widgets: choices, pickers, chips, favorites, switches, the summary */
+
+.choices {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choices > legend {
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-inner);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--dur-1) linear, box-shadow var(--dur-1) linear;
+}
+
+.choice:has(input:checked) {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.choice:has(input:focus-visible) {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.choice__ring {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  transition: box-shadow var(--dur-1) linear;
+}
+
+.choice:has(input:checked) .choice__ring {
+  box-shadow: inset 0 0 0 7px var(--ink);
+}
+
+.choice__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.choice__title {
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.choice__hint {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.choice__field {
+  display: grid;
+  gap: 8px;
+  padding: 4px 0 8px 0;
+}
+
+.goal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start; /* a field with an error under it doesn't push its neighbour's input down */
+}
+
+.goal-field .field-unit .field {
+  padding-right: 44px;
+  font-size: 1.0625rem;
+}
+
+.halls {
+  display: grid;
+  gap: 12px;
+}
+
+.halls__find {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.halls__hint {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.halls__note:empty {
+  display: none;
+}
+
+.picks {
+  display: grid;
+  gap: 8px;
+}
+
+.pick {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-inner);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--dur-1) linear, box-shadow var(--dur-1) linear;
+}
+
+/* The real checkbox stays for the keyboard and screen readers; the drawn box shows its state. */
+.pick__box {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.pick:has(.pick__box:checked) {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+
+.pick:has(.pick__box:focus-visible) {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.pick__check {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--on-ink);
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  transition: background-color var(--dur-1) linear, box-shadow var(--dur-1) linear;
+}
+
+.pick__check .icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.4;
+  opacity: 0;
+}
+
+.pick:has(.pick__box:checked) .pick__check {
+  background: var(--ink);
+  box-shadow: inset 0 0 0 1.5px var(--ink);
+}
+
+.pick:has(.pick__box:checked) .pick__check .icon {
+  opacity: 1;
+}
+
+.pick__text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.pick__name {
+  font-weight: 500;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.pick__area {
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: 500 0.9375rem / 1 var(--font-sans);
+  cursor: pointer;
+  transition: background-color var(--dur-1) linear, border-color var(--dur-1) linear, color var(--dur-1) linear;
+}
+
+.chip-btn .icon {
+  display: none;
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.4;
+}
+
+.chip-btn[aria-pressed="true"] {
+  padding-left: 12px;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.chip-btn[aria-pressed="true"] .icon {
+  display: block;
+}
+
+@media (hover: hover) {
+  .chip-btn:hover:not([aria-pressed="true"]) {
+    background: var(--surface-2);
+  }
+}
+
+.favorites {
+  display: grid;
+  gap: 10px;
+}
+
+.favs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.favs:empty {
+  display: none;
+}
+
+.fav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  min-height: 44px;
+  padding-left: 14px;
+  border-radius: 999px;
+  background: var(--warm);
+  color: var(--ink);
+  font: 500 0.9375rem / 1.2 var(--font-sans);
+}
+
+.fav__name {
+  overflow-wrap: anywhere;
+}
+
+.fav__x {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.fav__x .icon {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.2;
+}
+
+@media (hover: hover) {
+  .fav__x:hover {
+    background: rgba(28, 28, 28, 0.08);
+  }
+}
+
+.favorites__empty {
+  font-size: 0.9375rem;
+  color: var(--ink-2);
+}
+
+.favorites__status {
+  padding: 0;
+}
+
+.switches {
+  display: grid;
+}
+
+.switch-row--plain {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 60px;
+  padding-block: 10px;
+}
+
+.switch-row--plain + .switch-row--plain {
+  border-top: 1px solid var(--line);
+}
+
+.summary {
+  display: grid;
+  margin: 0;
+}
+
+.summary__row {
+  display: grid;
+  grid-template-columns: minmax(7rem, 38%) minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.summary__row:last-child {
+  border-bottom: 0;
+}
+
+.summary dt {
+  font-size: 0.9375rem;
+  color: var(--ink-2);
+}
+
+.summary dd {
+  margin: 0;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Settings: the account sheet with the preferences in it */
+
+.settings {
+  scroll-margin-top: 12px;
+}
+
+.settings .form--plain {
+  gap: 14px;
+}
+
+.settings__status {
+  padding: 0;
+}
+
+/* A failed save: the reason beside its icon, and Try again under the reason. */
+.settings__status.is-error {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 10px;
+  padding: 10px 12px;
+}
+
+.settings__status .link-btn {
+  grid-column: 2;
+  justify-self: start;
+  margin-left: -4px;
+  color: var(--ink);
+}
+
+.account__section-title:focus {
+  outline: none;
+}
+
+.settings__nodining {
+  padding-top: 4px;
+}
+
+/* ---- the alerts and menu panel */
+
+.alerts {
+  gap: 8px;
+}
+
+.menu-meal + .menu-meal {
+  margin-top: 8px;
+}
+
+.loading .spinner {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 6px;
+}
+
+/* ---- the set-up steps */
+
+body[data-screen="onboard"] :is(#today, #capture, #result, .dock, .topnav, .snap--bar, #account-button, #alerts-button, #plus-button) {
+  display: none !important;
+}
+
+body:not([data-screen="onboard"]) #onboard {
+  display: none;
+}
+
+body[data-screen="onboard"] .footer {
+  padding-bottom: calc(32px + var(--safe-bottom));
+}
+
+body[data-screen="onboard"] .toast {
+  bottom: calc(var(--safe-bottom) + 24px);
+}
+
+.onboard {
+  width: 100%;
+  max-width: 32rem;
+  margin-inline: auto;
+}
+
+.onboard__screen {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.onboard__nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  min-height: 44px;
+}
+
+.onboard__nav .link-btn {
+  justify-self: end;
+}
+
+.dots {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+}
+
+.dots__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  transition: width var(--dur-2) var(--ease-out), background-color var(--dur-2) linear;
+}
+
+.dots__dot.is-done {
+  background: var(--line-strong);
+}
+
+.dots__dot.is-current {
+  width: 22px;
+  background: var(--ink);
+}
+
+.onboard__form {
+  gap: 16px;
+}
+
+.onboard__name {
+  font: 400 1.375rem / 1.3 var(--font-sans);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.onboard__actions {
+  display: grid;
+  gap: 10px;
+}
+
+/* ---- wider screens with the preferences layer */
+
+@media (min-width: 40em) {
+  body[data-prefs="on"] .sheet--account {
+    width: min(600px, 100% - 48px);
+  }
+
+  .goal-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Laptops: the sketch. The week strip on top; the welcome card, calories, health score and tiles
+   on the left; Recently uploaded and the week chart in the middle; the upcoming meal on the right. */
+@media (min-width: 64em) {
+  body[data-prefs="on"] .dash-head__greeting {
+    display: none;
+  }
+
+  body[data-prefs="on"] .dash-head__row {
+    gap: 20px;
+  }
+
+  body[data-prefs="on"] .strip {
+    display: grid;
+  }
+
+  body[data-prefs="on"] .dash-grid {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 5fr);
+    grid-template-areas:
+      "main mid"
+      "micro micro";
+    gap: 24px;
+  }
+
+  body[data-prefs="on"][data-dining="on"] .dash-grid {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 5fr) minmax(0, 3.6fr);
+    grid-template-areas:
+      "main mid side"
+      "micro micro side";
+  }
+
+  body[data-prefs="on"] .dash-col {
+    display: grid;
+    gap: 24px;
+    align-content: start;
+    min-width: 0;
+  }
+
+  body[data-prefs="on"] .dash-col--main {
+    grid-area: main;
+  }
+
+  body[data-prefs="on"] .dash-col--mid {
+    grid-area: mid;
+  }
+
+  body[data-prefs="on"] .dash-col--side {
+    grid-area: side;
+    position: sticky;
+    top: calc(var(--bar-h) + var(--safe-top) + 16px);
+    align-self: start;
+  }
+
+  body[data-prefs="on"] .dash-col--side:empty {
+    display: none;
+  }
+
+  body[data-prefs="on"] :is(.hero, .stats-block, .meals-block, .dash-empty, .week-block, .dash-error, .micro-card) {
+    grid-column: auto;
+  }
+
+  body[data-prefs="on"] .micro-card {
+    grid-area: micro;
+  }
+
+  body[data-prefs="on"] .meals-block {
+    display: none;
+  }
+
+  body[data-prefs="on"] .recent-block {
+    display: grid;
+  }
+
+  body[data-prefs="on"] .welcome {
+    display: flex;
+  }
+
+  body[data-prefs="on"] .hero {
+    align-self: auto;
+    padding: 24px 24px 20px;
+  }
+
+  body[data-prefs="on"] .hero__value {
+    font-size: 4rem;
+  }
+
+  body[data-prefs="on"] .hero__main {
+    margin-block: 0;
+    padding-block: 8px;
+  }
+
+  body[data-prefs="on"] .dash-empty {
+    align-self: auto;
+    align-content: start;
+    padding: 22px 20px 20px;
+  }
+
+  /* The side column fits the window; its list is the one part that scrolls. */
+  body[data-prefs="on"] .dash-col--side .upcoming {
+    max-height: calc(100dvh - var(--bar-h) - var(--safe-top) - 32px);
+  }
+
+  body[data-prefs="on"] .dash-col--side .dishes {
+    max-height: none;
+  }
+
+  body[data-prefs="on"][data-screen="app"][data-view="today"]:not([data-result]) .plus {
+    display: grid;
+  }
+
+  .onboard {
+    display: grid;
+    align-content: center;
+    min-height: calc(100dvh - var(--bar-h) - 180px);
+    padding-block: 24px;
+  }
+}
+
+/* Between 64em and 80em the three columns are narrow: a little less air between them. */
+@media (min-width: 64em) and (max-width: 79.99em) {
+  body[data-prefs="on"][data-dining="on"] .dash-grid {
+    gap: 18px;
+  }
+
+  body[data-prefs="on"] .dash-col {
+    gap: 18px;
+  }
+
+  body[data-prefs="on"] .hero__value {
+    font-size: 3.5rem;
+  }
+}
+
+/* Up to 82em the shell fills the window and the fixed + button (60px, 28px up from the bottom)
+   lands on the side column's corner. The card ends above the button both at the top of the page,
+   where the column starts under the title and week strip (138px), and once the column is pinned,
+   so no menu row ever sits under it. From 82em the + sits beside the shell and the card keeps its
+   full height. */
+@media (min-width: 64em) and (max-width: 81.99em) {
+  body[data-prefs="on"] .dash-col--side .upcoming {
+    max-height: calc(100dvh - var(--bar-h) - var(--safe-top) - 138px - 104px);
+  }
+}
+/* Larger browser text on narrow phones: the pilot pill keeps only its M in every mode, the brand
+   name truncates instead of overflowing, and the dock tabs drop their labels so the icons fit. */
+@media (max-width: 29.99em) {
+  .pilot { padding: 7px 8px; }
+  .pilot__text {
+    position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .brand { flex: 1 1 auto; overflow: hidden; }
+  .brand > span { overflow: hidden; text-overflow: ellipsis; }
+}
+@media (max-width: 24em) {
+  .dock { width: calc(100% - 24px); gap: 6px; }
+  .tabbar { min-width: 0; flex: 1 1 auto; }
+  .tab { min-width: 0; flex: 1 1 0; padding-inline: 8px; }
+  .tab > span:not(.tab__badge) {
+    position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .tab { position: relative; }
+}
+
+.score__empty {
+  margin: 0;
+}

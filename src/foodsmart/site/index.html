@@ -17,15 +17,15 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
   <link rel="preload" href="/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/geist-mono.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/styles.css?v=202611141234">
+  <link rel="stylesheet" href="/styles.css?v=__COMMIT__">
   <script>
     // The landing page opens the app with ?install=1 to show the Home Screen sheet.
     // Take the flag off the address bar before the app reads the URL.
     (function () { var q = new URLSearchParams(location.search); if (q.get("install") === "1") { q.delete("install"); window.__wantInstall = true; history.replaceState(null, "", location.pathname + (q.toString() ? "?" + q : "") + location.hash); } })();
   </script>
   <link rel="manifest" href="/manifest.webmanifest">
-  <script type="module" src="/app.js?v=202611141234"></script>
-  <script src="/install.js?v=202611141234" defer></script>
+  <script type="module" src="/app.js?v=__COMMIT__"></script>
+  <script src="/install.js?v=__COMMIT__" defer></script>
 </head>
 <body data-view="analyze" data-screen="boot">
   <svg class="sprite" aria-hidden="true" focusable="false">
@@ -48,6 +48,12 @@
     <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3.75" y="5.75" width="16.5" height="12.5" rx="2.75"/><path d="M4.5 7.5l7.5 5.5 7.5-5.5"/></symbol>
     <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8.25" cy="15.75" r="3.75"/><path d="M11 13l8.25-8.25M16.25 7.75l2 2M14 10l1.75 1.75"/></symbol>
     <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 19.25H6.75A1.75 1.75 0 0 1 5 17.5v-11a1.75 1.75 0 0 1 1.75-1.75H10M14.5 16.25L18.75 12 14.5 7.75M18.5 12H9.75"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6.25 16.75h11.5l-1.5-2.3V10.5a4.25 4.25 0 0 0-8.5 0v3.95zM10 19.25a2 2 0 0 0 4 0"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 4.25l2.35 4.95 5.4.7-3.95 3.75.95 5.4L12 16.45l-4.75 2.6.95-5.4L4.25 9.9l5.4-.7z"/></symbol>
+    <symbol id="i-avoid" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.25"/><path d="M6.2 6.2l11.6 11.6"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.75v2.3M12 17.95v2.3M3.75 12h2.3M17.95 12h2.3M6.2 6.2l1.6 1.6M16.2 16.2l1.6 1.6M6.2 17.8l1.6-1.6M16.2 7.8l1.6-1.6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+    <symbol id="i-fork" viewBox="0 0 24 24"><path d="M7.5 3.75v6.5a2.5 2.5 0 0 0 5 0v-6.5M10 3.75v16.5M16.5 3.75c-1.5 1.5-2 3.5-2 6.5h2v10"/></symbol>
   </svg>
 
   <a class="skip" href="#main">Skip to content</a>
@@ -68,6 +74,7 @@
           <span class="pilot__text">Piloting at UMass</span>
         </p>
         <button class="snap snap--bar" type="button" data-action="snap"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-camera"/></svg>Snap a meal</button>
+        <button id="alerts-button" class="icon-btn bell" type="button" aria-haspopup="dialog" aria-label="Alerts" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bell"/></svg><span class="bell__dot" hidden></span></button>
         <button id="account-button" class="avatar" type="button" aria-haspopup="dialog" aria-label="Account" hidden></button>
       </div>
     </div>
@@ -83,6 +90,7 @@
 
   <main id="main" class="shell" tabindex="-1">
     <section id="auth" class="view auth" aria-label="Account" hidden></section>
+    <section id="onboard" class="view onboard" aria-label="Set up" hidden></section>
 
     <section id="today" class="view today" aria-labelledby="today-title">
       <div id="today-banner" class="today__banner"></div>
@@ -93,6 +101,7 @@
             <h1 id="today-title" class="view-title" tabindex="-1">Today</h1>
             <p id="today-date" class="dash-head__date"></p>
           </div>
+          <div id="dash-strip" class="strip" role="group" aria-label="This week" hidden></div>
           <div class="datenav" role="group" aria-label="Choose a day">
             <button id="day-today" class="datenav__today" type="button" data-day="today" hidden>Today</button>
             <button id="day-prev" class="icon-btn datenav__btn" type="button" data-day="prev" aria-label="Previous day"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-left"/></svg></button>
@@ -104,8 +113,12 @@
       <div id="today-body" class="dash">
         <div id="dash-notice" class="dash__notice"></div>
         <div class="dash-grid">
-          <div id="dash-day" class="dash-region"></div>
-          <section id="dash-week" class="block week-block" aria-labelledby="week-title"></section>
+          <div id="dash-day" class="dash-region dash-col dash-col--main"></div>
+          <div id="dash-mid" class="dash-region dash-col dash-col--mid">
+            <div id="dash-recent" class="dash-recent"></div>
+            <section id="dash-week" class="block week-block" aria-labelledby="week-title"></section>
+          </div>
+          <div id="dash-side" class="dash-region dash-col dash-col--side"></div>
           <div id="dash-micro" class="dash-region"></div>
         </div>
       </div>
@@ -177,8 +190,10 @@
 
   <footer class="footer">
     <p>Nutrient data: U.S. Department of Agriculture, Agricultural Research Service, <a href="https://fdc.nal.usda.gov/">FoodData Central</a> (CC0). Places &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL).</p>
-    <p>Information, not medical advice. No calorie targets, no insulin or carb dosing advice.</p>
+    <p id="footer-note">Information, not medical advice. Any goal is one you set yourself; no insulin or carb dosing advice.</p>
   </footer>
+
+  <button id="plus-button" class="plus" type="button" aria-label="Analyze a meal" title="Analyze a meal" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg></button>
 
   <dialog id="sheet" class="sheet" aria-labelledby="sheet-kicker sheet-title">
     <div class="sheet__inner">
@@ -205,6 +220,20 @@
         <button class="icon-btn" type="button" data-action="close-account" aria-label="Close"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
       </div>
       <div id="account-body" class="sheet__body"></div>
+    </div>
+  </dialog>
+
+  <dialog id="panel" class="sheet sheet--panel" aria-labelledby="panel-kicker panel-title">
+    <div class="sheet__inner">
+      <div class="sheet__grab" aria-hidden="true"><span></span></div>
+      <div class="sheet__head">
+        <div class="sheet__titles">
+          <p id="panel-kicker" class="eyebrow"></p>
+          <h2 id="panel-title" class="sheet__title" tabindex="-1"></h2>
+        </div>
+        <button class="icon-btn" type="button" data-action="close-panel" aria-label="Close"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-close"/></svg></button>
+      </div>
+      <div id="panel-body" class="sheet__body"></div>
     </div>
   </dialog>
 
