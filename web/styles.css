@@ -43,6 +43,7 @@
   --ink-rgb: 28, 28, 28;
   /* The hero photo: a warm veil on the copy side keeps the headline legible; dark mode adds a scrim. */
   --veil-rgb: 236, 235, 228;
+  --page-rgb: 238, 240, 242;
   --hero-scrim: rgba(17, 17, 18, 0);
   /* The highlighter band behind "real ranges". Ink on it is 12.7:1. */
   --marker: #F5DF6E;
@@ -90,7 +91,8 @@
   --surface-rgb: 28, 28, 28;
   --ink-rgb: 238, 240, 242;
   --veil-rgb: 17, 17, 18;
-  --hero-scrim: rgba(17, 17, 18, .56);
+  --page-rgb: 17, 17, 18;
+  --hero-scrim: rgba(17, 17, 18, .62);
   /* Mustard: the light ink on it is 4.6:1. */
   --marker: #806A1A;
 }
@@ -220,19 +222,14 @@ p { text-wrap: pretty; }
 }
 
 /* Buttons and chips. The signature call to action is a pill next to a round arrow button. */
+/* One pill: the label with the arrow inside at the end. */
 .cta {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  border-radius: 999px;
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
-}
-.cta__pill {
-  display: inline-flex;
-  align-items: center;
+  justify-content: center;
+  gap: 10px;
   height: 52px;
-  padding: 0 26px;
+  padding: 0 22px 0 26px;
   border-radius: 999px;
   background: var(--ink);
   color: var(--surface);
@@ -240,39 +237,28 @@ p { text-wrap: pretty; }
   font-weight: 500;
   letter-spacing: -0.005em;
   white-space: nowrap;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
   transition: background-color .2s ease, box-shadow .2s ease, transform .15s ease;
 }
-.cta__arrow {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--ink);
-  color: var(--surface);
-  transition: background-color .2s ease, transform .15s ease;
-}
+.cta__pill { display: inline-flex; align-items: center; }
+.cta__arrow { flex: none; display: grid; place-items: center; width: 20px; height: 20px; }
 .cta__arrow svg { width: 20px; height: 20px; transition: transform .2s ease; }
-.cta:hover .cta__pill, .cta:hover .cta__arrow { background: var(--hover); }
+.cta:hover { background: var(--hover); }
 .cta:hover .cta__arrow svg { transform: translate(2px, -2px); }
-/* Press feedback: the pill and the arrow sink a little. */
-.cta:active .cta__pill { transform: scale(.985); }
-.cta:active .cta__arrow { transform: scale(.94); }
-.cta--light .cta__pill {
+.cta:active { transform: scale(.985); }
+.cta--light {
   background: var(--surface);
   color: var(--ink);
   box-shadow: 0 1px 2px rgba(28, 28, 28, .06), 0 6px 18px rgba(28, 28, 28, .06), inset 0 0 0 1px var(--edge);
 }
-.cta--light:hover .cta__pill { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line), 0 6px 18px rgba(28, 28, 28, .09); }
-.cta--invert .cta__pill, .cta--invert .cta__arrow { background: rgb(var(--on-band-rgb)); color: rgb(var(--band-rgb)); }
-.cta--invert:hover .cta__pill, .cta--invert:hover .cta__arrow { background: var(--on-band-hover); }
-.cta--sm .cta__pill { height: 44px; padding: 0 18px; font-size: 15px; }
-.cta--sm .cta__arrow { width: 44px; height: 44px; }
-.cta--sm .cta__arrow svg { width: 18px; height: 18px; }
-.cta--lg .cta__pill { height: 58px; padding: 0 30px; font-size: 17px; }
-.cta--lg .cta__arrow { width: 58px; height: 58px; }
-.cta--block { display: flex; }
+.cta--light:hover { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line), 0 6px 18px rgba(28, 28, 28, .09); }
+.cta--invert { background: rgb(var(--on-band-rgb)); color: rgb(var(--band-rgb)); }
+.cta--invert:hover { background: var(--on-band-hover); }
+.cta--sm { height: 44px; padding: 0 16px 0 18px; font-size: 15px; gap: 8px; }
+.cta--sm .cta__arrow, .cta--sm .cta__arrow svg { width: 18px; height: 18px; }
+.cta--lg { height: 58px; padding: 0 26px 0 30px; font-size: 17px; }
+.cta--block { display: flex; width: 100%; }
 .cta--block .cta__pill { flex: 1; justify-content: center; }
 
 /* Secondary action: a hairline pill, so "Open the app" stays the main call to action. */
@@ -315,15 +301,25 @@ p { text-wrap: pretty; }
 .chip--soon::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); }
 
 /* Header */
+/* See-through over the hero photo; once the page scrolls, the surface and its hairline fade in. */
 .site-header {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: var(--bg);
-  border-bottom: 1px solid transparent;
-  transition: border-color .2s ease;
 }
-.site-header.is-scrolled { border-bottom-color: var(--line); }
+.site-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(var(--page-rgb), .9);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: 0 1px 0 var(--line);
+  opacity: 0;
+  transition: opacity .3s cubic-bezier(.3, .7, .3, 1);
+}
+.site-header.is-scrolled::before, html:not(.js) .site-header::before { opacity: 1; }
 .header-inner {
   height: var(--header-h);
   display: flex;
@@ -533,7 +529,7 @@ html:not(.js) .theme { display: none; }
    band is two columns, and the text swaps sides band by band: left, right, left, down the page. */
 .section { padding-block: var(--pad-y); }
 .section + .section:not(.section--band) { border-top: 1px solid var(--line); }
-.hero-shell + .section { padding-top: calc(var(--pad-y) * .8); }
+.hero + .wrap > .section:first-child { padding-top: calc(var(--pad-y) * .7); border-top: 0; }
 .section-head { margin-bottom: var(--head-gap); }
 .section-head--split { display: grid; gap: 16px 48px; }
 .section-head--split .section-sub { margin-top: 0; }
@@ -548,177 +544,339 @@ html:not(.js) .theme { display: none; }
   .split__text--stick { position: sticky; top: calc(var(--header-h) + 40px); }
 }
 
-/* Hero: one solid block. The plates photo fills it, a warm veil sits behind the copy, and the
-   at-a-glance strip closes it at the bottom. A faint watermark word runs along the photo's edge. */
-.hero-shell {
-  overflow: hidden;
-  border-radius: var(--radius);
-  background: var(--surface);
-  box-shadow: 0 0 0 1px var(--line);
-}
+/* Hero: the plates photo is the background of the whole first screen, edge to edge and under the
+   see-through header. A veil at the top keeps the type legible, and the photo fades into the page
+   at the bottom. The copy is centered; the app's screens fan out over the plates below it. */
 .hero {
   position: relative;
   isolation: isolate;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 26px 20px 0;
-  background:
-    linear-gradient(var(--hero-scrim), var(--hero-scrim)),
-    linear-gradient(180deg, rgba(var(--veil-rgb), .92) 0%, rgba(var(--veil-rgb), .86) 58%, rgba(var(--veil-rgb), .64) 100%),
-    url("img/hero-plates-900.jpg") 50% 100% / cover no-repeat,
-    var(--warm);
+  overflow: clip;
+  margin-top: calc(-1 * var(--header-h));
+  padding: calc(var(--header-h) + 28px) 0 clamp(28px, 3.6vw, 64px);
+  text-align: center;
 }
-.hero__copy { position: relative; z-index: 2; }
-.hero .h1 { margin-top: 6px; max-width: 11.5em; }
-/* The break only applies once the headline has room for "Nutrition from a photo," on one line. */
-.h1-br { display: none; }
-/* At 320 the headline fits in 3 lines and the call to action fits inside the hero's padding. */
-@media (max-width: 359px) {
-  .hero .h1 { font-size: 37px; }
-  .hero .cta__pill { padding: 0 14px; }
-}
-/* A highlighter stroke behind "real ranges", drawn left to right once on load. */
-.hl { position: relative; z-index: 0; white-space: nowrap; }
-.hl::before {
+.hero__bg { position: absolute; inset: 0; z-index: -1; overflow: hidden; background: var(--warm); }
+/* Taller than the hero and pinned to its top, so the plates' horizon sits below the facts line,
+   behind the screens. */
+.hero__bg img { width: 100%; height: 118%; object-fit: cover; object-position: 50% 0; }
+.hero__bg::after {
   content: "";
   position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(var(--veil-rgb), 0) 74%, var(--bg) 99%),
+    linear-gradient(var(--hero-scrim), var(--hero-scrim)),
+    linear-gradient(180deg, rgba(var(--veil-rgb), .8) 0%, rgba(var(--veil-rgb), .62) 30%, rgba(var(--veil-rgb), .42) 50%, rgba(var(--veil-rgb), .1) 62%, rgba(var(--veil-rgb), 0) 72%);
+}
+.hero .nav-chips { margin: -18px 0 22px; }
+.hero__copy { display: flex; flex-direction: column; align-items: center; }
+.hero__title { max-width: 9.6em; font-size: clamp(36px, 11.2vw, 64px); }
+/* The break only applies once the headline has room for "Nutrition from a photo," on one line. */
+.h1-br { display: none; }
+
+/* A loose highlighter stroke behind "real ranges", drawn left to right once on load. */
+.hl { position: relative; z-index: 0; white-space: nowrap; }
+.hl__mark {
+  position: absolute;
   z-index: -1;
-  left: -.07em;
-  right: -.09em;
+  left: -.13em;
   top: .3em;
-  bottom: .02em;
-  border-radius: .12em .2em .16em .24em / .2em .14em .24em .16em;
-  background: var(--marker);
+  width: calc(100% + .27em);
+  height: .74em;
+  overflow: visible;
+  fill: var(--marker);
   transform-origin: 0 50%;
-  transform: rotate(-.8deg);
-  animation: marker .85s cubic-bezier(.7, 0, .2, 1) .3s both;
+  transform: rotate(-1.4deg);
+  animation: marker .9s cubic-bezier(.65, 0, .25, 1) .35s both;
 }
+/* A second, darker pass where the pen went over it again. */
+.hl__mark .hl__pass { fill: rgba(28, 28, 28, .07); }
 @keyframes marker {
-  from { transform: rotate(-.8deg) scaleX(0); }
-  to { transform: rotate(-.8deg) scaleX(1); }
+  from { transform: rotate(-1.4deg) scaleX(0); }
+  to { transform: rotate(-1.4deg) scaleX(1); }
 }
+
 .hero__lede {
-  display: flex;
-  gap: 10px;
+  max-width: 31em;
   margin-top: 20px;
-  max-width: 29em;
-  font-size: 18px;
-  line-height: 1.5;
+  font-size: 17px;
+  line-height: 1.55;
   color: var(--ink-2);
+  text-wrap: balance;
 }
-.hero__lede-arrow { flex: none; width: 18px; height: 18px; margin-top: 3px; color: var(--ink); }
+.hero__lede em { font-style: normal; font-weight: 500; color: var(--ink); }
 .hero__actions {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 10px;
-  margin-top: 24px;
+  width: min(100%, 330px);
+  margin-top: 28px;
 }
-.hero__hint { font-size: 15px; line-height: 1.45; color: var(--ink-2); }
-.hero__note { display: none; }
-/* The faded word sits along the bottom edge of the hero, cropped by it. */
-.watermark {
-  position: relative;
-  z-index: 0;
-  margin: 18px 0 -.13em -4px;
-  font-size: 23vw;
-  font-weight: 700;
-  line-height: .8;
-  letter-spacing: -0.05em;
-  white-space: nowrap;
-  color: var(--surface);
-  opacity: .9;
-  pointer-events: none;
-  user-select: none;
+.hero__actions .cta__pill { flex: 1; justify-content: center; }
+.hero__more {
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 24px;
+  background: rgba(var(--surface-rgb), .44);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
+.hero__more:hover { background: var(--surface); }
+.hero__more:hover svg { transform: translate(1px, 1px); }
 
-/* The at-a-glance strip under the hero: a ruled row, not chips. */
-.trust {
+/* The at-a-glance facts: one quiet line with middle dots. app.js hides the dot that would
+   start a wrapped line. */
+.facts {
   list-style: none;
-  margin: 0;
-  padding: 10px 16px 14px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 20px;
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-}
-.trust li {
   display: flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 42px;
-  border-top: 1px solid var(--line);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.3;
-  color: var(--ink);
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px 1.5em;
+  max-width: 30em;
+  margin: 22px 0 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--label);
 }
-.trust li:nth-child(-n+2) { border-top: 0; }
-.trust li:last-child:nth-child(odd) { grid-column: 1 / -1; }
-.trust li svg { flex: none; width: 15px; height: 15px; color: var(--ink); }
-/* Tablets: one centered row that may wrap. Laptops: five ruled cells. */
-@media (min-width: 640px) {
-  .trust { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 36px; padding: 12px 24px 14px; }
-  .trust li { min-height: 44px; border-top: 0; }
-}
-@media (min-width: 1100px) {
-  .trust { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; padding: 0 24px; }
-  .trust li { justify-content: center; text-align: center; min-height: 62px; padding: 6px 10px; border-left: 1px solid var(--line); }
-  .trust li:first-child { border-left: 0; }
-  .trust li:last-child:nth-child(odd) { grid-column: auto; }
-}
+.facts li { position: relative; white-space: nowrap; }
+/* Over the dimmed photo in dark mode, the quiet gray needs one step more. */
+:root[data-theme="dark"] .facts { color: var(--ink-2); }
+/* The dot sits in the gap and takes no room, so hiding it never moves the line. */
+.facts li + li::before { content: "·"; position: absolute; right: 100%; width: 1.5em; text-align: center; }
+.facts li.is-line-start::before { display: none; }
 
+@media (max-width: 359px) {
+  .hero__title { font-size: 34px; }
+  .hero .cta { padding: 0 12px 0 16px; }
+}
+@media (min-width: 600px) {
+  .hero { padding-top: calc(var(--header-h) + 18px); }
+  .hero__actions { flex-direction: row; justify-content: center; width: auto; gap: 12px; }
+  .hero__actions .cta__pill { flex: none; }
+}
 @media (min-width: 760px) {
-  .hero {
-    padding: 56px 40px 0;
-    background:
-      linear-gradient(var(--hero-scrim), var(--hero-scrim)),
-      linear-gradient(90deg, rgba(var(--veil-rgb), .92) 0%, rgba(var(--veil-rgb), .8) 50%, rgba(var(--veil-rgb), 0) 88%),
-      linear-gradient(180deg, rgba(var(--veil-rgb), 0) 50%, rgba(var(--veil-rgb), .84) 100%),
-      url("img/hero-plates-1408.jpg") 50% 78% / cover no-repeat,
-      var(--warm);
-  }
-  .hero__copy { display: flex; flex-direction: column; align-items: flex-start; padding-bottom: calc(clamp(120px, 17.6vw, 232px) * .74 + 6px); }
-  .hero__actions { padding-top: 8px; }
-  .hero__lede { max-width: 25em; }
+  .hero__title { max-width: none; font-size: clamp(50px, 7.2vw, 150px); line-height: 1; }
   .h1-br { display: inline; }
-  .watermark {
-    position: absolute;
-    left: 24px;
-    bottom: -.12em;
-    margin: 0;
-    font-size: clamp(120px, 17.6vw, 232px);
-    opacity: .8;
-  }
+  .hero__lede { max-width: 34em; margin-top: 26px; font-size: 18px; }
+  .hero__actions { margin-top: 32px; }
+  .facts { margin-top: 24px; }
 }
 @media (min-width: 900px) {
-  .trust li { font-size: 13.5px; }
+  .hero { padding-top: calc(var(--header-h) + clamp(40px, 6vw, 96px)); }
 }
 @media (min-width: 1100px) {
-  .hero { min-height: 560px; padding: 80px 64px 0; }
-  .hero .h1 { margin-top: 0; max-width: 12.4em; font-size: clamp(76px, 6.6vw, 124px); }
-  .hero__lede { margin-top: 28px; max-width: 29em; font-size: 19px; }
-  .hero__copy { padding-bottom: 76px; }
-  .hero__actions { flex-direction: row; align-items: center; gap: 22px; }
-  .hero__hint { max-width: 15em; font-size: 14px; }
-  /* A footnote in the margin, under a short rule. */
-  .hero__note {
-    display: block;
-    position: absolute;
-    z-index: 2;
-    right: 48px;
-    bottom: 52px;
-    max-width: 160px;
-    padding-top: 10px;
-    border-top: 1px solid var(--line-2);
-    text-align: right;
-    font-size: 13.5px;
-    line-height: 1.45;
-    color: var(--ink);
-  }
+  .hero__lede { font-size: 19px; }
+  .facts { max-width: none; font-size: 14.5px; }
 }
+@media (min-width: 1800px) {
+  .hero__lede { font-size: 21px; }
+  .facts { font-size: 15.5px; }
+}
+
+/* The fanned screens. Phones (and no JavaScript): a sideways row that snaps, the lunch result
+   first. From 760px with app.js: the active screen raised in front, the others tucked behind. */
+.fan {
+  --card-w: min(78vw, 300px);
+  --ease-fan: cubic-bezier(.22, .9, .24, 1);
+  position: relative;
+  margin-top: clamp(36px, 5vw, 72px);
+}
+.fan__track {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  padding: 8px calc((100% - var(--card-w)) / 2) 26px;
+  scrollbar-width: none;
+}
+.fan__track::-webkit-scrollbar { display: none; }
+.fan__track:focus-visible { outline-offset: -4px; }
+.fan-card {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: var(--card-w);
+  height: calc(var(--card-w) * 1.48);
+  overflow: hidden;
+  scroll-snap-align: center;
+  border-radius: 26px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--edge), 0 1px 2px rgba(28, 28, 28, .06), 0 24px 50px rgba(28, 28, 28, .14);
+  text-align: left;
+}
+/* The screen part: a warm stage with the mock on it. */
+.fan-card__vis {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  margin: 8px 8px 0;
+  border-radius: 19px;
+  background: linear-gradient(160deg, var(--warm) 0%, var(--bg) 100%);
+}
+.fan-card__body { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px 18px; }
+.fan-card__title { font-size: 18px; font-weight: 500; line-height: 1.25; letter-spacing: -0.012em; }
+.fan-card__text { font-size: 14px; line-height: 1.45; color: var(--ink-2); }
+.fan-card__btns { display: flex; gap: 8px; margin-top: 8px; }
+.fan-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background-color .2s ease, border-color .2s ease, transform .15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+/* A 44px target around the 40px pill. */
+.fan-btn { position: relative; }
+.fan-btn::after { content: ""; position: absolute; inset: -2px; }
+.fan-btn:hover { border-color: var(--ink); background: var(--surface-2); }
+.fan-btn:active { transform: scale(.97); }
+.fan-btn--fill { border-color: var(--ink); background: var(--ink); color: var(--surface); }
+.fan-btn--fill:hover { background: var(--hover); }
+
+/* The screens themselves, built from the same pieces as the rest of the page. */
+.fv-lunch { display: flex; flex-direction: column; gap: 8px; padding: 10px; font-size: 7.4px; }
+.fv-lunch__photo { position: relative; flex: 1; min-height: 0; overflow: hidden; border-radius: 13px; }
+.fv-lunch__photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.fv-lunch .ps-total { border-radius: 13px; }
+.fv-ask { display: grid; align-content: center; justify-items: start; gap: 10px; padding: 18px; }
+.fv-ask__q { font-size: 17px; font-weight: 500; line-height: 1.3; letter-spacing: -0.01em; }
+.fv-ask .opt { height: 32px; padding: 0 12px; font-size: 13px; }
+.fv-ask__toast { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 6px 12px; border-radius: 999px; background: var(--surface); box-shadow: 0 6px 18px rgba(28, 28, 28, .1); font-size: 12.5px; font-weight: 500; }
+.fv-ask__toast svg { width: 14px; height: 14px; }
+.fv-today { display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 12px; font-size: 7.6px; }
+.fv-today .ps-card { box-shadow: 0 1px 2px rgba(28, 28, 28, .05); }
+.fv-nutr { display: grid; align-content: center; padding: 12px; }
+.fv-nutr .mini { padding: 4px 14px 8px; border-radius: 14px; background: var(--surface); font-size: 14px; }
+.fv-nutr .nrow { padding: 9px 0; gap: 6px 10px; }
+.fv-nutr .band { font-size: 12px; }
+.fv-menu { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 20px; }
+.fv-menu .chip { margin-bottom: auto; }
+.fv-menu__n { margin-top: 10px; font-size: 64px; font-weight: 300; line-height: 1; letter-spacing: -0.045em; }
+.fv-menu__k { max-width: 13em; margin: 8px 0 auto; font-size: 14px; line-height: 1.4; color: var(--ink-2); }
+.fv-home { display: grid; place-items: center; align-content: center; gap: 16px; padding: 18px; }
+.fv-home__grid { display: grid; grid-template-columns: repeat(4, 38px); gap: 12px; }
+.fv-home__grid i, .fv-home__grid b { width: 38px; height: 38px; border-radius: 10px; }
+.fv-home__grid i { background: rgba(var(--ink-rgb), .08); }
+.fv-home__grid b { box-shadow: 0 0 0 3px var(--surface), 0 6px 16px rgba(28, 28, 28, .2); }
+.fv-home__grid b svg { width: 38px; height: 38px; color: var(--mark-tile); }
+.fv-home__step { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px; background: var(--surface); font-size: 12.5px; font-weight: 500; }
+.fv-home__step svg { width: 15px; height: 15px; flex: none; }
+.fv-video .video-ph::after { top: 30%; width: 34%; }
+
+/* Dots and the pause button (app.js). */
+.fan__ctrl { display: flex; justify-content: center; align-items: center; gap: 4px; margin-top: 2px; }
+.fan__dots { display: flex; }
+.fan__dot {
+  position: relative;
+  width: min(44px, calc((100vw - 32px) / 7));
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.fan__dot::before, .fan__dot::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  transition: transform .35s var(--ease-fan), opacity .35s ease;
+}
+.fan__dot::before { background: var(--range); }
+.fan__dot::after { background: var(--ink); opacity: 0; transform: scale(.5); }
+.fan__dot:hover::before { transform: scale(1.3); }
+.fan__dot[aria-current="true"]::after { opacity: 1; transform: scale(1.25); }
+.fan__dot:focus-visible { outline-offset: -8px; border-radius: 12px; }
+.fan__pause {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: 8px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: 50%;
+  background: rgba(var(--surface-rgb), .5);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color .2s ease, border-color .2s ease, transform .15s ease;
+}
+.fan__pause:hover { border-color: var(--ink); background: var(--surface); }
+.fan__pause:active { transform: scale(.94); }
+.fan__pause svg { width: 18px; height: 18px; }
+.fan__pause .i-resume { display: none; width: 16px; height: 16px; margin-left: 2px; }
+.fan__pause[aria-pressed="true"] .i-pause { display: none; }
+.fan__pause[aria-pressed="true"] .i-resume { display: block; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Fanned (set by app.js from 760px). Each card gets --o, its place from the front card
+   (-3 to 3), and --a, how far that is. Only transform and opacity animate. */
+.fan.is-fan {
+  --card-w: clamp(250px, 21vw, 372px);
+  --step: clamp(124px, 13.4vw, 262px);
+}
+.fan.is-fan .fan__track {
+  display: block;
+  position: relative;
+  height: calc(var(--card-w) * 1.48 + 28px);
+  overflow: visible;
+  padding: 0;
+  touch-action: pan-y;
+}
+.fan.is-fan .fan-card {
+  --o: 0;
+  --a: 0;
+  position: absolute;
+  left: 50%;
+  top: 0;
+  margin-left: calc(var(--card-w) / -2);
+  z-index: calc(10 - var(--a));
+  transform: translate3d(calc(var(--o) * var(--step)), calc(var(--a) * 22px), 0) scale(calc(1 - var(--a) * .07));
+  transform-origin: 50% 0;
+  transition: transform .75s var(--ease-fan);
+  cursor: pointer;
+}
+.fan.is-fan .fan-card.is-active { cursor: auto; box-shadow: 0 0 0 1px var(--edge), 0 2px 4px rgba(28, 28, 28, .08), 0 40px 80px rgba(28, 28, 28, .24); }
+/* The cards behind are veiled with the page color, more the further back they sit. */
+.fan.is-fan .fan-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  background: var(--bg);
+  opacity: calc(var(--a) * .17);
+  pointer-events: none;
+  transition: opacity .6s ease;
+}
+.fan.is-fan .fan-card:not(.is-active):hover::after { opacity: calc(var(--a) * .17 - .1); }
+.fan.is-fan .fan-card.is-jump, .fan.is-fan .fan-card.is-jump::after { transition: none; }
+.fan.is-fan .fan-card:not(.is-active) .fan-card__btns { opacity: .6; }
+.fan.is-fan .fan__ctrl { margin-top: -10px; }
+/* Narrow fans (760–1100px) keep each title on one line, so the screen above it keeps its height. */
+.fan.is-fan .fan-card__title { font-size: clamp(16px, 1.25vw, 20px); }
+/* The text block barely shrinks with the card, so every fanned card gets a fixed 34px more
+   height; at the 250px minimum that keeps the screen above the text readable. */
+.fan.is-fan .fan__track { height: calc(var(--card-w) * 1.48 + 62px); }
+.fan.is-fan .fan-card { height: calc(var(--card-w) * 1.48 + 34px); }
 
 /* Phone mockup (sized in em so it scales with its font-size) */
 .phone {
@@ -1759,23 +1917,26 @@ html:not(.js) .rail-ctrl { display: none; }
 /* Phone dock: "Open the app" at the thumb once the hero button has scrolled away (app.js).
    Without JavaScript it stays visible and the page gets room at the bottom. */
 .dock { display: none; }
-.dock__cta { display: flex; align-items: center; gap: 6px; border-radius: 999px; text-decoration: none; }
-.dock__pill {
-  flex: 1;
-  min-width: 0;
+.dock__cta {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  height: 56px;
-  padding: 0 22px;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 18px 8px 22px;
   border-radius: 999px;
   background: var(--ink);
   color: var(--surface);
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(28, 28, 28, .08), 0 14px 36px rgba(28, 28, 28, .18);
+  transition: background-color .2s ease, transform .15s ease;
 }
+.dock__pill { display: grid; flex: 1; gap: 1px; min-width: 0; }
 .dock__label { font-size: 16px; font-weight: 500; line-height: 1.2; }
 .dock__sub { font-size: 13px; line-height: 1.3; color: var(--on-ink-2); }
-.dock .cta__arrow { width: 56px; height: 56px; }
-.dock__cta:hover .dock__pill, .dock__cta:hover .cta__arrow { background: var(--hover); }
+.dock .cta__arrow { flex: none; width: 22px; height: 22px; }
+.dock .cta__arrow svg { width: 22px; height: 22px; }
+.dock__cta:hover { background: var(--hover); }
+.dock__cta:active { transform: scale(.985); }
 @media (max-width: 599px) {
   .dock {
     display: block;
@@ -1827,7 +1988,8 @@ html:not(.js) .rail-ctrl { display: none; }
   }
   .js .is-in, .js .is-in > *, .js .is-in > * > :nth-child(2) { animation: none; }
   /* The highlighter is simply there, with no delayed pop-in. */
-  .hl::before { animation: none; }
+  .hl__mark { animation: none; }
+  .fan.is-fan .fan-card { transition: none; }
 }
 @media print {
   .dock { display: none !important; }

@@ -114,48 +114,183 @@
   </div>
 </header>
 
-<nav class="nav-chips" aria-label="Sections">
-  <span class="nav-chips__label" aria-hidden="true">Jump to</span>
-  <a href="#how">How it works</a>
-  <a href="#features">Features</a>
-  <a href="#videos">Videos</a>
-  <a href="#nutrients">Nutrients</a>
-  <a href="#umass">Pilot</a>
-  <a href="#faq">FAQ</a>
-</nav>
+<main id="main">
 
-<main id="main" class="wrap">
-
-  <!-- Hero -->
-  <section class="hero-shell" aria-labelledby="hero-title">
-    <div class="hero">
-      <div class="hero__copy">
-        <h1 id="hero-title" class="h1">Nutrition from a&nbsp;photo,<br class="h1-br"> in <span class="hl">real ranges</span></h1>
-        <p class="hero__lede">
-          <svg class="hero__lede-arrow" aria-hidden="true"><use href="#i-arrow-se"/></svg>
-          <span>Snap your meal. It works out what’s on the plate and how much, checks the campus dining menu first, and shows the nutrients as real ranges.</span>
-        </p>
-        <div class="hero__actions">
-          <a class="cta cta--light" href="https://mealscholar.mannava.org/?install=1" data-hero-cta>
-            <span class="cta__pill"><span class="lbl-desktop">Open the app</span><span class="lbl-phone">Add to Home Screen</span></span>
-            <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
-          </a>
-          <p class="hero__hint">Works in your phone’s browser. No app store download.</p>
-        </div>
-      </div>
-
-      <p class="hero__note">Nutrients come from the campus menu first and USDA as a backup, never from the AI.</p>
-      <span class="watermark" aria-hidden="true">MEALSCHOLAR</span>
+  <!-- Hero: the plates photo is the background of the whole first screen, under the header. -->
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero__bg" aria-hidden="true">
+      <img src="img/hero-plates-1408.jpg" srcset="img/hero-plates-900.jpg 900w, img/hero-plates-1408.jpg 1408w" sizes="100vw" width="1408" height="768" alt="" fetchpriority="high" decoding="async">
     </div>
 
-    <ul class="trust" aria-label="At a glance">
-      <li><svg aria-hidden="true"><use href="#i-check"/></svg>Campus menu first</li>
-      <li><svg aria-hidden="true"><use href="#i-check"/></svg>USDA as a backup</li>
-      <li><svg aria-hidden="true"><use href="#i-check"/></svg>Easy upload</li>
-      <li><svg aria-hidden="true"><use href="#i-check"/></svg>No weighing</li>
-      <li><svg aria-hidden="true"><use href="#i-check"/></svg>Location optional</li>
-    </ul>
+    <nav class="nav-chips" aria-label="Sections">
+      <span class="nav-chips__label" aria-hidden="true">Jump to</span>
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#videos">Videos</a>
+      <a href="#nutrients">Nutrients</a>
+      <a href="#umass">Pilot</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+
+    <div class="hero__copy wrap">
+      <h1 id="hero-title" class="h1 hero__title">Nutrition from a&nbsp;photo,<br class="h1-br"> in <span class="hl">real ranges<svg class="hl__mark" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M9 21c38-7 93-9 150-10 61-1 128-5 186-3 21 1 37 2 47 5 4 6 1 12-3 15 5 6 8 13 4 20-46 4-120 7-196 8-63 1-121 2-176 0-9-4-12-11-7-17-5-6-6-13-5-18z"/><path class="hl__pass" d="M20 37c57-5 141-8 228-8 52 0 97 1 132 4 4 3 3 7-1 9-42 3-112 4-196 5-58 1-106 1-151-1-6-3-6-7-1-9z"/></svg></span></h1>
+      <p class="hero__lede">Snap your meal. It works out what’s on the plate and <em>how much</em>, checks the campus dining menu first, and shows the nutrients as real ranges.</p>
+      <div class="hero__actions">
+        <a class="cta" href="https://mealscholar.mannava.org/?install=1" data-hero-cta>
+          <span class="cta__pill"><span class="lbl-desktop">Open the app</span><span class="lbl-phone">Add to Home Screen</span></span>
+          <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
+        </a>
+        <a class="pill-link hero__more" href="#how">See how it works<svg aria-hidden="true"><use href="#i-arrow-se"/></svg></a>
+      </div>
+      <ul class="facts" aria-label="At a glance">
+        <li>Campus menu first</li>
+        <li>USDA as a backup</li>
+        <li>Easy upload</li>
+        <li>No weighing</li>
+        <li>Location optional</li>
+      </ul>
+    </div>
+
+    <!-- The app's screens, fanned out. Without JavaScript this is a plain sideways row. -->
+    <div class="fan" data-fan aria-roledescription="carousel" aria-label="Screens from the app" role="region">
+      <div class="fan__track" data-fan-track>
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="1 of 7: The lunch photo, in ranges">
+          <div class="fan-card__vis fv-lunch" aria-hidden="true">
+            <div class="fv-lunch__photo"><img src="img/meal-pizza-640.jpg" alt="" width="640" height="400" loading="lazy" decoding="async"><span class="ps-pin">1</span></div>
+            <div class="ps-total">
+              <span class="ps-total__k">Calories</span>
+              <span class="ps-total__s">most likely</span>
+              <span class="ps-total__v">1,197<small>kcal</small></span>
+              <span class="ps-total__r">range 1,011–1,436 kcal</span>
+              <span class="band band--kcal band--dark"></span>
+            </div>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">The lunch photo, in ranges</p>
+            <p class="fan-card__text">One pizza, 380–540 g, and 1,011–1,436 kcal. No weighing.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://mealscholar.mannava.org">Open the app</a>
+              <a class="fan-btn" href="#how">Learn more</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="2 of 7: One question, at most">
+          <div class="fan-card__vis fv-ask" aria-hidden="true">
+            <span class="mini__label">One question</span>
+            <span class="fv-ask__q">Is the sauce creamy, or tomato/BBQ?</span>
+            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>Creamy</span><span class="opt">Tomato/BBQ</span></span>
+            <span class="fv-ask__toast"><svg><use href="#i-check"/></svg>Now butter chicken pizza</span>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">One question, at most</p>
+            <p class="fan-card__text">If a photo is unclear, it asks you one thing, then recomputes.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://mealscholar.mannava.org">Open the app</a>
+              <a class="fan-btn" href="#how">Learn more</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="3 of 7: Today, at a glance">
+          <div class="fan-card__vis fv-today" aria-hidden="true">
+            <div class="ps-card">
+              <div class="ps-row"><span class="ps-label">Calories today</span><span class="ps-label">likely</span></div>
+              <div class="ps-big"><b>737</b><span>kcal</span></div>
+              <div class="band band--day"></div>
+              <div class="ps-row ps-ends"><span>616</span><span>858</span></div>
+            </div>
+            <div class="ps-card ps-meals">
+              <div class="ps-meal"><span class="ps-meal__t">Breakfast</span><span class="ps-meal__d">Oatmeal, banana</span><span class="ps-meal__k">275 kcal</span></div>
+              <div class="ps-meal"><span class="ps-meal__t">Lunch</span><span class="ps-meal__d">Chicken, rice, broccoli</span><span class="ps-meal__k">462 kcal</span></div>
+            </div>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">Today, at a glance</p>
+            <p class="fan-card__text">Every meal, with the day’s calories as a range from 616 to 858.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://mealscholar.mannava.org">Open the app</a>
+              <a class="fan-btn" href="#phone">Learn more</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="4 of 7: 19 nutrients">
+          <div class="fan-card__vis fv-nutr" aria-hidden="true">
+            <div class="mini mini--nutr">
+              <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>1,197</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">1,011–1,436</small></div>
+              <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>51.3</b> g</span><span class="band band--prot"></span><small class="nrow__r">87–123% DV</small></div>
+              <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>149.8</b> g</span><span class="band band--carb"></span><small class="nrow__r">46–65% DV</small></div>
+            </div>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">19 nutrients</p>
+            <p class="fan-card__text">The main nine as ranges. Vitamins and minerals are labeled as estimates.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://mealscholar.mannava.org">Open the app</a>
+              <a class="fan-btn" href="#nutrients">Learn more</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="5 of 7: Campus menu first">
+          <div class="fan-card__vis fv-menu" aria-hidden="true">
+            <span class="chip chip--white"><svg><use href="#i-clock"/></svg>Every hour</span>
+            <span class="fv-menu__n">2,236</span>
+            <span class="fv-menu__k">campus dishes, each with its own nutrition facts</span>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">Campus menu first</p>
+            <p class="fan-card__text">Dining hall food is checked against the menu, then USDA as a backup.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://mealscholar.mannava.org">Open the app</a>
+              <a class="fan-btn" href="#data">Learn more</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="6 of 7: On your Home Screen">
+          <div class="fan-card__vis fv-home" aria-hidden="true">
+            <span class="fv-home__grid"><i></i><i></i><i></i><b><svg><use href="#mark"/></svg></b><i></i><i></i><i></i><i></i></span>
+            <span class="fv-home__step"><svg><use href="#i-share"/></svg>Share, then Add to Home Screen</span>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">On your Home Screen</p>
+            <p class="fan-card__text">It works in your phone’s browser. No app store download.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://mealscholar.mannava.org">Open the app</a>
+              <a class="fan-btn" href="#phone">Learn more</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="7 of 7: See it in action">
+          <div class="fan-card__vis fv-video" aria-hidden="true">
+            <div class="video-ph video-ph--b"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play"><svg><use href="#i-play"/></svg></span></div>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">See it in action</p>
+            <p class="fan-card__text">Short recordings of the real app, from photo to ranges.</p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="https://mealscholar.mannava.org">Open the app</a>
+              <a class="fan-btn" href="#videos">Learn more</a>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <div class="fan__ctrl" data-fan-ctrl hidden>
+        <div class="fan__dots" role="group" aria-label="Choose a screen" data-fan-dots></div>
+        <button type="button" class="fan__pause" data-fan-pause aria-label="Pause the screens" hidden>
+          <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5v11M15 6.5v11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <svg class="i-resume" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-play"/></svg>
+        </button>
+      </div>
+      <p class="sr-only" aria-live="polite" data-fan-live></p>
+    </div>
   </section>
+
+<div class="wrap">
 
   <!-- Why -->
   <section class="section" id="features" aria-labelledby="why-title">
@@ -557,6 +692,7 @@
       <span class="band band--kcal"></span>
     </div>
   </section>
+</div>
 </main>
 
 <footer class="site-footer">
