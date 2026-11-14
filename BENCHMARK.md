@@ -1,0 +1,237 @@
+# Gemini benchmark: meal photo → foods → grams
+
+HackUMass XIV, 2026-11-14. 284 Gemini calls: 275 sweep runs (5 real meal photos × 19 configurations × 3 repeats; `xhigh` ran only one repeat) plus 9 calls in one run of the question → answer loop. Every call went through the production pipeline: `vision.py` prompt and schema → USDA lookup → totals, same as `foodsmart analyze --no-log`.
+
+Raw data: `bench/results/runs.jsonl`. All tables: `bench/results/summary.md`. Harness: `bench/` (see [Rerun](#rerun)).
+
+## TL;DR
+
+- **Keep `gemini-4-hydrogen` with `low` thinking and the default media resolution.** It takes 5.9 s per photo (median) and costs $0.0097 per photo on paid pricing; Hydrogen is free on the free tier. Every portion estimate landed inside the reference range, recall was 97%, and every drink and salad run asked a useful clarifying question.
+- `medium`/`high` thinking fix the hardest case (ginger ale identified 67% → 100% of runs) but add 2.5–3 s and 45–57% more cost. At `low`, the clarifying question already covers that case: on every ginger-ale run it asked what the drink was. So `low` plus the question is the better experience.
+- **Budget fallback: `gemini-3.6-flash` with `minimal` thinking.** 4.1 s and $0.0022 per photo (4.4× cheaper). Same recall and box quality, but it called the ginger ale iced tea in every run.
+- **Avoid:**
+  - `xhigh` thinking: 99 s median, $0.14 per photo, 18K thinking tokens, no accuracy gain.
+  - `gemini-4-argon`: best at naming foods, but latency is unpredictable (16 s median, 59–61 s p90, one call took 228 s).
+  - `gemini-3.5-flash-lite`: misses components, merges the far-away salad into one "egg salad" item, and calls pink lemonade a cocktail.
+- **The largest error source is the USDA lookup, not Gemini.** 35% of runs fall outside the reference calorie range, and half of those come from matches to powders or concentrates:
+  - pink lemonade → frozen concentrate at 192 kcal/100 g (4× too high) in 37 of 55 runs;
+  - sweet iced tea → instant tea powder at 401 kcal/100 g.
+  - Pepperoni pizza was named correctly in 54 of 55 runs but matched to a pepperoni pizza only once.
+  - **Both lookup bugs are fixed on this branch** (see [Lookup fixes](#lookup-fixes)). Replayed on the same Gemini output: kcal in band 179 → 230 of 275 runs, runs with a powder/concentrate match 54 → 4 (the 4 are prepared forms or explicitly requested), pepperoni 1/54 → 50/54. Hydrogen `low` goes from 73% to 93% kcal in band.
+- **Gemini's bounding boxes are accurate** (IoU 0.95–0.98 against hand-drawn boxes on every model). Drawing them on the photo costs nothing extra and makes a strong demo moment.
+
+## What was tested
+
+| Photo | Contents (confirmed by the person who ate it) | What makes it hard |
+|---|---|---|
+| `IMG_0579` | 1 cheese and 1 pepperoni slice, thin crust, top-down | Two similar items; a glass rim at the frame edge |
+| `IMG_0580` | Ginger ale with ice, top-down | An amber drink that looks like iced tea, apple juice, or whiskey; part of the pizza plate is at the edge |
+| `IMG_0581` | Pink lemonade with ice, from an angle | Identifiable by color only; a flyer in the background |
+| `IMG_0582` | Arugula, red onion, 3 whole hard-boiled eggs, shredded cheddar, honey mustard | 5 components; the dressing carries most of the calories; whole eggs vs halves is ambiguous |
+| `IMG_0583` | The same salad, shot from across the table | Small in the frame; a person, a napkin dispenser, and a glass at the edge |
+
+All photos: iPhone 16 Pro, Nov 13 23:45–23:51, UMass Amherst dining hall. The pipeline resizes each photo to a 1536 px JPEG and strips EXIF before sending it.
+
+**Configurations**
+- **Phase A:** 6 models × their thinking levels, at the default media resolution.
+- **Phase B:** media resolution `low` / `medium` / `ultra_high` for Hydrogen `low` and Flash-Lite `minimal`.
+- 3 repeats each. `xhigh` ran 1 repeat and was stopped at about 100 s per call.
+- **Phase C:** the clarifying question → answer → recompute loop, Hydrogen `low`, 1 repeat.
+- Models: `gemini-4-argon`, `gemini-4-hydrogen`, `gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`.
+
+**Scoring** (labels and regexes in `bench/ground_truth.py`)
+
+Gemini's own outputs (foods, grams, boxes, question) are scored separately from what the app displays (kcal), because kcal also depends on the USDA match.
+
+- **Recall:** the share of labeled components found in the output (pizza and pepperoni; the drink; greens, onion, egg, cheese, dressing).
+- **Identity:** judged on `fdc_query`, the string that picks the USDA food. "Iced amber beverage" sent with `Soft drink, ginger ale` counts as right; "ginger ale or iced tea" sent with `Tea, iced` counts as wrong.
+- **Grams in band:** whether the total grams of labeled items fall inside a reference range. **Nothing was weighed.** The ranges are visual estimates anchored on USDA FNDDS portion weights: 86–128 g per large or extra-large pizza slice, 50 g per egg, 15.6 g per tablespoon of dressing, 23 g per fl oz of soda with ice. They measure plausibility, not precision.
+- **kcal in band:** pipeline kcal for the labeled items, compared with the reference range.
+- **Box IoU:** overlap with hand-drawn boxes for the pizza slices, the glasses, and the extent of the salad.
+- **Useful question:** asks about the drink's identity or sugar (drink photos) or the dressing (salad photos).
+
+## Results
+
+Phase A, default media resolution. Prices are paid-tier standard rates from [ai.google.dev pricing](https://ai.google.dev/gemini-api/docs/pricing) on 2026-11-14. The "Lemonade" column counts any lemonade `fdc_query`.
+
+| Config | p50 s | p90 s | $/photo | Recall | Ginger ale | Lemonade | Honey mustard | Grams in band | Useful question | Box IoU | kcal in band |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `4-argon` low | 16.8 | 61.0 | 0.0087 | 100% | 100% | 100% | 100% | 100% | 100% | 0.97 | 100% |
+| `4-argon` medium | 16.2 | 58.9 | 0.0090 | 99% | 67% | 100% | 100% | 93% | 100% | 0.98 | 93% |
+| **`4-hydrogen` low** | **5.9** | **9.3** | **0.0097** | **97%** | **67%** | **100%** | **100%** | **100%** | **100%** | **0.96** | **73%** |
+| `4-hydrogen` medium | 8.4 | 12.9 | 0.0141 | 97% | 100% | 100% | 100% | 100% | 83% | 0.97 | 80% |
+| `4-hydrogen` high | 8.7 | 16.9 | 0.0152 | 100% | 100% | 100% | 100% | 100% | 75% | 0.97 | 80% |
+| `4-hydrogen` xhigh (n=5) | 99.1 | 142.6 | 0.1438 | 100% | 100% | 100% | 100% | 100% | 75% | 0.97 | 100% |
+| `3.8-flash` low | 7.0 | 10.1 | 0.0027 | 100% | 0% | 100% | 100% | 80% | 100% | 0.97 | 60% |
+| `3.8-flash` medium | 11.8 | 16.3 | 0.0051 | 99% | 0% | 100% | 100% | 73% | 75% | 0.95 | 40% |
+| `3.6-flash` minimal | 4.1 | 5.7 | 0.0022 | 100% | 0% | 100% | 100% | 93% | 100% | 0.97 | 67% |
+| `3.6-flash` medium | 9.7 | 13.0 | 0.0054 | 100% | 0% | 100% | 100% | 73% | 75% | 0.96 | 47% |
+| `3.5-flash-lite` minimal | 3.0 | 4.4 | 0.0013 | 83% | 0% | 0% | 50% | 87% | 100% | 0.97 | 40% |
+| `3.5-flash-lite` low | 3.1 | 4.2 | 0.0012 | 81% | 0% | 100% | 50% | 87% | 75% | 0.97 | 47% |
+| `3.1-flash-lite` minimal | 3.3 | 6.1 | 0.0009 | 100% | 0% | 33% | 0% | 60% | 100% | 0.95 | 40% |
+
+Phase B, media resolution. Default is equivalent to `high` (about 1,064 image tokens on Gemini 3 and 4).
+
+| Config | Image tokens | p50 s | $/photo | Recall | Ginger ale | Lemonade | Honey mustard | Grams in band | Grams CV | kcal in band |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `4-hydrogen` low · res low | 266 | 5.5 | 0.0090 | 100% | 67% | 67% | 100% | 87% | 9% | 73% |
+| `4-hydrogen` low · res medium | 540 | 6.3 | 0.0101 | 95% | 33% | 100% | 100% | 80% | 3% | 67% |
+| `4-hydrogen` low · default | 1064 | 5.9 | 0.0097 | 97% | 67% | 100% | 100% | 100% | 7% | 73% |
+| `4-hydrogen` low · res ultra_high | 2160 | 5.9 | 0.0114 | 97% | 67% | 100% | 100% | 100% | 3% | 80% |
+| `3.5-flash-lite` minimal · res low | 266 | 3.0 | 0.0010 | 81% | 0% | 100% | 50% | 73% | 23% | 60% |
+| `3.5-flash-lite` minimal · res medium | 540 | 3.2 | 0.0011 | 79% | 0% | 67% | 17% | 80% | 11% | 47% |
+| `3.5-flash-lite` minimal · default | 1064 | 3.0 | 0.0013 | 83% | 0% | 0% | 50% | 87% | 5% | 40% |
+| `3.5-flash-lite` minimal · res ultra_high | 2160 | 3.4 | 0.0017 | 87% | 0% | 100% | 83% | 87% | 6% | 67% |
+
+Hydrogen `low`, default resolution, first repeat (white boxes are hand-drawn references):
+
+![Hydrogen low on IMG_0579: one box per pizza slice, each with a gram range](bench/results/overlays/gemini-4-hydrogen_low_default/IMG_0579.jpg)
+
+![Hydrogen low on IMG_0582: one box per salad component, each with a gram range](bench/results/overlays/gemini-4-hydrogen_low_default/IMG_0582.jpg)
+
+More overlays: `bench/results/overlays/gemini-4-hydrogen_low_default/` and, for comparison, `bench/results/overlays/gemini-3.5-flash-lite_minimal_default/`. The `IMG_0583` overlays are not committed because that photo shows a person; on it, Flash-Lite collapsed the whole salad into "egg salad with greens and dressing".
+
+## Findings
+
+1. **`low` is the sweet spot for thinking.** On Hydrogen:
+
+   | Thinking | Thinking tokens | p50 s | $/photo |
+   |---|---|---|---|
+   | `low` | 435 | 5.9 | 0.0097 |
+   | `medium` | 1,052 | 8.4 | 0.0141 |
+   | `high` | 1,195 | 8.7 | 0.0152 |
+   | `xhigh` | 18,394 | 99.1 | 0.1438 |
+
+   The only accuracy gain above `low` is the ginger ale. `medium` and higher also spent the clarifying question on the edge glass in `IMG_0583` more often than on the dressing, so useful questions dropped from 100% to 75–83%. On the 3.x Flash models, `medium` was worse than `minimal`/`low`: fewer portions in band and fewer useful questions.
+2. **Keep the default media resolution.** On Hydrogen, `low` resolution saves 798 input tokens but only 7% of the cost, because thinking and output tokens dominate the bill. It also drops grams-in-band from 100% to 87%. `ultra_high` adds 18% to the cost with no gain beyond noise. Tokens are capped per image, so sending more than the current 1536 px only wastes upload time. Flash-Lite does gain from `ultra_high` (honey mustard 50% → 83%) but still trails 3.6 Flash `minimal` at the default resolution.
+3. **Drink identity is the one hard case.** No 3.x model ever sent `Soft drink, ginger ale`. They sent `Tea, iced …` in almost every run; 3.6 Flash once hedged with "cola, or iced tea or alcoholic beverage", and 3.5 Flash-Lite also guessed whiskey and cola. Gemini 4 got it in 67–100% of runs. Pink lemonade was easy for everything except 3.5 Flash-Lite at the default resolution ("cocktail") and 3.1 Flash-Lite ("grapefruit juice", "fruit juice drink").
+4. **No invented foods and no broken JSON.** Across 275 sweep runs there were 0 unexpected items: the person, the flyer, and the napkin dispenser were never logged. All 275 responses parsed against the schema. Asking for `minimal` thinking on `gemini-4-hydrogen` returns HTTP 400 ("Thinking level THINKING_LEVEL_MINIMAL is not supported"), which the README listed as a valid option. The README is now fixed.
+5. **Items at the frame edge get logged, which double-counts across photos.**
+   - The partial pizza plate in the drink photo was logged in **55 of 55** runs. On Hydrogen `low` it added 170–210 kcal to a drink.
+   - The glass at the edge of `IMG_0583` was logged in 39 of 55 runs.
+   - In 22 of 55 runs on `IMG_0583`, the clarifying question asked about that glass instead of the dressing.
+   - The tiny glass rim in `IMG_0579` was ignored in 55 of 55 runs.
+6. **The USDA lookup causes most calorie errors.** Of the 96 runs outside the kcal range:
+   - 50 had a powder or concentrate match;
+   - 25 had grams outside the range;
+   - 21 had the wrong food identity or density.
+
+   Recurring failures:
+
+   | Gemini `fdc_query` | USDA match | kcal/100 g: matched vs right | Frequency | Effect |
+   |---|---|---|---|---|
+   | `Lemonade, pink` | Lemonade, frozen concentrate, pink | 192 vs 25–46 | 37/55 pink-lemonade runs | 240 g shows 461 kcal instead of about 110 |
+   | `Tea, iced, sweetened` (and variants) | Tea, iced, instant, black, pre-sweetened, **dry** (or lemon tea powder) | 401 vs about 32 | 17/110 runs on the two photos with an amber drink | 240 g shows 962 kcal |
+   | `Pizza, pepperoni, …` | Pizza, cheese, … | 266 vs 282 | pepperoni matched 1/55 | Wrong food name on screen; small kcal error |
+   | `Salad, vegetable, with cheese and dressing` | Salad dressing, NFS | 430 vs about 100 | 5 | The whole salad is priced as dressing |
+   | `Salad, arugula and red onion, raw` | Carrots, raw, salad | 212 vs 25–40 | 1 | |
+   | `Salad, arugula` / `green, with red onion, no dressing` | Cobb salad, no dressing | 93 vs about 25 | 2 | |
+   | `Alcoholic beverage, whiskey` | Alcoholic beverage, whiskey sour | 149 vs 250 | 3 | |
+
+   Causes, in `nutrition.py`:
+   - **Concentrates and powders:** `_Scorer` rewards the matched word "pink" and nothing penalizes "concentrate", "powder", or "dry".
+   - **Pepperoni:** FNDDS names the food `Pizza with pepperoni, …` with no comma. The head-of-query rule gives the "name starts with the main food" bonus to `Pizza, cheese, …` instead.
+
+   With correct matches, Hydrogen `low` lands in range on pizza (625–692 kcal vs 500–850) and both salads (466–573 vs 350–640). The first two causes are fixed on this branch; see [Lookup fixes](#lookup-fixes).
+7. **The question → answer loop works, with one bug.** Phase C, Hydrogen `low`:
+
+   | Photo | Gemini asked | kcal before | kcal after the answer |
+   |---|---|---|---|
+   | `IMG_0581` | What kind of drink is this (e.g. pink lemonade, juice, or cocktail)? | 461 (346–576) | **110 (83–138)** |
+   | `IMG_0580` | What is the drink in the glass (e.g., unsweetened iced tea, ginger ale, or alcohol)? | 188 (108–295) | 288 (191–415)\* |
+   | `IMG_0582` | What type of dressing is on the salad? | 549 (396–702) | 572 (466–702) |
+   | `IMG_0583` | What is in the glass on the right (…)? | 1,539 (1,091–2,003) | 785 (555–1,055)† |
+   | `IMG_0579` | (none asked) | 625 (492–758) | — |
+
+   - Answering "regular pink lemonade" changed the query to `Lemonade, pink, regular, ready-to-drink`, which also escaped the concentrate match.
+   - \*The `IMG_0580` total still includes 70 g of the edge pizza (186 kcal); the ginger ale alone is 300 g ≈ 102 kcal.
+   - †Before the answer, the edge glass was matched to instant tea powder (962 kcal). The scripted answer described the dressing instead of the glass; in response, refine dropped the drink and listed honey mustard twice (40 g + 45 g).
+   - The refine call is text-only and takes 2.9–5.3 s.
+8. **Other observations.**
+   - Gemini 4 models bill about 870 more input tokens than 3.x for the same prompt and schema (2,394 vs 1,523), worth about $0.0013 per call.
+   - Argon's latency spikes come from capacity, not thinking: it used 0–236 thinking tokens per call, and one call took 228 s.
+   - Local work (image decode, resize, USDA lookup) adds 0.21 s at p50.
+   - About 43 of 216 questions joined two asks ("whole eggs or halves, and what dressing?"), despite the prompt asking for "at most one short question". This count comes from a regex.
+   - The egg question was right to ask: most models estimated 3 whole eggs (150 g) and asked "whole or halves?". The first human label said halves; the person who ate the salad confirmed whole eggs.
+
+## Lookup fixes
+
+Branch `gemini-benchmark`, `_Scorer` in `src/foodsmart/nutrition.py`:
+
+- **Processed forms.** A candidate containing `concentrate`, `powder`, `dry`, `dried`, `instant`, `dehydrated`, `condensed` or `unprepared` loses 5 points, unless the query asked for that word or the candidate is the prepared form ("…, prepared with water"). Five points outweigh one matched descriptor plus a couple of extra words, which is exactly how "Lemonade, frozen concentrate, pink" used to beat "Lemonade, fruit juice drink".
+- **Pepperoni.** A description named `<main food> with …` now counts as starting with the main food, so `Pizza with pepperoni, …` competes with `Pizza, cheese, …` and wins on the word "pepperoni".
+  - The first version accepted any word after the main food. The replay showed it sent 20 different salad queries to salad dressings (mostly "Salad dressing, NFS", 430 kcal/100 g), "Onion, raw" to "Onion dip", and "Water, municipal" to "Water convolvulus".
+  - Limiting the rule to "with" removed all three. `test_another_food_starting_with_the_main_food_is_not_it` guards it.
+
+Measured by redoing the USDA lookup on the 275 recorded Gemini outputs with `bench/report.py --rematch`. On unchanged code the replay reproduces the recorded tables exactly, so the difference below comes from the fix alone.
+
+| All 275 runs, same Gemini output | Before | After |
+|---|---|---|
+| Runs with kcal in the reference range | 179 (65%) | 230 (84%) |
+| Runs outside the range | 96 | 45 (−53%) |
+| Runs with a powder/concentrate match | 54 | 4 (3 "…prepared with water", 1 query that asked for concentrate) |
+| Pepperoni slice matched to a pepperoni pizza | 1/54 | 50/54 |
+
+| Config | kcal in band, before → after | Median kcal error, before → after |
+|---|---|---|
+| `4-hydrogen` low (default) | 73% → 93% | 15% → 10% |
+| `4-hydrogen` medium | 80% → 100% | 10% → 6% |
+| `3.6-flash` minimal (budget) | 67% → 100% | 18% → 10% |
+| `3.5-flash-lite` minimal | 40% → 60% | 43% → 32% |
+| `4-argon` low | 100% → 100% | 6% → 6% |
+
+**Every changed match** (diff of `bench/results/summary.md` and `summary-rematched.md`):
+- `Lemonade, pink` ×32: frozen concentrate (192 kcal/100 g) → Lemonade, fruit juice drink (46).
+- Sweet iced tea queries ×17: instant tea powder (401) → brewed or ready-to-drink sweet tea (27–32).
+- `Pizza, pepperoni, …` and `Pizza, with pepperoni, …` ×50: cheese pizza (266) → pepperoni pizza (274–296).
+- `Pizza, with meat, …` ×1: cheese pizza → pizza with meat and vegetables (241).
+- `Fruit punch drink, or lemonade, pink` ×1: punch concentrate (162) → canned punch (47).
+- `Lemonade, pink, prepared` ×1: frozen concentrate (192) → lemonade powder prepared with water (14). Still wrong, now in the other direction.
+
+**Still wrong after the fix:**
+- `Pizza, cheese and pepperoni, thin crust` (3 runs) ties with "Pizza, extra cheese, thin crust" and loses the tiebreak (268 vs 274 kcal/100 g).
+- `Tea, iced, un-sweetened` splits into "un" + "sweetened" and lands on pre-sweetened tea (32 vs 1).
+- 3.x models still call the ginger ale iced tea. The calories now land in range only because brewed sweet tea (32) and ginger ale (34) have about the same density.
+- A salad sent as one item (`Salad, vegetable, with cheese and dressing`) still matches "Salad dressing, NFS".
+
+## Recommendations
+
+### Configuration
+- Keep the defaults: `FOODSMART_MODEL=gemini-4-hydrogen`, `FOODSMART_THINKING=low`, no `resolution` override.
+- For a cheaper or faster demo fallback: `FOODSMART_MODEL=gemini-3.6-flash FOODSMART_THINKING=minimal`.
+
+### Code fixes, ranked by measured impact
+1. **Done on this branch:** the USDA scorer penalizes processed forms the query did not ask for. Runs with a powder/concentrate match went from 54 to 4, all prepared forms or explicitly requested.
+2. **Done on this branch:** `Pizza with X, …` counts as starting with the main food. Pepperoni matched 1/54 → 50/54. With fix 1, 51 of the 96 out-of-range runs are now in range.
+3. **Prompt: skip food cut off by the frame edge** unless it is the subject of the photo, and point the question at the main subject. This fixes the drink-photo pizza (55/55) and the `IMG_0583` glass (39/55 logged, 22/55 asked about).
+4. **Refine prompt:** "update existing items; never duplicate one". Then add a refine test for the duplicate-dressing case.
+5. **Prompt: one question, one sentence** (43/216 were compound). Composite salads should be split into components; when a salad is sent as one item, `Salad, …` queries match `Salad dressing, NFS`.
+
+### What to show for "Best Use of Gemini API"
+- **One call, structured output:** foods, gram ranges, cooking method, bounding boxes, a scale reference, and one clarifying question, all from a Pydantic schema. 275/275 responses were valid.
+- **The signature moment: Gemini's boxes drawn on the photo**, each labeled with a gram range. IoU against hand-drawn boxes is 0.96; the overlays above are real output.
+- **The live question loop:** "What kind of drink is this?" → "pink lemonade" → 461 → 110 kcal on stage.
+- **Thinking level and media resolution chosen by measurement:** cite the two tables above.
+- **Privacy:** `store=False`, EXIF stripped, coordinates dropped before Gemini sees anything.
+- **Next uses of Gemini that fix the measured weaknesses:**
+  - Let Gemini choose among the top USDA candidates with structured output, grounding the match (finding 6).
+  - Send all photos of one meal in a single multi-image request so edge items are counted once (finding 5).
+
+## Limitations
+- 5 photos from one dining hall on one night, 3 repeats. One photo is 20% of a column, so gaps of about 20 points between configurations are within noise.
+- Reference grams and kcal are unweighed estimates. Weighing 10 meals on a kitchen scale would turn "in band" into real error bars.
+- Latency was measured from one laptop with up to 19 configurations in flight at once (at most 7 on one model). Single requests from a phone were not measured.
+- Prices as of 2026-11-14: Argon doubles on 2026-12-01; 3.8/3.6 Flash double on 2027-01-01.
+
+## Rerun
+
+```sh
+uv run foodsmart fdc-import                                   # once
+uv run --env-file .env python bench/run.py --phase a --phase b   # sweep (resumable; this whole benchmark cost $2.40)
+uv run --env-file .env python bench/run.py --phase c --config 'gemini-4-hydrogen|low|default' --reps 1
+uv run python bench/report.py              # recorded results -> bench/results/summary.md
+uv run python bench/report.py --rematch    # redo the USDA lookup with current code -> summary-rematched.md
+uv run python bench/report.py --overlays 'gemini-4-hydrogen|low|default'
+```
+
+The photos are not committed because they carry GPS EXIF. Copy them into `test_pictures/` to call Gemini again or draw overlays; `--rematch` needs only the recorded results and the USDA database. To rerun from scratch, delete `bench/results/runs.jsonl`.

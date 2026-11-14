@@ -146,6 +146,25 @@ _NEGATIONS = frozenset(
         "unsweetened", "light", "reduced", "low",
     }
 )
+# Forms nobody eats as-is: a plate never holds lemonade concentrate or dry instant tea, but they
+# often share the query's words ("Lemonade, pink" -> "Lemonade, frozen concentrate, pink",
+# 192 kcal/100 g vs 25-46 for the drink). Penalized harder than a negation, unless the query asks
+# for the form or the entry is its prepared version ("..., frozen concentrate, prepared with water").
+_PROCESSED = frozenset(
+    {
+        "concentrate",
+        "concentrated",
+        "powder",
+        "powdered",
+        "dry",
+        "dried",
+        "instant",
+        "dehydrated",
+        "condensed",
+        "unprepared",
+    }
+)
+_PROCESSED_PENALTY = 5
 _NICHE_CATEGORY = re.compile(r"^(baby|formula|fast foods|restaurant foods|american indian)", re.IGNORECASE)
 # "NFS" / "NS as to ..." entries are USDA's generic defaults: the right pick when the photo
 # cannot resolve the detail.
@@ -187,8 +206,9 @@ def _quoted(terms: list[str]) -> list[str]:
 @dataclass(frozen=True, slots=True)
 class _Scorer:
     """Orders candidates: everyday foods before brand/baby items, then foods whose name starts
-    with the query's main food (FNDDS names it first), then by how well the description covers
-    the query and nothing more.
+    with the query's main food (FNDDS names it first, as in "Pizza, cheese, ..." and
+    "Pizza with pepperoni, ..."), then by how well the description covers the query and
+    nothing more.
 
     bm25 alone prefers the shortest description ("Rice, white, cooked, glutinous" over the
     generic "Rice, white, cooked, NS as to fat") and ranks "Topping from cheese pizza" above
@@ -212,11 +232,22 @@ class _Scorer:
         matched = sum(w for t, w in self.weights.items() if t in stems)
         extras = stems - self.weights.keys()
         negations = sum(1 for w in words if w in _NEGATIONS and _stem(w) not in self.weights)
-        score = 3 * matched - len(extras) - 2 * negations - _SOURCE_PENALTY.get(data_type, 0.6)
+        processed = 0 if "prepared" in words else sum(
+            1 for w in words if w in _PROCESSED and _stem(w) not in self.weights
+        )
+        score = (
+            3 * matched
+            - len(extras)
+            - 2 * negations
+            - _PROCESSED_PENALTY * processed
+            - _SOURCE_PENALTY.get(data_type, 0.6)
+        )
         if _GENERIC_MARKER.search(description):
             score += 0.5
-        lowered = description.lower()
-        head_first = lowered == self.head_prefix or lowered.startswith(self.head_prefix + ",")
+        # FNDDS names "X with Y" foods X first ("Pizza with pepperoni"); any other word after the
+        # main food makes another food ("Salad dressing", "Onion dip").
+        lead = description.lower().split(",", 1)[0]
+        head_first = lead == self.head_prefix or lead.startswith(self.head_prefix + " with ")
         niche = bool(_NICHE_CATEGORY.match(category))
         return niche, not head_first, -score, bm25, len(description)
 

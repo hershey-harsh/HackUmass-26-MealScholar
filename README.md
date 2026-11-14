@@ -52,8 +52,8 @@ uv run foodsmart week                                      # 7-day averages, mic
 | Variable | Default | |
 |---|---|---|
 | `GEMINI_API_KEY` | — | Required for `analyze` |
-| `FOODSMART_MODEL` | `gemini-4-hydrogen` | e.g. `gemini-3.5-flash-lite` for cheaper, faster runs |
-| `FOODSMART_THINKING` | `low` | Gemini thinking level: `minimal`, `low`, `medium`, `high` |
+| `FOODSMART_MODEL` | `gemini-4-hydrogen` | e.g. `gemini-3.6-flash` (with `FOODSMART_THINKING=minimal`) for 4× cheaper, faster runs; see [BENCHMARK.md](BENCHMARK.md) |
+| `FOODSMART_THINKING` | `low` | Gemini thinking level: `low`, `medium`, `high`, `xhigh` on Gemini 4; `minimal` only on 3.x Flash / Flash-Lite (Gemini 4 rejects it) |
 | `FOODSMART_HOME` | `~/.foodsmart` | USDA database, downloads, diary |
 | `FOODSMART_NOMINATIM_URL` | public OSM Nominatim | Public instance allows 1 request/second |
 
@@ -71,6 +71,7 @@ uv run foodsmart week                                      # 7-day averages, mic
 ```sh
 uvx ruff@0.17.5 check          # lint; CI runs the same version (.github/workflows/lint.yml)
 uv run pytest
+uv run python bench/report.py --rematch   # replay the USDA lookup on recorded Gemini output, no API calls; see BENCHMARK.md
 ```
 
 ## Not in v1
