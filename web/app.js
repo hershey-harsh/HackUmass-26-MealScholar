@@ -78,3 +78,30 @@
     build();
   });
 })();
+
+// Page backdrop: --p runs from 0 at the top to 1 at the bottom for the scroll effects,
+// and sections rise in as they come into view. Skipped when reduced motion is on.
+(function () {
+  var d = document, w = window, root = d.documentElement;
+  if (w.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var queued = false;
+  function set() {
+    queued = false;
+    var max = root.scrollHeight - w.innerHeight;
+    root.style.setProperty('--p', max > 0 ? Math.min(1, Math.max(0, w.scrollY / max)).toFixed(4) : '0');
+  }
+  function queue() { if (!queued) { queued = true; w.requestAnimationFrame(set); } }
+  w.addEventListener('scroll', queue, { passive: true });
+  w.addEventListener('resize', queue);
+  set();
+  if (!('IntersectionObserver' in w)) return;
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
+    });
+  }, { rootMargin: '0px 0px -6% 0px', threshold: 0.06 });
+  d.querySelectorAll('main > section:not(.hero-shell)').forEach(function (el) {
+    el.classList.add('reveal');
+    io.observe(el);
+  });
+})();

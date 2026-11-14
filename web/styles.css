@@ -1671,3 +1671,56 @@ html:not(.js) .rail-ctrl { display: none; }
   .lbl-desktop { display: none; }
   .lbl-phone { display: inline; }
 }
+
+/* Whole-page backdrop: the plates sit in a fixed layer behind everything (iOS Safari
+   ignores background-attachment: fixed). app.js sets --p from 0 at the top of the page
+   to 1 at the bottom; the layer zooms and drifts and the light cools as you scroll. */
+html { background: #ECEBE4; }
+body { background: transparent; }
+.page-bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.page-bg__img {
+  position: absolute;
+  inset: -8% -4%;
+  background: url("img/hero-plates-1408.jpg") 50% 62% / cover no-repeat;
+  transform: translate3d(0, calc(var(--p, 0) * -5%), 0) scale(calc(1.02 + var(--p, 0) * .16));
+  transform-origin: 50% 68%;
+  will-change: transform;
+}
+@media (max-width: 699px) {
+  .page-bg__img { background-image: url("img/hero-plates-900.jpg"); background-position: 50% 74%; }
+}
+.page-bg__tint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,
+    rgba(236, 235, 228, calc(.06 + var(--p, 0) * .30)) 0%,
+    rgba(238, 240, 242, calc(.16 + var(--p, 0) * .44)) 100%);
+}
+/* Cards are frosted and slightly see-through so the plates show behind them. */
+.card, .site-footer {
+  background: rgba(250, 250, 255, .82);
+  -webkit-backdrop-filter: blur(16px) saturate(1.05);
+  backdrop-filter: blur(16px) saturate(1.05);
+}
+.site-footer { border-radius: var(--radius); margin-bottom: 24px; padding-top: 28px; padding-bottom: 20px; }
+.hero-shell {
+  background: rgba(250, 250, 255, .32);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+.trust { background: rgba(250, 250, 255, .82); border-radius: 0 0 var(--radius) var(--radius); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .card, .site-footer { background: rgba(250, 250, 255, .94); }
+}
+/* The hero shows the page backdrop itself, with a soft wash behind the text. */
+.hero { background: linear-gradient(180deg, rgba(236, 235, 228, .62) 0%, rgba(236, 235, 228, .42) 55%, rgba(236, 235, 228, .06) 100%); }
+@media (min-width: 760px) {
+  .hero { background: linear-gradient(90deg, rgba(236, 235, 228, .8) 0%, rgba(236, 235, 228, .52) 38%, rgba(236, 235, 228, 0) 64%); }
+}
+/* Sections rise in as they come into view (only when app.js runs). */
+.js .reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s ease, transform .7s cubic-bezier(.2, .7, .2, 1); }
+.js .reveal.is-in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .page-bg__img { transform: none; }
+  .js .reveal { opacity: 1; transform: none; transition: none; }
+}
