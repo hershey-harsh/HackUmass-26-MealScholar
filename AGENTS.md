@@ -44,7 +44,7 @@ The site at https://hackumass.mannava.org is `web/`, and it redeploys on every p
 
 ## 5. Website work
 
-Every agent MUST follow these rules for all FoodSmart website and frontend work.
+Every agent MUST follow these rules for all MealScholar website and frontend work.
 
 ### Quality benchmark
 
@@ -55,9 +55,9 @@ Every agent MUST follow these rules for all FoodSmart website and frontend work.
 
 Design MUST NOT override [the rules the code enforces](README.md#rules-the-code-enforces). In particular, the UI:
 
-- shows grams and nutrients as ranges (`low`/`likely`/`high`) until the user enters an exact weight; NEVER collapse a range to a single number for visual simplicity;
+- shows amounts and nutrients as ranges (`low`/`likely`/`high`); the AI estimates how much is there and the user never weighs anything; NEVER collapse a range to a single number for visual simplicity;
 - labels micronutrients as estimates;
-- shows no calorie targets and no insulin or carb-dosing advice.
+- shows a calorie goal only if the user set one during onboarding (goals are the user's own); never gives insulin or carb-dosing advice.
 
 The frontend's data contract is `MealResult` in `src/foodsmart/schemas.py`, printed by `uv run foodsmart analyze PHOTO --json`. The app lives in `src/foodsmart/site/` (plain HTML/CSS/JS, no build step) and talks to the JSON API in `src/foodsmart/web.py`; run it with `uv run foodsmart serve`.
 
@@ -87,4 +87,4 @@ Stop only when a full pass across every dimension finds no meaningful improvemen
 | **Motion** | Every animation has a purpose (guiding attention, showing cause and effect, setting pace); custom easing curves, not browser or library defaults; quick, confident durations; animate only `transform` and `opacity` to hold 60fps; respects `prefers-reduced-motion`. |
 | **Micro-interactions** | Every interactive element has hover, `:focus-visible`, active, disabled, and loading states where they apply; feedback is immediate; affordances read clearly on both pointer and touch. |
 | **Responsiveness** | Fluid from 320px to 2560px; no horizontal scroll; touch targets of at least 44×44px; layouts recomposed for each viewport, not just shrunk. |
-| **Originality** | A distinct visual identity rooted in FoodSmart's concept and content: meal photos, the foods found in them, and honest ranges instead of fake-precise numbers. It MUST NOT look like a stock template or a generic hero-plus-three-cards layout. Give it at least one memorable signature moment. |
+| **Originality** | A distinct visual identity rooted in MealScholar's concept and content: meal photos, the foods found in them, and honest ranges instead of fake-precise numbers. It MUST NOT look like a stock template or a generic hero-plus-three-cards layout. Give it at least one memorable signature moment. |
