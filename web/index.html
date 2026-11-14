@@ -2,60 +2,628 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MealScholar · HackUMass XIV</title>
-<meta name="description" content="MealScholar: snap a meal photo, get the foods, grams and nutrients. A HackUMass XIV project.">
-<style>
-  :root {
-    color-scheme: light dark;
-    --bg: #fbfaf7; --fg: #1d1d1b; --muted: #66655f; --card: #ffffff; --line: #e7e4dc; --accent: #881c1c;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #131312; --fg: #f1efe9; --muted: #a3a19a; --card: #1c1c1a; --line: #2e2d2a; --accent: #e57373; }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--fg);
-    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  }
-  main { max-width: 46rem; margin: 0 auto; padding: 4.5rem 1.25rem 3rem; }
-  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; font-size: .78rem; margin: 0 0 .6rem; }
-  h1 { font-size: clamp(2.4rem, 7vw, 3.4rem); line-height: 1.05; margin: 0 0 1rem; letter-spacing: -.02em; }
-  .lede { font-size: 1.15rem; color: var(--muted); margin: 0; max-width: 36rem; }
-  h2 { font-size: .95rem; margin: 2.75rem 0 .8rem; }
-  .cards { list-style: none; padding: 0; margin: 0; display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
-  .cards li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.1rem; }
-  .cards strong { display: block; margin-bottom: .2rem; }
-  .cards span { color: var(--muted); font-size: .95rem; }
-  footer { margin-top: 3.5rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
-  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
-  .cta { margin: 1.5rem 0 0; }
-  .cta a { display: inline-block; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; padding: .65rem 1.1rem; border-radius: 10px; }
-  .cta a:hover { filter: brightness(1.1); }
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MealScholar · Nutrition from a photo, in honest ranges</title>
+<meta name="description" content="Snap a photo of your meal and get the foods, the grams and the nutrients, shown as honest ranges instead of one fake-precise number. Piloting at UMass.">
+<meta name="theme-color" content="#EEF0F2">
+<meta name="color-scheme" content="light">
+<meta property="og:type" content="website">
+<meta property="og:title" content="MealScholar">
+<meta property="og:description" content="Snap a photo of your meal and get the foods, the grams and the nutrients, shown as honest ranges.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
 </head>
 <body>
-<main>
-  <p class="eyebrow">HackUMass XIV · work in progress</p>
-  <h1>MealScholar</h1>
-  <p class="lede">Snap a meal photo and get the foods, grams and nutrients, shown as honest ranges instead of one fake-precise number.</p>
-  <p class="cta"><a href="https://mealscholar.mannava.org">Open the app →</a></p>
+<a class="skip" href="#main">Skip to content</a>
 
-  <h2>What we're building</h2>
-  <ul class="cards">
-    <li><strong>Photo to nutrients</strong><span>AI identifies the foods and portions; the nutrients come from USDA FoodData Central.</span></li>
-    <li><strong>UMass Dining menus</strong><span>Every dining commons and café menu with full nutrition, in MongoDB Atlas.</span></li>
-    <li><strong>Food diary</strong><span>Log meals, fix portions, and see your day and week at a glance.</span></li>
-  </ul>
+<svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
+  <defs>
+    <linearGradient id="g-table" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ECEBE4"/><stop offset="1" stop-color="#DADDD8"/></linearGradient>
+    <radialGradient id="g-plate" cx=".42" cy=".36" r=".72"><stop offset="0" stop-color="#FAFAFF"/><stop offset=".78" stop-color="#FAFAFF"/><stop offset="1" stop-color="#EEF0F2"/></radialGradient>
+  </defs>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M8.5 7H17v8.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-arrow-se" viewBox="0 0 24 24"><path d="M7 7l10 10M17 8.5V17H8.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8.5 5.6v12.8a1 1 0 0 0 1.53.85l10.2-6.4a1 1 0 0 0 0-1.7l-10.2-6.4a1 1 0 0 0-1.53.85z" fill="currentColor"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3.5v11M8 7.5l4-4 4 4M7 11H6a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5v-7A1.5 1.5 0 0 0 18 11h-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-menu-dots" viewBox="0 0 24 24"><circle cx="12" cy="5.5" r="1.8" fill="currentColor"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><circle cx="12" cy="18.5" r="1.8" fill="currentColor"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="mark" viewBox="0 0 32 32"><rect width="32" height="32" rx="10" fill="#1C1C1C"/><circle cx="16" cy="17.5" r="8" fill="none" stroke="#FAFAFF" stroke-width="2.4"/><path d="M16.2 4.8c2.9 1.4 4.2 3.9 3.7 6.9-2.9-.2-5-2-5.5-4.9.4-.8 1-1.5 1.8-2z" fill="#DADDD8"/></symbol>
+  <symbol id="plate" viewBox="0 0 320 200">
+    <rect width="320" height="200" fill="url(#g-table)"/>
+    <ellipse cx="167" cy="109" rx="91" ry="87" fill="#1C1C1C" opacity=".08"/>
+    <circle cx="160" cy="100" r="88" fill="url(#g-plate)"/>
+    <circle cx="160" cy="100" r="67" fill="none" stroke="#DADDD8" stroke-width="1.5"/>
+    <path d="M92 113c-3-22 15-38 36-37 19 1 32 14 32 31 0 19-15 31-35 31-17 0-31-9-33-25z" fill="#ECEBE4" stroke="#DADDD8" stroke-width="1.5"/>
+    <path d="M108 97l6 2M136 95l6 1M129 106l6-1M104 123l6 1M136 123l6 2M124 135h6M142 135l4-3" stroke="#DADDD8" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M122 89l5-2M114 109l5 3M144 109l4 4M120 121l5-2M150 99l3 4M110 137l5-2M100 109l4 2" stroke="#FAFAFF" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M154 84c-3-17 12-32 34-37 22-4 40 3 42 16 2 13-12 24-32 30-22 5-41 5-44-9z" fill="#DADDD8" stroke="#1C1C1C" stroke-opacity=".22" stroke-width="1.5"/>
+    <path d="M157 74l8-5M158 85l8-5M172 66l8-5M173 78l8-5M174 89l7-4M188 60l8-5M189 72l8-5M190 84l8-5M204 60l8-5M205 72l8-5M220 62l6-4M221 72l6-4" stroke="#1C1C1C" stroke-opacity=".34" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M168 56c-2 12-1 24 2 35M184 49c-2 15-1 30 2 44M200 48c-2 14-1 29 2 42M216 53c-1 11 0 21 2 30" fill="none" stroke="#FAFAFF" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M192 152l7-16M207 154l1-18M223 148l-6-16" stroke="#1C1C1C" stroke-opacity=".2" stroke-width="7" stroke-linecap="round"/>
+    <g fill="#1C1C1C" fill-opacity=".56" stroke="#FAFAFF" stroke-width="1.6"><circle cx="186" cy="134" r="8"/><circle cx="196" cy="129" r="11"/><circle cx="205" cy="122" r="9"/><circle cx="221" cy="124" r="8"/><circle cx="211" cy="131" r="11"/><circle cx="230" cy="131" r="8"/><circle cx="220" cy="136" r="9"/></g>
+    <g fill="#1C1C1C" fill-opacity=".3"><circle cx="190" cy="133" r="1.8"/><circle cx="199" cy="134" r="1.8"/><circle cx="203" cy="125" r="1.6"/><circle cx="213" cy="135" r="1.8"/><circle cx="223" cy="127" r="1.6"/><circle cx="231" cy="134" r="1.6"/><circle cx="217" cy="139" r="1.6"/></g>
+    <g fill="#FAFAFF" fill-opacity=".3"><circle cx="193" cy="125" r="3.2"/><circle cx="207" cy="127" r="3.2"/><circle cx="218" cy="121" r="2.6"/><circle cx="228" cy="128" r="2.4"/><circle cx="184" cy="131" r="2.4"/></g>
+  </symbol>
+</svg>
 
-  <h2>Team</h2>
-  <ul class="cards">
-    <li><strong>Harsh</strong><span>UI/UX, login and registration</span></li>
-    <li><strong>Joseph</strong><span>Core AI: food detection</span></li>
-    <li><strong>Gabby</strong><span>Pitch deck and presentation</span></li>
-  </ul>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <nav class="nav-main" aria-label="Main">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="brand" href="#top" aria-label="MealScholar, back to top">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="10" fill="#1C1C1C"/><circle cx="16" cy="17.5" r="8" fill="none" stroke="#FAFAFF" stroke-width="2.4"/><path d="M16.2 4.8c2.9 1.4 4.2 3.9 3.7 6.9-2.9-.2-5-2-5.5-4.9.4-.8 1-1.5 1.8-2z" fill="#DADDD8"/></svg>
+      <span>MealScholar</span>
+    </a>
+    <div class="header-cta">
+      <a class="cta cta--sm" href="https://mealscholar.mannava.org">
+        <span class="cta__pill">Open the app</span>
+        <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
+      </a>
+    </div>
+    <details class="menu">
+      <summary aria-label="Menu"><span class="menu__icon" aria-hidden="true"><span></span><span></span></span></summary>
+      <div class="menu__panel">
+        <nav aria-label="Main">
+          <a href="#how">How it works<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
+          <a href="#features">Features<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
+          <a href="#nutrients">What it tracks<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
+          <a href="#faq">FAQ<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
+        </nav>
+        <a class="cta cta--block" href="https://mealscholar.mannava.org">
+          <span class="cta__pill">Open the app</span>
+          <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
+        </a>
+      </div>
+    </details>
+  </div>
+</header>
 
-  <footer>Deployed from commit <code>__COMMIT__</code> on __DEPLOYED_AT__.</footer>
+<nav class="nav-chips" aria-label="Sections">
+  <span class="nav-chips__label" aria-hidden="true">Jump to</span>
+  <a href="#how">How it works</a>
+  <a href="#features">Features</a>
+  <a href="#videos">Videos</a>
+  <a href="#nutrients">Nutrients</a>
+  <a href="#umass">UMass</a>
+  <a href="#team">Team</a>
+  <a href="#faq">FAQ</a>
+</nav>
+
+<main id="main" class="wrap">
+
+  <!-- Hero -->
+  <section class="hero-shell" aria-labelledby="hero-title">
+    <div class="hero">
+      <div class="hero__copy">
+        <a class="umass-badge" href="#umass">
+          <img src="brand/umass-m.svg" alt="" width="26" height="22">
+          <span>Piloting at UMass</span>
+        </a>
+        <h1 id="hero-title" class="h1">Nutrition from a photo, in <span class="hl">honest ranges</span></h1>
+        <p class="hero__lede">
+          <svg class="hero__lede-arrow" aria-hidden="true"><use href="#i-arrow-se"/></svg>
+          <span>Snap your meal and get the foods, the grams and the nutrients, each as a low to high range instead of one fake-precise number.</span>
+        </p>
+        <div class="hero__actions">
+          <a class="cta cta--light" href="https://mealscholar.mannava.org" data-hero-cta>
+            <span class="cta__pill">Open the app</span>
+            <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
+          </a>
+          <p class="hero__hint">Works in your phone’s browser. No app store download.</p>
+        </div>
+      </div>
+
+      <div class="hero__visual">
+        <div class="phone" role="img" aria-label="Example result on a phone, for illustration: a lunch photo with three foods found. Chicken breast 110 to 150 grams, white rice 140 to 200 grams, broccoli 60 to 90 grams. Calories 385 to 539, likely 462.">
+          <div class="phone__screen">
+            <div class="ps-status"><span>9:41</span><span class="ps-sig"><i></i><i></i><i></i><b></b></span></div>
+            <div class="ps-bar">
+              <svg class="ps-mark"><use href="#mark"/></svg>
+              <span class="ps-title">Lunch</span>
+              <span class="ps-ex">Example</span>
+            </div>
+            <div class="ps-photo">
+              <svg viewBox="0 0 320 200">
+                <use href="#plate"/>
+                <g font-family="Geist Mono, ui-monospace, monospace" font-size="13" font-weight="600" text-anchor="middle">
+                  <circle cx="194" cy="70" r="12" fill="#1C1C1C" stroke="#FAFAFF" stroke-width="3"/><text x="194" y="74.5" fill="#FAFAFF">1</text>
+                  <circle cx="124" cy="104" r="12" fill="#1C1C1C" stroke="#FAFAFF" stroke-width="3"/><text x="124" y="108.5" fill="#FAFAFF">2</text>
+                  <circle cx="214" cy="146" r="12" fill="#1C1C1C" stroke="#FAFAFF" stroke-width="3"/><text x="214" y="150.5" fill="#FAFAFF">3</text>
+                </g>
+              </svg>
+            </div>
+            <div class="ps-total">
+              <span class="ps-total__k">Calories</span>
+              <span class="ps-total__s">likely 462</span>
+              <span class="ps-total__v">385–539<small>kcal</small></span>
+              <span class="band band--kcal band--dark"></span>
+            </div>
+            <div class="ps-card ps-foods">
+              <div class="ps-food"><span class="pin">1</span><span class="ps-food__nm">Chicken breast</span><span class="ps-food__g"><b>130 g</b><small>110–150</small></span></div>
+              <div class="ps-food"><span class="pin">2</span><span class="ps-food__nm">White rice</span><span class="ps-food__g"><b>170 g</b><small>140–200</small></span></div>
+              <div class="ps-food"><span class="pin">3</span><span class="ps-food__nm">Broccoli</span><span class="ps-food__g"><b>75 g</b><small>60–90</small></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="float float--q" aria-hidden="true">
+          <span class="float__label">One question</span>
+          <span class="float__q">Is the rice white or brown?</span>
+          <span class="opts"><span class="opt opt--on">White</span><span class="opt">Brown</span></span>
+        </div>
+      </div>
+
+      <p class="hero__note">Nutrients come from USDA data, never from the AI.</p>
+      <span class="watermark" aria-hidden="true">MEALSCHOLAR</span>
+    </div>
+
+    <ul class="trust" aria-label="At a glance">
+      <li>USDA FoodData Central</li>
+      <li>Ranges, not fake precision</li>
+      <li>Photos never stored</li>
+      <li>Location optional</li>
+      <li>Piloting at UMass</li>
+    </ul>
+  </section>
+
+  <!-- Why -->
+  <section class="card section" id="features" aria-labelledby="why-title">
+    <div class="why">
+      <div class="why__intro">
+        <p class="eyebrow">Why MealScholar</p>
+        <h2 id="why-title" class="h2">Honest about what a photo can tell you</h2>
+        <p class="section-sub">Eight choices that keep the numbers honest and the app easy to check.</p>
+        <a class="pill-link" href="#how">See how it works<svg aria-hidden="true"><use href="#i-arrow-se"/></svg></a>
+      </div>
+      <ol class="why__list">
+        <li class="why__item"><span class="why__num" aria-hidden="true">01</span><h3>Ranges, not fake precision</h3><p>Each food gets a low, likely and high weight, so you can see how sure the estimate is.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">02</span><h3>The AI never makes up nutrients</h3><p>Gemini names the foods and estimates grams. The nutrients come from USDA data and plain arithmetic.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">03</span><h3>13,648 USDA foods</h3><p>Matches come from USDA FoodData Central: Survey (FNDDS), Foundation and SR Legacy.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">04</span><h3>One question, at most</h3><p>If a photo is unclear, it asks you one thing, then recomputes.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">05</span><h3>Your fixes stick</h3><p>Set an exact weight or swap the match. Corrections become your usual portions next time.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">06</span><h3>Today and weekly views</h3><p>Every meal with the day’s totals and % Daily Value. Weekly averages count only the days you logged.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">07</span><h3>Photos are never stored</h3><p>They’re analyzed in memory. Location is optional and stays off unless you switch it on.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">08</span><h3>Nothing to install</h3><p>It works in the browser on any phone. Add it to your Home Screen if you like.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="card section" id="how" aria-labelledby="how-title">
+    <div class="section-head section-head--center">
+      <p class="eyebrow">How it works</p>
+      <h2 id="how-title" class="h2">From photo to nutrients</h2>
+      <p class="section-sub">Five steps, shown here with an example lunch.</p>
+    </div>
+    <ol class="steps">
+      <li class="step">
+        <span class="step__num">01</span>
+        <h3>Snap your meal</h3>
+        <p>Take a photo of your plate. It’s analyzed in memory and never stored.</p>
+        <div class="mock" role="img" aria-label="Example camera screen: a plate in the viewfinder and a button to take or choose a photo, marked not stored.">
+          <div class="vf">
+            <svg viewBox="0 0 320 200"><use href="#plate"/></svg>
+            <i class="vf__c vf__c--tl"></i><i class="vf__c vf__c--tr"></i><i class="vf__c vf__c--bl"></i><i class="vf__c vf__c--br"></i>
+          </div>
+          <div class="mini mini--bar">
+            <span class="shutter"></span>
+            <span class="mini__stack"><b>Take or choose a photo</b><small>Not stored</small></span>
+          </div>
+        </div>
+      </li>
+      <li class="step">
+        <span class="step__num">02</span>
+        <h3>Foods and grams</h3>
+        <p>Gemini names each food and estimates its weight as a low, likely and high range.</p>
+        <div class="mock" role="img" aria-label="Example: 3 foods found, each with a low, likely and high weight. Chicken breast 110, 130 and 150 grams. White rice 140, 170 and 200 grams. Broccoli 60, 75 and 90 grams.">
+          <div class="mini mini--foods">
+            <div class="ml-head"><span>3 foods found</span><span>low · likely · high</span></div>
+            <div class="ml-row"><span class="pin">1</span><span class="ml-n">Chicken breast</span><span class="ml-g">110 · <b>130</b> · 150 g</span><span class="band band--f1"></span></div>
+            <div class="ml-row"><span class="pin">2</span><span class="ml-n">White rice</span><span class="ml-g">140 · <b>170</b> · 200 g</span><span class="band band--f2"></span></div>
+            <div class="ml-row"><span class="pin">3</span><span class="ml-n">Broccoli</span><span class="ml-g">60 · <b>75</b> · 90 g</span><span class="band band--f3"></span></div>
+          </div>
+        </div>
+      </li>
+      <li class="step">
+        <span class="step__num">03</span>
+        <h3>One question, if needed</h3>
+        <p>If the photo is unclear, it asks you one thing, then recomputes.</p>
+        <div class="mock" role="img" aria-label="Example question: Is the rice white or brown? White is picked, and the meal is recomputed with white rice.">
+          <div class="mini mini--q">
+            <span class="mini__label">One question</span>
+            <span class="mini__q">Is the rice white or brown?</span>
+            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>White</span><span class="opt">Brown</span></span>
+          </div>
+          <div class="toast"><svg><use href="#i-check"/></svg>Recomputed with white rice</div>
+        </div>
+      </li>
+      <li class="step step--wide step--tint">
+        <div class="step__text">
+          <span class="step__num">04</span>
+          <h3>Nutrients as ranges</h3>
+          <p>Nutrients come from USDA FoodData Central: grams times the values per 100 g. The AI never outputs nutrient numbers.</p>
+          <span class="dot-chip">USDA data · plain math</span>
+        </div>
+        <div class="mock mock--side" role="img" aria-label="Example nutrients for the lunch: calories 385 to 539 kcal, likely 462. Protein 46.7 grams, 79 to 108 percent of the Daily Value. Carbohydrate 53.3 grams, 16 to 23 percent. Worked example: chicken, 130 grams times 31.0 grams of protein per 100 grams, equals 40.3 grams of protein.">
+          <div class="mini mini--nutr">
+            <div class="mini__head"><span class="mini__label">Nutrients</span><span class="mini__label">Lunch</span></div>
+            <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>462</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">385–539 kcal</small></div>
+            <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>46.7</b> g</span><span class="band band--prot"></span><small class="nrow__r">79–108% DV</small></div>
+            <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>53.3</b> g</span><span class="band band--carb"></span><small class="nrow__r">16–23% DV</small></div>
+          </div>
+          <div class="formula"><span class="formula__k">Chicken, protein</span>130 g × 31.0 g per 100 g<b>= 40.3 g protein</b></div>
+        </div>
+      </li>
+      <li class="step step--fix">
+        <span class="step__num">05</span>
+        <h3>Fix it, log it</h3>
+        <p>Set an exact weight or swap the USDA match. Your fixes become your usual portions.</p>
+        <div class="mock" role="img" aria-label="Example fix: white rice changes from 140 to 200 grams to an exact 180 grams. The USDA match, Rice, white, cooked, no added fat, has a Swap button. Then Log to Today, saved as your usual portion.">
+          <div class="mini mini--fix">
+            <div class="fx-head"><span class="pin">2</span><b>White rice</b><span class="fx-chg"><s>140–200 g</s><svg><use href="#i-chev-r"/></svg><span class="fx-new">180 g</span></span></div>
+            <div class="fx-row"><span class="fx-k">Exact weight</span><span class="fx-in">180 g</span><span class="fx-btn">Set</span></div>
+            <div class="fx-row"><span class="fx-k">USDA match</span><span class="fx-food">Rice, white, cooked, no added fat</span><span class="fx-swap">Swap</span></div>
+            <div class="fx-foot"><span class="fx-log">Log to Today</span><span class="fx-ok"><svg><use href="#i-check"/></svg>Saved as your usual portion</span></div>
+          </div>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- Videos -->
+  <section class="card section" id="videos" aria-labelledby="videos-title">
+    <div class="section-head section-head--split">
+      <div>
+        <p class="eyebrow">Screen recordings</p>
+        <h2 id="videos-title" class="h2">See it in action</h2>
+      </div>
+      <div class="head-actions">
+        <a class="pill-link" href="https://mealscholar.mannava.org">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+        <div class="rail-ctrl" data-rail-controls="video-rail">
+          <button type="button" class="round-btn" data-dir="-1" aria-label="Previous video"><svg aria-hidden="true"><use href="#i-chev-l"/></svg></button>
+          <button type="button" class="round-btn" data-dir="1" aria-label="Next video"><svg aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+        </div>
+      </div>
+    </div>
+    <div class="rail rail--videos" id="video-rail" data-rail role="region" aria-label="Screen recordings, scroll sideways" tabindex="0">
+      <div class="videos">
+        <figure class="video-card" data-video="snap-to-nutrients">
+          <div class="video-frame">
+            <!-- To add the recording, replace the next line with: <video src="videos/snap-to-nutrients.mp4" poster="videos/snap-to-nutrients.jpg" controls playsinline preload="none"></video> -->
+            <div class="video-ph video-ph--a"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+          </div>
+          <figcaption><h3>Snap to nutrients</h3><p>One photo becomes foods, grams and nutrient ranges.</p></figcaption>
+        </figure>
+        <figure class="video-card" data-video="one-question">
+          <div class="video-frame">
+            <!-- To add the recording, replace the next line with: <video src="videos/one-question.mp4" poster="videos/one-question.jpg" controls playsinline preload="none"></video> -->
+            <div class="video-ph video-ph--b"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+          </div>
+          <figcaption><h3>One question</h3><p>When a photo is unclear, it asks once and recomputes.</p></figcaption>
+        </figure>
+        <figure class="video-card" data-video="fix-and-today">
+          <div class="video-frame">
+            <!-- To add the recording, replace the next line with: <video src="videos/fix-and-today.mp4" poster="videos/fix-and-today.jpg" controls playsinline preload="none"></video> -->
+            <div class="video-ph video-ph--c"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+          </div>
+          <figcaption><h3>Fix it, then see today</h3><p>Set a weight, swap a match, then check the day’s totals.</p></figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="rail-dots" data-rail-dots="video-rail" aria-hidden="true"></div>
+  </section>
+
+  <!-- Nutrients -->
+  <section class="card section" id="nutrients" aria-labelledby="nutrients-title">
+    <div class="rail-top">
+      <p class="eyebrow">What it tracks</p>
+      <div class="rail-ctrl" data-rail-controls="nutrient-rail">
+        <button type="button" class="round-btn" data-dir="-1" aria-label="Previous nutrients"><svg aria-hidden="true"><use href="#i-chev-l"/></svg></button>
+        <button type="button" class="round-btn" data-dir="1" aria-label="Next nutrients"><svg aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+      </div>
+    </div>
+    <div class="section-head section-head--center">
+      <h2 id="nutrients-title" class="h2">19 nutrients, from USDA data</h2>
+      <p class="section-sub">Nine main nutrients plus ten micronutrients, which are labeled as estimates. % Daily Value is shown where one exists.</p>
+    </div>
+    <div class="rail rail--nutrients" id="nutrient-rail" data-rail role="region" aria-label="Nutrient cards, scroll sideways" tabindex="0">
+      <ul class="rail__list">
+        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">kcal</span></div><div class="ncard__fig"><small>Daily Value</small><b>No target</b></div><div class="ncard__body"><h3>Calories</h3><p>Shown as a range. No calorie targets.</p></div></li>
+        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">g</span></div><div class="ncard__fig"><small>Daily Value</small><b>50 g</b></div><div class="ncard__body"><h3>Protein</h3><p>In grams, with % Daily Value.</p></div></li>
+        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">g</span></div><div class="ncard__fig"><small>Daily Value</small><b>275 g</b></div><div class="ncard__body"><h3>Carbohydrate</h3><p>With % DV. No carb dosing advice.</p></div></li>
+        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">g</span></div><div class="ncard__fig"><small>Daily Value</small><b>78 g</b></div><div class="ncard__body"><h3>Fat</h3><p>Total fat in grams, with % DV.</p></div></li>
+        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">g</span></div><div class="ncard__fig"><small>Daily Value</small><b>20 g</b></div><div class="ncard__body"><h3>Saturated fat</h3><p>Its own line, apart from total fat.</p></div></li>
+        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">g</span></div><div class="ncard__fig"><small>Daily Value</small><b>28 g</b></div><div class="ncard__body"><h3>Fiber</h3><p>In grams, with % Daily Value.</p></div></li>
+        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">g</span></div><div class="ncard__fig"><small>Daily Value</small><b>None</b></div><div class="ncard__body"><h3>Total sugars</h3><p>In grams, without a % DV.</p></div></li>
+        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>2,300 mg</b></div><div class="ncard__body"><h3>Sodium</h3><p>In milligrams, with % DV.</p></div></li>
+        <li class="ncard"><div class="ncard__top"><span class="chip chip--main">Main</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>300 mg</b></div><div class="ncard__body"><h3>Cholesterol</h3><p>In milligrams, with % DV.</p></div></li>
+        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>1,300 mg</b></div><div class="ncard__body"><h3>Calcium</h3><p>Labeled as an estimate.</p></div></li>
+        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>18 mg</b></div><div class="ncard__body"><h3>Iron</h3><p>Labeled as an estimate.</p></div></li>
+        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>4,700 mg</b></div><div class="ncard__body"><h3>Potassium</h3><p>Labeled as an estimate.</p></div></li>
+        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>420 mg</b></div><div class="ncard__body"><h3>Magnesium</h3><p>Labeled as an estimate.</p></div></li>
+        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>11 mg</b></div><div class="ncard__body"><h3>Zinc</h3><p>Labeled as an estimate.</p></div></li>
+        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">µg</span></div><div class="ncard__fig"><small>Daily Value</small><b>900 µg</b></div><div class="ncard__body"><h3>Vitamin A</h3><p>An estimate, in µg RAE.</p></div></li>
+        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">mg</span></div><div class="ncard__fig"><small>Daily Value</small><b>90 mg</b></div><div class="ncard__body"><h3>Vitamin C</h3><p>Labeled as an estimate.</p></div></li>
+        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">µg</span></div><div class="ncard__fig"><small>Daily Value</small><b>20 µg</b></div><div class="ncard__body"><h3>Vitamin D</h3><p>Labeled as an estimate.</p></div></li>
+        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">µg</span></div><div class="ncard__fig"><small>Daily Value</small><b>2.4 µg</b></div><div class="ncard__body"><h3>Vitamin B12</h3><p>Labeled as an estimate.</p></div></li>
+        <li class="ncard ncard--micro"><div class="ncard__top"><span class="chip chip--micro">Micro · estimate</span><span class="ncard__unit">µg</span></div><div class="ncard__fig"><small>Daily Value</small><b>400 µg</b></div><div class="ncard__body"><h3>Folate</h3><p>An estimate, in µg DFE.</p></div></li>
+      </ul>
+    </div>
+    <div class="rail-dots" data-rail-dots="nutrient-rail" aria-hidden="true"></div>
+    <p class="fineprint">Daily Value is the amount US food labels use to work out % DV. It is not a goal.</p>
+  </section>
+
+  <!-- Data -->
+  <section class="card section" id="data" aria-labelledby="data-title">
+    <div class="data">
+      <div class="data__main">
+        <p class="eyebrow">The data</p>
+        <h2 id="data-title" class="h2 h2--sm">Every nutrient comes from USDA data</h2>
+        <p class="bignum">13,648</p>
+        <div class="bignum__rule" aria-hidden="true"><span></span></div>
+        <p class="data__text">foods in the app’s USDA database, all from FoodData Central and public domain (CC0).</p>
+        <a class="pill-link" href="https://fdc.nal.usda.gov/">Browse FoodData Central<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      </div>
+      <div class="data__side">
+        <ul class="datasets">
+          <li class="dataset"><span class="dataset__k"><i class="sw sw--d1"></i>Survey (FNDDS)</span><span class="dataset__n">5,431</span><span class="dataset__p">39.8% of foods</span></li>
+          <li class="dataset"><span class="dataset__k"><i class="sw sw--d2"></i>Foundation</span><span class="dataset__n">424</span><span class="dataset__p">3.1% of foods</span></li>
+          <li class="dataset"><span class="dataset__k"><i class="sw sw--d3"></i>SR Legacy</span><span class="dataset__n">7,793</span><span class="dataset__p">57.1% of foods</span></li>
+        </ul>
+        <div class="stack" aria-hidden="true"><span class="stack__a"></span><span class="stack__b"></span><span class="stack__c"></span></div>
+        <div class="stack__axis" aria-hidden="true"><span>0</span><span>13,648 foods</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Phone -->
+  <section class="card section promo" id="phone" aria-labelledby="phone-title">
+    <div class="promo__copy">
+      <span class="chip chip--white">No app store download</span>
+      <h2 id="phone-title" class="h2">Made for your phone</h2>
+      <p class="section-sub">MealScholar works in the browser on any phone. Open the link, snap your meal, see the ranges.</p>
+      <a class="cta" href="https://mealscholar.mannava.org">
+        <span class="cta__pill">Open on your phone</span>
+        <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
+      </a>
+      <div class="a2hs">
+        <h3>Add it to your Home Screen</h3>
+        <ul>
+          <li><span class="a2hs__icon"><svg aria-hidden="true"><use href="#i-share"/></svg></span><span><b>iPhone:</b> tap Share, then Add to Home Screen.</span></li>
+          <li><span class="a2hs__icon"><svg aria-hidden="true"><use href="#i-menu-dots"/></svg></span><span><b>Android:</b> open the browser menu, then Add to Home screen.</span></li>
+        </ul>
+      </div>
+      <div class="qr">
+        <img src="brand/qr-mealscholar.svg" alt="QR code that opens mealscholar.mannava.org" width="120" height="120">
+        <p><b>On a computer?</b> Scan this with your phone’s camera to open MealScholar there.</p>
+      </div>
+    </div>
+    <div class="promo__visual">
+      <span class="rings" aria-hidden="true"></span>
+      <div class="phone phone--today" role="img" aria-label="Example Today view on a phone, for illustration: breakfast and lunch logged, the day’s calories as a range from 616 to 858, and % Daily Value ranges for protein, carbohydrate and fiber.">
+        <div class="phone__screen">
+          <div class="ps-status"><span>9:41</span><span class="ps-sig"><i></i><i></i><i></i><b></b></span></div>
+          <div class="ps-bar">
+            <span class="ps-title ps-title--lg">Today</span>
+            <span class="ps-ex">Example</span>
+          </div>
+          <div class="ps-card">
+            <div class="ps-row"><span class="ps-label">Calories today</span><span class="ps-label">likely</span></div>
+            <div class="ps-big"><b>737</b><span>kcal</span></div>
+            <div class="band band--day"></div>
+            <div class="ps-row ps-ends"><span>616</span><span>858</span></div>
+          </div>
+          <div class="ps-card ps-meals">
+            <div class="ps-meal"><span class="ps-meal__t">Breakfast</span><span class="ps-meal__d">Oatmeal, banana</span><span class="ps-meal__k">275 kcal</span></div>
+            <div class="ps-meal"><span class="ps-meal__t">Lunch</span><span class="ps-meal__d">Chicken, rice, broccoli</span><span class="ps-meal__k">462 kcal</span></div>
+          </div>
+          <div class="ps-card ps-dvs">
+            <div class="ps-row"><span class="ps-label">% Daily Value</span></div>
+            <div class="ps-dv"><span>Protein</span><small>91–125%</small><span class="band band--d1"></span></div>
+            <div class="ps-dv"><span>Carbohydrate</span><small>33–46%</small><span class="band band--d2"></span></div>
+            <div class="ps-dv"><span>Fiber</span><small>31–43%</small><span class="band band--d3"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- UMass -->
+  <section class="card section" id="umass" aria-labelledby="umass-title">
+    <div class="umass">
+      <div class="umass__main">
+        <p class="eyebrow">On campus</p>
+        <h2 id="umass-title" class="h2">Piloting at UMass</h2>
+        <p class="section-sub">We built MealScholar at HackUMass XIV, at UMass Amherst, in November 2026. Now it’s piloting at UMass.</p>
+        <div class="logo-tile">
+          <img src="brand/umass-logo.svg" alt="University of Massachusetts Amherst" width="351" height="92">
+        </div>
+      </div>
+      <article class="dining">
+        <span class="chip chip--white"><svg aria-hidden="true"><use href="#i-clock"/></svg>Coming soon</span>
+        <h3>UMass Dining menus</h3>
+        <p>Dining menus with full nutrition, right in MealScholar. We’re building it now.</p>
+        <div class="menu-skel" aria-hidden="true">
+          <div class="menu-skel__row"><i></i><span><b></b><em></em></span><u></u></div>
+          <div class="menu-skel__row"><i></i><span><b></b><em></em></span><u></u></div>
+          <div class="menu-skel__row"><i></i><span><b></b><em></em></span><u></u></div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- Team -->
+  <section class="card section" id="team" aria-labelledby="team-title">
+    <div class="section-head">
+      <p class="eyebrow">The team</p>
+      <h2 id="team-title" class="h2">Built at HackUMass XIV</h2>
+      <p class="section-sub">Made at UMass Amherst in November 2026 by a team of three.</p>
+    </div>
+    <ul class="team">
+      <li class="member">
+        <div class="member__art member__art--a">
+          <span class="avatar" aria-hidden="true">H</span>
+          <span class="member__tags" aria-hidden="true"><span>Team lead</span><span>UI/UX</span><span>Login and registration</span></span>
+        </div>
+        <div class="member__text">
+          <h3>Harsh</h3>
+          <p class="member__role">Team lead · UI/UX</p>
+          <p>Leads the team. Designed the interface and built login and registration.</p>
+        </div>
+      </li>
+      <li class="member">
+        <div class="member__art member__art--b">
+          <span class="avatar" aria-hidden="true">J</span>
+          <span class="member__tags" aria-hidden="true"><span>AI</span><span>Food detection</span></span>
+        </div>
+        <div class="member__text">
+          <h3>Joseph</h3>
+          <p class="member__role">AI food detection</p>
+          <p>Built the AI food detection that finds each food in your photo.</p>
+        </div>
+      </li>
+      <li class="member">
+        <div class="member__art member__art--c">
+          <span class="avatar" aria-hidden="true">G</span>
+          <span class="member__tags" aria-hidden="true"><span>Pitch deck</span><span>Video</span></span>
+        </div>
+        <div class="member__text">
+          <h3>Gabby</h3>
+          <p class="member__role">Pitch deck and video</p>
+          <p>Made the pitch deck and the project video.</p>
+        </div>
+      </li>
+    </ul>
+  </section>
+
+  <!-- FAQ -->
+  <section class="card section" id="faq" aria-labelledby="faq-title">
+    <div class="faq">
+      <div class="faq__intro">
+        <p class="eyebrow">FAQ</p>
+        <h2 id="faq-title" class="h2">Questions, plainly answered</h2>
+        <a class="pill-link" href="https://mealscholar.mannava.org">Open the app<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      </div>
+      <div class="faq__list">
+        <details open>
+          <summary><span>How does MealScholar estimate my meal?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>Gemini looks at your photo, names each food and estimates its weight as a low, likely and high range. It never outputs nutrient numbers. Those come from USDA FoodData Central: the grams times the values per 100 g.</p></div>
+        </details>
+        <details>
+          <summary><span>Why ranges instead of one number?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>A photo can’t show exactly how much food is on the plate, so one precise number would be a guess. The range shows how sure the estimate is. If you know a weight, set it and the range collapses to one number.</p></div>
+        </details>
+        <details>
+          <summary><span>Does it store my photos?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>No. Photos are analyzed in memory and never stored. Location is optional and stays off unless you switch it on.</p></div>
+        </details>
+        <details>
+          <summary><span>What if it gets a food wrong?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>Set an exact weight or swap the USDA match. Your corrections become your usual portions for next time.</p></div>
+        </details>
+        <details>
+          <summary><span>Do I need to download an app?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>No. It works in the browser on any phone. On iPhone or Android you can add it to your Home Screen from the browser’s share button or menu.</p></div>
+        </details>
+        <details>
+          <summary><span>Is this medical advice?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>No. MealScholar gives you information, not medical advice. It doesn’t set calorie targets or give insulin or carb dosing advice.</p></div>
+        </details>
+        <details>
+          <summary><span>Does it have UMass Dining menus?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>Not yet. UMass Dining menus with full nutrition are coming soon. We’re building it now.</p></div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final call to action -->
+  <section class="section section--band" aria-labelledby="cta-title" data-dock-stop>
+    <span class="band-cta__mark" aria-hidden="true"><span>MEALSCHOLAR</span></span>
+    <div class="band-cta">
+      <div class="band-cta__copy">
+        <h2 id="cta-title" class="h2">Try it on your next meal</h2>
+        <p class="section-sub">Open MealScholar in your phone’s browser and snap a photo.</p>
+      </div>
+      <div class="band-cta__action">
+        <a class="cta cta--lg cta--invert" href="https://mealscholar.mannava.org">
+          <span class="cta__pill">Open the app</span>
+          <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
+        </a>
+        <p class="band-cta__url">mealscholar.mannava.org</p>
+      </div>
+    </div>
+    <div class="band-cta__chip" aria-hidden="true">
+      <span class="band-cta__chip-top"><span>Lunch</span><span class="band-cta__ex">Example</span></span>
+      <span class="band-cta__chip-v">385–539 <small>kcal</small></span>
+      <span class="band band--kcal"></span>
+    </div>
+  </section>
 </main>
+
+<footer class="site-footer wrap">
+  <div class="footer-card">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <a class="brand" href="#top" aria-label="MealScholar, back to top">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="10" fill="#1C1C1C"/><circle cx="16" cy="17.5" r="8" fill="none" stroke="#FAFAFF" stroke-width="2.4"/><path d="M16.2 4.8c2.9 1.4 4.2 3.9 3.7 6.9-2.9-.2-5-2-5.5-4.9.4-.8 1-1.5 1.8-2z" fill="#DADDD8"/></svg>
+          <span>MealScholar</span>
+        </a>
+        <p>Foods, grams and nutrients from one photo, as honest ranges.</p>
+        <a class="umass-badge umass-badge--sm" href="#umass">
+          <img src="brand/umass-m.svg" alt="" width="22" height="19">
+          <span>Piloting at UMass</span>
+        </a>
+      </div>
+      <div class="footer-cols">
+        <div>
+          <h2>Product</h2>
+          <ul>
+            <li><a href="https://mealscholar.mannava.org">Open the app</a></li>
+            <li><a href="#how">How it works</a></li>
+            <li><a href="#nutrients">What it tracks</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2>Project</h2>
+          <ul>
+            <li><a href="#features">Why MealScholar</a></li>
+            <li><a href="#videos">See it in action</a></li>
+            <li><a href="#umass">Piloting at UMass</a></li>
+            <li><a href="#team">Team</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2>Data</h2>
+          <ul>
+            <li><a href="https://fdc.nal.usda.gov/">USDA FoodData Central</a></li>
+            <li><a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></li>
+            <li><a href="fonts/OFL-Geist.txt">Geist font license</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <p class="credits">Nutrient data: USDA FoodData Central (CC0). Place names © OpenStreetMap contributors (ODbL).</p>
+    <div class="footer-bottom">
+      <p><b>Information, not medical advice.</b></p>
+      <p class="stamp">Deployed from commit <code>__COMMIT__</code> on __DEPLOYED_AT__.</p>
+    </div>
+  </div>
+</footer>
+
+<aside class="dock" aria-label="Open MealScholar">
+  <a class="dock__cta" href="https://mealscholar.mannava.org">
+    <span class="dock__pill"><span class="dock__label">Open the app</span><span class="dock__sub">Runs in your browser</span></span>
+    <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
+  </a>
+</aside>
 </body>
 </html>
