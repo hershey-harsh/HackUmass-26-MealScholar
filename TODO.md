@@ -77,6 +77,7 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
 - [ ] **Joseph or Harsh**: put the numeric Gemini project number in `submissions/devpost.md`. We only have the project ID (`gen-lang-client-…`). The draft explains where to find the number.
 - [ ] **Harsh**: if campus menu matching (section 2) isn't live when you submit, submit the story as written. If it is, make the two swaps in `submissions/devpost.md`.
 - [ ] **Gabby**: add the video link (YouTube, Vimeo or Youku) and the gallery images to the Devpost form.
+- [x] **Joseph**: improve the Devpost thumbnail's gallery-size hierarchy (#100). Use `brand/devpost-thumbnail.png` (1800×1200, 3:2); its editable HTML keeps the real salad result and makes the calorie range the primary number.
 - [ ] The final deadline is 9:00 AM on hackumass.com but 10:00 AM on Devpost. Go by 9:00 AM.
 - [ ] A demo account with a few days already logged, so Today and This week aren't empty.
 - [ ] Set `MEALSCHOLAR_DEMO_VERIFY_LINK` on the demo server, so sign-up works without a real email service. Only needed once the sign-in screens are on. It lets anyone confirm whatever address they type, so the favorites digest could go to someone else's email (#11 review).
