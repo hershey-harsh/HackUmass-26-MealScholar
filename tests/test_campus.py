@@ -1,0 +1,175 @@
+"""Campus menu facts, pure: serving sizes, which dishes to match and the one the model named, a
+serving count as a range, the label scaled to the plate, and whether it fits what USDA says."""
+
+import pytest
+
+from mealscholar.campus import (
+    ALL_DAY,
+    MEALS_FOR_SLOT,
+    candidates,
+    dish_nutrients,
+    find_dish,
+    label_fits,
+    serving_grams,
+    servings_range,
+)
+from mealscholar.dining import MEALS, DishFacts
+
+
+def dish(name, meal="lunch", serving=None, **per_serving):
+    return DishFacts(
+        dish_id=None,
+        name=name,
+        meal=meal,
+        category=None,
+        serving_size=serving,
+        serving_grams=serving_grams(serving),
+        per_serving=per_serving,
+        healthfulness_score=None,
+    )
+
+
+def bounds(r):
+    return r.low, r.likely, r.high
+
+
+@pytest.mark.parametrize(
+    ("text", "grams"),
+    [
+        ("3 OZ", 85.05),
+        ("2 1/2 OZ", 70.87),
+        ("1/2 oz", 14.17),
+        ("4oz", 113.4),
+        ("20 OZL", 591.4),
+        ("12 ozl", 354.84),
+        ("5 2/3 OZL", 167.56),
+        ("8 fl oz", 236.56),
+        ("1 EACH", None),
+        ("1 Slice", None),
+        ("1/6 PIZZA", None),
+        ("1/2 Sandwich", None),
+        ("1 roll", None),
+        ("0 oz", None),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_serving_grams_table(text, grams):
+    assert serving_grams(text) == grams
+
+
+def test_candidates_order():
+    facts = [
+        dish("Pad Thai", "dinner"),
+        dish("Chicken Tikka Masala", "dinner"),
+        dish("Belgian Waffle", "breakfast"),
+        dish("Scrambled Eggs", "breakfast"),
+        dish("Chicken Tikka Masala", "lunch"),
+        dish("Vegan Chili", "lunch"),
+        dish("Cheese Pizza", "lunch"),
+        dish("Cheese Pizza", "late_night"),
+        dish("Garden Salad", "daily_offerings"),
+        dish("Mystery Stew", "brunch"),  # not a MEALS key: last
+    ]
+    assert [(d.name, d.meal) for d in candidates(facts, "dinner")] == [
+        ("Pad Thai", "dinner"),
+        ("Chicken Tikka Masala", "dinner"),
+        ("Garden Salad", "daily_offerings"),
+        ("Belgian Waffle", "breakfast"),
+        ("Scrambled Eggs", "breakfast"),
+        ("Vegan Chili", "lunch"),
+        ("Cheese Pizza", "lunch"),  # served at two meals, listed once
+        ("Mystery Stew", "brunch"),
+    ]
+    assert [(d.name, d.meal) for d in candidates(facts, "snack")][:2] == [
+        ("Cheese Pizza", "late_night"),
+        ("Garden Salad", "daily_offerings"),
+    ]
+    assert [d.meal for d in candidates(facts, "breakfast")] == [
+        "breakfast",
+        "breakfast",
+        "daily_offerings",
+        "lunch",
+        "lunch",
+        "lunch",
+        "dinner",
+        "brunch",
+    ]
+    assert candidates([], "lunch") == []
+    # Every meal the menus have is searched, in dining.MEALS order.
+    assert [*MEALS_FOR_SLOT["breakfast"], *ALL_DAY, "lunch", "dinner", "late_night"] == [
+        "breakfast",
+        "grab_n_go",
+        "daily_offerings",
+        "lunch",
+        "dinner",
+        "late_night",
+    ]
+    assert {meal for meals in MEALS_FOR_SLOT.values() for meal in meals} | set(ALL_DAY) == set(MEALS)
+
+
+def test_find_dish_exact_key_then_ratio_then_none():
+    facts = [
+        dish("Scrambled Eggs", "breakfast"),
+        dish("Chicken Piccata Pizza"),
+        dish("Mac & Cheese (GF)"),
+        dish("Eggs Benedict", "breakfast"),
+    ]
+    assert find_dish("scrambled  eggs", facts) is facts[0]  # case and spaces don't count
+    assert find_dish("Scrambled Egg", facts) is facts[0]  # 0.96: spelling drift
+    assert find_dish("Chicken Piccata", facts) is None  # 0.83: another dish
+    assert find_dish("Mac & Cheese (GF)", facts) is facts[2]
+    assert find_dish("Lobster Bisque", facts) is None
+    assert find_dish(None, facts) is None
+    assert find_dish("ab", [dish("ab")]) is None  # too short to name a dish
+    assert find_dish("  ab  ", [dish("ab")]) is None
+    assert find_dish("Scrambled Eggs", []) is None
+    tied = [dish("Scrambled Eggz"), dish("Scrambled Eggx")]
+    assert find_dish("Scrambled Eggs", tied) is tied[0]  # equally close: the first listed
+
+
+def test_servings_range():
+    # 3/3/3 servings is one number; the model's 360/420/480 g says how unsure it is, so it widens.
+    assert servings_range((3, 3, 3), (360, 420, 480)) == pytest.approx((2.5714, 3, 3.4286), abs=1e-3)
+    assert servings_range((1, 1.5, 2), (100, 120, 150)) == (1, 1.5, 2)  # already wider
+    assert servings_range((2, 1, 3), (100, 100, 100)) == (1, 2, 3)  # sorted
+    assert servings_range((3, 3, 3.5), (360, 420, 480)) == pytest.approx((2.5714, 3, 3.5), abs=1e-3)  # never narrowed
+    assert servings_range((0, 0, 0), (100, 100, 100)) is None
+    assert servings_range((1, 1, 1), (0, 0, 0)) is None
+    assert servings_range((-1, 1, 1), (100, 100, 100)) == (0, 1, 1)
+    assert servings_range(None, (100, 100, 100)) is None
+
+
+def test_dish_nutrients_weight_and_count_paths():
+    weighed = dish("Hash Browns", serving="3 OZ", energy_kcal=112, sodium_mg=180)
+    found = dish_nutrients(weighed, (60, 90, 120), (1, 1, 1))  # a weight serving: the count is not used
+    assert set(found) == {"energy_kcal", "sodium_mg"}  # a nutrient the label lacks stays absent
+    assert bounds(found["energy_kcal"]) == pytest.approx((79.0, 118.5, 158.0), abs=0.1)
+    assert bounds(found["sodium_mg"]) == pytest.approx((127.0, 190.5, 254.0), abs=0.1)
+    assert dish_nutrients(weighed, (120, 90, 60), None)["energy_kcal"] == found["energy_kcal"]
+
+    counted = dish("Cheese Pizza", serving="1 Slice", energy_kcal=212, carbs_g=26)
+    found = dish_nutrients(counted, (100, 120, 150), (1, 1.5, 2))
+    assert bounds(found["energy_kcal"]) == (212, 318, 424)
+    assert bounds(found["carbs_g"]) == (26, 39, 52)
+    assert dish_nutrients(counted, (100, 120, 150), None) is None  # the caller falls back to USDA
+
+
+@pytest.mark.parametrize(
+    ("campus_kcal", "usda_kcal", "fits"),
+    [
+        (0, None, False),  # a zero label needs USDA to agree
+        (150, None, True),
+        (3.5, 2.0, True),  # both under KCAL_FLOOR: water, diet soda
+        (0, 199, False),
+        (2409, 1117, False),  # three '1/6 PIZZA' servings against USDA for 420 g
+        (636, 1117, True),
+        (300, 100, False),
+        (200, 100, True),
+        (49, 100, False),
+        (50, 100, True),
+        (0, 0, True),
+    ],
+)
+def test_label_fits(campus_kcal, usda_kcal, fits):
+    assert label_fits(campus_kcal, usda_kcal) is fits
