@@ -1,16 +1,17 @@
 # MealScholar TODO
 
-As of Sat Nov 14, 8:25 AM EST. Owners follow the table in `AGENTS.md`. Deadlines come from `TIMELINE.md`.
+As of Sat Nov 14, 8:45 AM EST. Owners follow the table in `AGENTS.md`. Deadlines come from `TIMELINE.md`.
 Tick a box when it's done. When a contract changes, post on the board.
 
 ## 1. Merge chain and cleanup
 
-The chain is merged: #7 at 8:10 AM, then #11, #13 and #15 at 8:18–8:19 AM. The deploy of the tip of `main` (`ac951d2`) is green.
+The chain is merged: #7 at 8:10 AM, then #11, #13 and #15 at 8:18–8:19 AM. Since then #22, #24, #26, #28, #30, #32 and #34 merged too. No PRs are open, only `main` is left on GitHub, and the deploy of `b73988a` is green.
 
 - [x] **Joseph**: rebase #7 on `main` and fix the `AGENTS.md` conflict. Run `uv run pytest` and `uvx ruff@0.17.5 check`, then merge. Delete the branch on merge so GitHub moves #11 to `main`.
-- [ ] **Joseph**: review #11 (login) after the fact. It merged without a GitHub review. It changes `web.py`, `diary.py`, `config.py`, `cli.py` and adds pymongo.
+- [x] **Joseph**: review #11 (login). Done before it merged: a security review found no code bugs, and Harsh confirmed the three server settings (`MONGODB_URI`, `FOODSMART_PUBLIC_URL`, `FOODSMART_DEV_OUTBOX` unset). Its follow-ups are under "Before real users" in section 5.
 - [x] Merge #11, #13 and #15 back to back, in that order.
-- [ ] **Harsh**: the chain has landed, so smoke test the live app now. Sign up, onboarding, photo, answer the question, log it, then check Today.
+- [ ] **Harsh**: the chain has landed, so smoke test the live app now. Sign up, onboarding, photo, answer the question, log it, then check Today. The API checks passed at 8:20 and 8:22 AM (status, dining, nearest hall, prefs, dev outbox 404). The rest of the flow is open, and sign-up waits for the sign-in screens, which stay off (`FOODSMART_AUTH_REQUIRED=0`) until email sending exists.
+- [x] **Joseph**: the rest of Harsh's #7 review. Coordinates are kept out of the access log and meal notes (#30). Photos that won't decode get 413/415 instead of 500, and error replies no longer show server paths or Gemini's raw errors (#32).
 - [ ] **Joseph**: regenerate the landing dark mode patch (#16) against `9b60fe7`. Harsh's landing rework rewrote `styles.css`, so only 9 of the 59 color-to-token swaps still match. The token block and the `index.html` meta changes still apply. Hold the app patch until Harsh pings after his next app UI update.
 - [ ] **Joseph**: add `test_pictures/` to `.gitignore`. The photos carry GPS EXIF (see `BENCHMARK.md`).
 
@@ -45,7 +46,7 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
   - pepperoni thin crust loses a tiebreak to "extra cheese"
   - a whole salad matches "Salad dressing, NFS"
 - [ ] Let Gemini choose among the top USDA candidates with structured output.
-- [ ] After every lookup change, run `uv run python bench/report.py --rematch` and post the before/after.
+- [ ] After every lookup change, post the before/after from `uv run python bench/report.py --rematch`. CI's Lookup regression check (#22) already fails PRs that make the lookup worse. When a change beats `REMATCH_LIMITS` in `bench/report.py`, raise the limits in the same PR.
 - [ ] Meal time: the app sends only `lat`/`lon`. Have it also send the phone's local time with its UTC offset, and have `POST /api/meals` accept it, so photos without EXIF don't fall back to the server clock.
 
 ## 4. Demo and submission
@@ -70,15 +71,15 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
 - [ ] **Gabby**: add the video link (YouTube, Vimeo or Youku) and the gallery images to the Devpost form.
 - [ ] The final deadline is 9:00 AM on hackumass.com but 10:00 AM on Devpost. Go by 9:00 AM.
 - [ ] A demo account with a few days already logged, so Today and This week aren't empty.
-- [ ] Set `FOODSMART_DEMO_VERIFY_LINK` on the demo server, so sign-up works without a real email service.
+- [ ] Set `FOODSMART_DEMO_VERIFY_LINK` on the demo server, so sign-up works without a real email service. Only needed once the sign-in screens are on. It lets anyone confirm whatever address they type, so the favorites digest could go to someone else's email (#11 review).
 - [ ] Fallbacks: a recorded video, and the faster model (`FOODSMART_MODEL=gemini-3.6-flash FOODSMART_THINKING=minimal`) if Gemini is slow on venue Wi-Fi.
 - [ ] Charge phones. Test the demo on venue Wi-Fi and on cellular.
 - [ ] **Everyone filming**: hard-reload mealscholar.mannava.org once on each filming phone before the 7 PM screen recordings. Older deploys left cached app files on phones; deploys stamp the commit into asset versions from the next app change on (Harsh).
 
 ## 5. Continuous development (keep doing this after the hackathon)
 
-- [ ] **Joseph**: add a test workflow (`uv run pytest` on `ubuntu-latest`). CI only runs Ruff today, so the 213 tests on #15 never run on a PR. The tests use a fixture USDA database, and the Mongo tests skip without `FOODSMART_TEST_MONGODB_URI`.
-- [ ] **Harsh**: branch protection on `main`: require Lint and Tests to pass. Every push to `main` is a live deploy.
+- [ ] **Joseph**: add a test workflow (`uv run pytest` on `ubuntu-latest`). CI runs Ruff (lint and format) and the Lookup regression check (#22), but not pytest, so the 224 tests never run on a PR. Harsh is fine with adding it (board). The tests use a fixture USDA database, and the Mongo tests skip without `FOODSMART_TEST_MONGODB_URI`.
+- [ ] **Harsh**: branch protection on `main`: require Lint and Tests to pass. Every push to `main` is a live deploy. GitHub's rulesets API says this needs GitHub Pro while the repo is private, so it may have to wait for the public/private decision in section 4.
 - [ ] Keep stacks of PRs at most two deep, and merge the base the same day. #7 sat for 7 hours and blocked three PRs.
 - [ ] Every PR includes tests and a clean Ruff run, plus screenshots for UI changes. Post on the board when a contract changes (an API, a schema, an env var).
 - [ ] Before real users:
@@ -87,8 +88,13 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
   - [ ] Rotate the Gemini key and the Mongo connection string if they were shared in chat.
   - [ ] Back up accounts and diaries in Atlas (db `mealscholar`).
   - [ ] Move hosting off a personal Mac mini.
+  - [ ] From the #11 security review:
+    - [ ] Require a confirmed email for anything that emails the user. Today it only gates the favorites digest.
+    - [ ] Sign-up answers 409 for an email that already has an account. Forgot-password allows 3 per hour per email, so anyone can use up someone else's quota; count per (network, email) instead.
+    - [ ] Raise scrypt's work factor from N=2^14 toward OWASP's 2^17. It's stored in each hash, so existing passwords keep working.
+  - [ ] Photos between about 89 and 179 megapixels still decode, with a warning, and can take several hundred MB of RAM each. Set an explicit pixel limit; phone photos are 48 MP at most (#32).
 - [ ] Weigh 10 real meals on a kitchen scale, so the benchmark has real error bars instead of estimates.
-- [ ] Optional: run `bench/report.py --rematch` in CI as a regression check. It needs the 17 MB USDA download; cache it.
+- [x] Run `bench/report.py --rematch` in CI as a regression check: the Lookup regression workflow (#22), with the USDA download cached.
 
 ## 6. Later
 
