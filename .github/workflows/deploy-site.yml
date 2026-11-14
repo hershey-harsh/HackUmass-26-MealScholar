@@ -38,6 +38,8 @@ jobs:
           STAGE="$(mktemp -d)"
           trap 'rm -rf "$STAGE"' EXIT
           rsync -a --exclude '.*' web/ "$STAGE/"
+          # Symlinks could point anywhere on this Mac; the public site never gets them.
+          find "$STAGE" -type l -print -delete
           find "$STAGE" -name '*.html' -exec sed -i '' -e "s/__COMMIT__/$SHORT/g" -e "s/__DEPLOYED_AT__/$STAMP/g" {} +
           mkdir -p "$SITE"
           rsync -a --delete --exclude '.*' "$STAGE/" "$SITE/"
