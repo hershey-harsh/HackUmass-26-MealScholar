@@ -679,6 +679,8 @@ CAMPUS_CENTER = AREA_COORDS["campus-center"]
 def _coords(location: Location) -> tuple[float, float]:
     key = (location.area or "").strip().casefold()
     return AREA_COORDS.get(AREA_ALIASES.get(key, key), CAMPUS_CENTER)
+
+
 NEAR_CAMPUS_KM = 3.0
 """Beyond this, the user isn't on campus, so no hall is "nearest"."""
 
