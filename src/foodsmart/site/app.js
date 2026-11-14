@@ -705,6 +705,8 @@ function resultHtml(slot) {
   const fromToday = slot === state.slots.today;
   const name = dayName();
   const backTo = /^(Today|Yesterday)$/.test(name) ? name.toLowerCase() : name;
+  // A photo with no food in it isn't a meal: no meal title, time or place, and the message once.
+  const noFood = !result.items.length;
 
   return `
     <div class="result__nav">
@@ -714,22 +716,37 @@ function resultHtml(slot) {
       ${photoUrl ? photoHtml(result, photoUrl) : ""}
       <div class="meal-card__body">
         ${result.id != null ? `<p class="eyebrow">Meal #${esc(result.id)}</p>` : ""}
-        <h1 id="result-title" class="result__title" tabindex="-1">${esc(capitalize(ctx.meal_slot))}${place}</h1>
-        <p class="result__meta">${meta.join(" ")}</p>
+        <h1 id="result-title" class="result__title" tabindex="-1">${noFood ? "No food found" : `${esc(capitalize(ctx.meal_slot))}${place}`}</h1>
+        ${noFood ? "" : `<p class="result__meta">${meta.join(" ")}</p>`}
         ${totalHtml(result, photoUrl)}
-        ${slot.nearest ? nearestNoteHtml(slot.nearest.note, "result") : ""}
+        ${slot.nearest && !noFood ? nearestNoteHtml(slot.nearest.note, "result") : ""}
       </div>
     </article>
     ${questionHtml(result)}
     ${itemsHtml(result)}
-    ${result.items.length ? nutrientsHtml(result) : ""}
-    ${notesHtml(result)}
+    ${noFood ? "" : nutrientsHtml(result)}
+    ${noFood ? "" : notesHtml(result)}
     <div class="result__foot">
       <button class="cta cta--block" type="button" data-action="new">
         <span class="cta__pill">Analyze another meal</span>
         <span class="cta__dot" aria-hidden="true">${icon("arrow")}</span>
       </button>
       <button class="btn btn--secondary btn--block" type="button" data-action="see-today">${icon("home")}${fromToday ? `Back to ${esc(backTo)}` : "See today"}</button>
+      ${result.id != null ? `<div class="result__delete" data-delete>${deleteLinkHtml()}</div>` : ""}
+    </div>`;
+}
+
+/** The quiet "Delete this meal" link under a logged meal, and the two-step check that replaces it. */
+function deleteLinkHtml() {
+  return `<button class="link-btn link-btn--quiet" type="button" data-action="delete-ask">${icon("trash")}Delete this meal</button>`;
+}
+
+function deleteAskHtml() {
+  return `
+    <p class="delete__ask">Delete this meal? Today and This week drop its calories.</p>
+    <div class="delete__row">
+      <button class="btn btn--danger" type="button" data-action="delete-confirm">${icon("trash")}Delete</button>
+      <button class="btn btn--secondary" type="button" data-action="delete-cancel">Keep it</button>
     </div>`;
 }
 
@@ -776,7 +793,8 @@ function photoHtml(result, photoUrl) {
       return `<span class="box" data-index="${i}" style="--i:${i};top:${ymin}%;left:${xmin}%;width:${xmax - xmin}%;height:${ymax - ymin}%"><span class="box__n">${i + 1}</span></span>`;
     })
     .join("");
-  const caption = result.scale_reference ? `<figcaption class="shot__caption">Size judged against: ${esc(result.scale_reference)}</figcaption>` : "";
+  const caption =
+    result.scale_reference && result.items.length ? `<figcaption class="shot__caption">Size judged against: ${esc(result.scale_reference)}</figcaption>` : "";
   return `
     <figure class="shot">
       <div class="shot__frame">
@@ -959,6 +977,36 @@ function updateMeal(result, { focus } = {}) {
   if (result.id != null) refreshDays([mealDay(result)]);
 }
 
+/** DELETE /api/meals/{id}, then leave the meal: Today goes back to the dashboard (its day reloads
+    without the meal), Analyze goes back to the capture screen. A 404 means it is already gone. */
+async function deleteMeal(button) {
+  const key = shownKey();
+  const slot = key ? state.slots[key] : null;
+  const id = slot?.result.id;
+  if (id == null) return;
+  const epoch = state.epoch;
+  await withBusy(button, async () => {
+    try {
+      await api(`/api/meals/${id}`, { method: "DELETE" });
+    } catch (err) {
+      if (epoch !== state.epoch || err.signedOut) return;
+      if (err.status !== 404) {
+        toast(err.message);
+        return;
+      }
+    }
+    if (epoch !== state.epoch) return;
+    const day = mealDay(slot.result);
+    if (state.openedMeal === id) state.openedMeal = null;
+    closeSlot(key);
+    if (key === "today") els.todayTitle.focus({ preventScroll: true });
+    else focusCapture();
+    refreshDays([day]);
+    syncHistory();
+    toast("Meal deleted.");
+  });
+}
+
 els.result.addEventListener("click", (event) => {
   const button = event.target.closest("[data-action]");
   if (!button) return;
@@ -984,6 +1032,21 @@ els.result.addEventListener("click", (event) => {
     case "dismiss-question":
       state.dismissedQuestion = shownMeal().id;
       renderResult("update", { focus: "#foods-title" });
+      break;
+    case "delete-ask": {
+      const box = button.closest("[data-delete]");
+      box.innerHTML = deleteAskHtml();
+      $('[data-action="delete-cancel"]', box).focus();
+      break;
+    }
+    case "delete-cancel": {
+      const box = button.closest("[data-delete]");
+      box.innerHTML = deleteLinkHtml();
+      $('[data-action="delete-ask"]', box).focus();
+      break;
+    }
+    case "delete-confirm":
+      deleteMeal(button);
       break;
     case "weigh":
     case "food":
