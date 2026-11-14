@@ -2005,3 +2005,6 @@ html:not(.js) .rail-ctrl { display: none; }
   .dock { display: none !important; }
   .js .is-in, .js .is-in > *, .js .is-in > * > :nth-child(2) { animation: none; }
 }
+
+/* Food pins placed on the photo by inline left/top: centred on that point. */
+.ps-pin--at { transform: translate(-50%, -50%); }
