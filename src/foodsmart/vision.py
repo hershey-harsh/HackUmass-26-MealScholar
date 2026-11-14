@@ -40,6 +40,18 @@ You estimate food portions from meal photos for a nutrition logger.
 - If the photo shows no food or drink, return is_food=false and an empty items list.
 """
 
+REFINE_PROMPT = """\
+Your earlier analysis of a meal photo:
+{analysis}
+
+You asked: {question}
+The user answered: {answer}
+
+Return the full corrected analysis. Change only what the answer affects (grams, cooking method, \
+fdc_query, hidden_fat_likely); add an item if the answer reveals one. If the answer pins down an \
+amount, such as a drink size, a count, or how much dressing, narrow grams_low and grams_high of \
+the items it affects to match. Set question to null."""
+
 _RESPONSE_FORMAT = {
     "type": "text",
     "mime_type": "application/json",
@@ -93,13 +105,7 @@ class GeminiVision:
         )
 
     def refine(self, analysis: MealAnalysis, question: str, answer: str) -> MealAnalysis:
-        text = (
-            f"Your earlier analysis of a meal photo:\n{analysis.model_dump_json()}\n\n"
-            f"You asked: {question}\nThe user answered: {answer}\n\n"
-            "Return the full corrected analysis. Change only what the answer affects "
-            "(grams, cooking method, fdc_query, hidden_fat_likely); add an item if the answer "
-            "reveals one. Set question to null."
-        )
+        text = REFINE_PROMPT.format(analysis=analysis.model_dump_json(), question=question, answer=answer)
         return self._call([{"type": "text", "text": text}])
 
     def _call(self, content: list[dict]) -> MealAnalysis:
