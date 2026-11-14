@@ -14,7 +14,7 @@ The chain is merged: #7 at 8:10 AM, then #11, #13 and #15 at 8:18–8:19 AM. Eve
 - [x] **Joseph**: the rest of Harsh's #7 review. Coordinates are kept out of the access log and meal notes (#30). Photos that won't decode get 413/415 instead of 500, and error replies no longer show server paths or Gemini's raw errors (#32).
 - [x] **Joseph**: landing page dark mode (#16), regenerated after Harsh's landing rework. Merged as #45, with a System, Light, Dark toggle.
 - [ ] **Harsh**: apply the app dark mode patch (#16) once #48 merges. If it no longer applies on top of #48, Joseph regenerates it.
-- [ ] **Joseph**: add `test_pictures/` to `.gitignore`. The photos carry GPS EXIF (see `BENCHMARK.md`).
+- [x] **Joseph**: add `test_pictures/` to `.gitignore`. The photos carry GPS EXIF (see `BENCHMARK.md`). Done in #62.
 - [ ] **Harsh, then Joseph**: land the rename to `mealscholar` (#41) after #48 and the app dark mode patch. It's ready: tests, Ruff and the lookup check pass, and main + #48 + #41 merge cleanly (git moves #48's files into `src/mealscholar/site/`). The Mac's `.env` copies and launchd switch script are in place. Waiting on Harsh himself to approve the changed `deploy-site.yml` on the deploy runner. Then Joseph merges, and Harsh runs the launchd switch once the deploy finishes (the app is down under a minute). Not during the 7:00–8:30 PM recording freeze. Until then, keep #41 up to date with `main`.
 
 ## 2. Make the app do what the landing page says (before the Sat 2 PM checkpoint)
@@ -32,8 +32,8 @@ The landing page says "Campus menu first" in the hero, feature 03, step 04 and t
 - [x] **Harsh**: the landing page says the menus are "refreshed every hour". Harsh confirmed on the board (7:53 AM) that the hourly refresh runs.
 - [ ] **Harsh**: the menu item count doesn't match. The landing page says 24,191; the board post said 25,613. Pick one source.
 - [ ] Calorie goals shipped in #15, but four places still say "no calorie targets" (`AGENTS.md` section 5 is fixed in `ac951d2`):
-  - **Joseph**: `README.md` (Rules) and the `insights.py` docstring
-  - **Harsh**: the app footer in `site/index.html` and the header comment in `site/app.js`. Both go away with the app UI update he has in flight (onboarding, goals, laptop dashboard).
+  - [x] **Joseph**: `README.md` (Rules, fixed in the README polish) and the `insights.py` docstring (#62)
+  - [ ] **Harsh**: the app footer in `site/index.html` and the header comment in `site/app.js`. Both go away with the app UI update he has in flight (onboarding, goals, laptop dashboard).
 - [ ] **Harsh + Gabby**: the landing page shows three "Coming soon" screen recordings. Record them once the chain is merged, or hide that section before judging.
 
 ## 3. Accuracy (Joseph)
@@ -84,7 +84,7 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
 
 ## 5. Continuous development (keep doing this after the hackathon)
 
-- [ ] **Joseph**: add a test workflow (`uv run pytest` on `ubuntu-latest`). CI runs Ruff (lint and format) and the Lookup regression check (#22), but not pytest, so the 224 tests never run on a PR. Harsh is fine with adding it (board). The tests use a fixture USDA database, and the Mongo tests skip without `FOODSMART_TEST_MONGODB_URI`.
+- [x] **Joseph**: add a test workflow (`uv run pytest` on `ubuntu-latest`). The **Tests** workflow (#62) runs on every pull request and push to `main`, next to Ruff (lint and format) and the Lookup regression check (#22). The tests use a fixture USDA database, and the Mongo tests skip without `FOODSMART_TEST_MONGODB_URI`.
 - [ ] **Harsh**: branch protection on `main`: require Lint and Tests to pass. Every push to `main` is a live deploy. GitHub's rulesets API says this needs GitHub Pro while the repo is private, so it may have to wait for the public/private decision in section 4.
 - [ ] Keep stacks of PRs at most two deep, and merge the base the same day. #7 sat for 7 hours and blocked three PRs.
 - [ ] Every PR includes tests and a clean Ruff run, plus screenshots for UI changes. Post on the board when a contract changes (an API, a schema, an env var).
