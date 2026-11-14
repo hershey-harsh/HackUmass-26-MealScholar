@@ -11,7 +11,7 @@ The chain is merged: #7 at 8:10 AM, then #11, #13 and #15 at 8:18–8:19 AM. The
 - [ ] **Joseph**: review #11 (login) after the fact. It merged without a GitHub review. It changes `web.py`, `diary.py`, `config.py`, `cli.py` and adds pymongo.
 - [x] Merge #11, #13 and #15 back to back, in that order.
 - [ ] **Harsh**: the chain has landed, so smoke test the live app now. Sign up, onboarding, photo, answer the question, log it, then check Today.
-- [x] **Joseph**: send the dark mode patches (#16) to Harsh. He has both and will apply them after his landing page rework and app update land.
+- [ ] **Joseph**: regenerate the landing dark mode patch (#16) against `9b60fe7`. Harsh's landing rework rewrote `styles.css`, so only 9 of the 59 color-to-token swaps still match. The token block and the `index.html` meta changes still apply. Hold the app patch until Harsh pings after his next app UI update.
 - [ ] **Joseph**: add `test_pictures/` to `.gitignore`. The photos carry GPS EXIF (see `BENCHMARK.md`).
 
 ## 2. Make the app do what the landing page says (before the Sat 2 PM checkpoint)
