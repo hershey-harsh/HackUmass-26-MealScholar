@@ -3,12 +3,12 @@ from datetime import datetime
 import httpx
 import pytest
 
-from foodsmart.context import NominatimPlaces, build_context
-from foodsmart.schemas import PhotoMetadata
+from mealscholar.context import NominatimPlaces, build_context
+from mealscholar.schemas import PhotoMetadata
 
 
 def failing_places(handler) -> NominatimPlaces:
-    places = NominatimPlaces("https://nominatim.example/reverse", "foodsmart-tests")
+    places = NominatimPlaces("https://nominatim.example/reverse", "mealscholar-tests")
     places._client = httpx.Client(transport=httpx.MockTransport(handler))
     return places
 

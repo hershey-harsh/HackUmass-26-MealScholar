@@ -8,9 +8,9 @@ Tick a box when it's done. When a contract changes, post on the board.
 The chain is merged: #7 at 8:10 AM, then #11, #13 and #15 at 8:18–8:19 AM. Every PR since has merged except #41 (rename), #46 (logo suggestion, Harsh's pick) and #48 (Harsh's app UI update). That includes #44 (film plan and script PDF) and #45 (landing page dark mode).
 
 - [x] **Joseph**: rebase #7 on `main` and fix the `AGENTS.md` conflict. Run `uv run pytest` and `uvx ruff@0.17.5 check`, then merge. Delete the branch on merge so GitHub moves #11 to `main`.
-- [x] **Joseph**: review #11 (login). Done before it merged: a security review found no code bugs, and Harsh confirmed the three server settings (`MONGODB_URI`, `FOODSMART_PUBLIC_URL`, `FOODSMART_DEV_OUTBOX` unset). Its follow-ups are under "Before real users" in section 5.
+- [x] **Joseph**: review #11 (login). Done before it merged: a security review found no code bugs, and Harsh confirmed the three server settings (`MONGODB_URI`, `MEALSCHOLAR_PUBLIC_URL`, `MEALSCHOLAR_DEV_OUTBOX` unset). Its follow-ups are under "Before real users" in section 5.
 - [x] Merge #11, #13 and #15 back to back, in that order.
-- [ ] **Harsh**: the chain has landed, so smoke test the live app now. Sign up, onboarding, photo, answer the question, log it, then check Today. The API checks passed at 8:20 and 8:22 AM (status, dining, nearest hall, prefs, dev outbox 404). The rest of the flow is open, and sign-up waits for the sign-in screens, which stay off (`FOODSMART_AUTH_REQUIRED=0`) until email sending exists.
+- [ ] **Harsh**: the chain has landed, so smoke test the live app now. Sign up, onboarding, photo, answer the question, log it, then check Today. The API checks passed at 8:20 and 8:22 AM (status, dining, nearest hall, prefs, dev outbox 404). The rest of the flow is open, and sign-up waits for the sign-in screens, which stay off (`MEALSCHOLAR_AUTH_REQUIRED=0`) until email sending exists.
 - [x] **Joseph**: the rest of Harsh's #7 review. Coordinates are kept out of the access log and meal notes (#30). Photos that won't decode get 413/415 instead of 500, and error replies no longer show server paths or Gemini's raw errors (#32).
 - [x] **Joseph**: landing page dark mode (#16), regenerated after Harsh's landing rework. Merged as #45, with a System, Light, Dark toggle.
 - [ ] **Harsh**: apply the app dark mode patch (#16) once #48 merges. If it no longer applies on top of #48, Joseph regenerates it.
@@ -79,14 +79,14 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
 - [ ] **Gabby**: add the video link (YouTube, Vimeo or Youku) and the gallery images to the Devpost form.
 - [ ] The final deadline is 9:00 AM on hackumass.com but 10:00 AM on Devpost. Go by 9:00 AM.
 - [ ] A demo account with a few days already logged, so Today and This week aren't empty.
-- [ ] Set `FOODSMART_DEMO_VERIFY_LINK` on the demo server, so sign-up works without a real email service. Only needed once the sign-in screens are on. It lets anyone confirm whatever address they type, so the favorites digest could go to someone else's email (#11 review).
-- [ ] Fallbacks: a recorded video, and the faster model (`FOODSMART_MODEL=gemini-3.6-flash FOODSMART_THINKING=minimal`) if Gemini is slow on venue Wi-Fi.
+- [ ] Set `MEALSCHOLAR_DEMO_VERIFY_LINK` on the demo server, so sign-up works without a real email service. Only needed once the sign-in screens are on. It lets anyone confirm whatever address they type, so the favorites digest could go to someone else's email (#11 review).
+- [ ] Fallbacks: a recorded video, and the faster model (`MEALSCHOLAR_MODEL=gemini-3.6-flash MEALSCHOLAR_THINKING=minimal`) if Gemini is slow on venue Wi-Fi.
 - [ ] Charge phones. Test the demo on venue Wi-Fi and on cellular.
 - [ ] **Everyone filming**: hard-reload mealscholar.mannava.org once on each filming phone before the 7 PM screen recordings. Older deploys left cached app files on phones; deploys stamp the commit into asset versions from the next app change on (Harsh).
 
 ## 5. Continuous development (keep doing this after the hackathon)
 
-- [x] **Joseph**: add a test workflow (`uv run pytest` on `ubuntu-latest`). The **Tests** workflow (#62) runs on every pull request and push to `main`, next to Ruff (lint and format) and the Lookup regression check (#22). The tests use a fixture USDA database, and the Mongo tests skip without `FOODSMART_TEST_MONGODB_URI`.
+- [x] **Joseph**: add a test workflow (`uv run pytest` on `ubuntu-latest`). The **Tests** workflow (#62) runs on every pull request and push to `main`, next to Ruff (lint and format) and the Lookup regression check (#22). The tests use a fixture USDA database, and the Mongo tests skip without `MEALSCHOLAR_TEST_MONGODB_URI`.
 - [ ] **Harsh**: branch protection on `main`: require Lint and Tests to pass. Every push to `main` is a live deploy. GitHub's rulesets API says this needs GitHub Pro while the repo is private, so it may have to wait for the public/private decision in section 4.
 - [ ] Keep stacks of PRs at most two deep, and merge the base the same day. #7 sat for 7 hours and blocked three PRs.
 - [ ] Every PR includes tests and a clean Ruff run, plus screenshots for UI changes. Post on the board when a contract changes (an API, a schema, an env var).

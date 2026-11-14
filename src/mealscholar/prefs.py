@@ -4,7 +4,7 @@ One document per user in the user_prefs collection of the accounts database, or 
 MONGODB_URI. It holds these settings only; the account itself stays in auth_store.py.
 
 `install_prefs` adds GET and PATCH /api/me/prefs. When sign-in is optional
-(FOODSMART_AUTH_REQUIRED=0) and nobody is signed in, they use the single local user's preferences.
+(MEALSCHOLAR_AUTH_REQUIRED=0) and nobody is signed in, they use the single local user's preferences.
 """
 
 from __future__ import annotations

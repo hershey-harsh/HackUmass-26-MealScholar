@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from foodsmart.nutrition import DATASETS, FoodDatabase, build_database
+from mealscholar.nutrition import DATASETS, FoodDatabase, build_database
 
 
 def food(fdc_id, description, nutrients, *, category=None, wweia=None):

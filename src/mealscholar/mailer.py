@@ -63,8 +63,8 @@ class SmtpSender:
 
     def send(self, email: Email) -> None:
         raise NotImplementedError(
-            "Sending email over SMTP is not implemented yet. Set FOODSMART_EMAIL_PROVIDER=outbox "
-            "to queue messages in email_outbox, or implement SmtpSender.send in foodsmart/mailer.py."
+            "Sending email over SMTP is not implemented yet. Set MEALSCHOLAR_EMAIL_PROVIDER=outbox "
+            "to queue messages in email_outbox, or implement SmtpSender.send in mealscholar/mailer.py."
         )
 
 

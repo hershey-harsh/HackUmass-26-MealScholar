@@ -1,4 +1,4 @@
-from foodsmart.nutrients import per_100g
+from mealscholar.nutrients import per_100g
 
 
 def top(food_db, query, hints=()):

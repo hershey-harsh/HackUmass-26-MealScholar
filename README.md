@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://mealscholar.mannava.org">
-  <img src="src/foodsmart/site/icons/icon-192.png" alt="MealScholar plate-and-leaf logo" width="88" height="88">
+  <img src="src/mealscholar/site/icons/icon-192.png" alt="MealScholar plate-and-leaf logo" width="88" height="88">
 </a>
 
 # MealScholar
@@ -85,29 +85,29 @@ Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
 
 ```dotenv
 GEMINI_API_KEY=your-key-here
-FOODSMART_AUTH_REQUIRED=0
+MEALSCHOLAR_AUTH_REQUIRED=0
 ```
 
-`FOODSMART_AUTH_REQUIRED=0` enables a local, single-user diary without signing in.
+`MEALSCHOLAR_AUTH_REQUIRED=0` enables a local, single-user diary without signing in.
 Use it only for local development, not a shared deployment. Shell variables override `.env`,
 and `.env` is gitignored.
 
 **3. Import USDA data and start the app**
 
 ```sh
-uv run foodsmart fdc-import
-uv run foodsmart serve
+uv run mealscholar fdc-import
+uv run mealscholar serve
 ```
 
 Open **[localhost:8000](http://127.0.0.1:8000)**, choose a photo and review the detected foods.
-The one-time import downloads roughly 17 MB and creates `~/.foodsmart/fdc.sqlite`.
+The one-time import downloads roughly 17 MB and creates `~/.mealscholar/fdc.sqlite`.
 Interactive API documentation is at **[/api/docs](http://127.0.0.1:8000/api/docs)**.
 
 <details>
 <summary><strong>Testing from your phone</strong></summary>
 
 ```sh
-uv run foodsmart serve --host 0.0.0.0
+uv run mealscholar serve --host 0.0.0.0
 ```
 
 Open your computer's LAN address on the same Wi-Fi. Browser geolocation needs HTTPS or
@@ -115,10 +115,6 @@ Open your computer's LAN address on the same Wi-Fi. Browser geolocation needs HT
 Keep this single-user development server on a trusted network.
 
 </details>
-
-> **Naming:** the product is MealScholar. The package, CLI command, `FOODSMART_*` settings and
-> `~/.foodsmart` data directory keep their existing names until the coordinated
-> [code rename](https://github.com/hershey-harsh/HackUmass-26-MealScholar/issues/23).
 
 ## Workflow
 
@@ -141,11 +137,11 @@ Choosing another USDA food recomputes the result without another photo analysis.
 
 ```sh
 # Analyze a photo and print the full result.
-uv run foodsmart analyze lunch.jpg --json
+uv run mealscholar analyze lunch.jpg --json
 
 # Review today's meals and the weekly summary.
-uv run foodsmart day
-uv run foodsmart week
+uv run mealscholar day
+uv run mealscholar week
 ```
 
 <details>
@@ -153,22 +149,22 @@ uv run foodsmart week
 
 ```sh
 # Opt in to the photo's GPS, or supply device context.
-uv run foodsmart analyze lunch.jpg --use-photo-location
-uv run foodsmart analyze lunch.jpg --lat 42.39 --lon -72.53 --taken-at 2026-11-14T12:30-05:00
+uv run mealscholar analyze lunch.jpg --use-photo-location
+uv run mealscholar analyze lunch.jpg --lat 42.39 --lon -72.53 --taken-at 2026-11-14T12:30-05:00
 
 # Supply the clarifying answer without an interactive prompt.
-uv run foodsmart analyze lunch.jpg --answer "fried in oil" --json
+uv run mealscholar analyze lunch.jpg --answer "fried in oil" --json
 
 # Inspect meal 3 and find a different USDA match.
-uv run foodsmart show 3
-uv run foodsmart search "rice, white, cooked"
-uv run foodsmart fix 3 1 --food 2708404
+uv run mealscholar show 3
+uv run mealscholar search "rice, white, cooked"
+uv run mealscholar fix 3 1 --food 2708404
 
 # Optional exact-weight correction for item 1 in meal 3.
-uv run foodsmart fix 3 1 --grams 300
+uv run mealscholar fix 3 1 --grams 300
 
 # Remove meal 3 from the diary, e.g. one logged from the wrong photo.
-uv run foodsmart delete 3
+uv run mealscholar delete 3
 ```
 
 `--json` prints the full `MealResult`. The CLI works with the local diary; signing into the
@@ -183,10 +179,10 @@ Set these in `.env` or your shell.
 | Variable | Default | Purpose |
 |---|---|---|
 | `GEMINI_API_KEY` | Not set | Required for photo analysis. |
-| `FOODSMART_MODEL` | `gemini-4-hydrogen` | Vision model; see [model benchmarks](BENCHMARK.md). |
-| `FOODSMART_THINKING` | `low` | Thinking level. Gemini 4 supports `low`, `medium`, `high`, `xhigh`; `minimal` is for 3.x Flash/Flash-Lite only. |
-| `FOODSMART_HOME` | `~/.foodsmart` | USDA database, downloads and SQLite diary. |
-| `FOODSMART_NOMINATIM_URL` | Public OpenStreetMap Nominatim | Place lookup; the public service allows 1 request/second. |
+| `MEALSCHOLAR_MODEL` | `gemini-4-hydrogen` | Vision model; see [model benchmarks](BENCHMARK.md). |
+| `MEALSCHOLAR_THINKING` | `low` | Thinking level. Gemini 4 supports `low`, `medium`, `high`, `xhigh`; `minimal` is for 3.x Flash/Flash-Lite only. |
+| `MEALSCHOLAR_HOME` | `~/.mealscholar` | USDA database, downloads and SQLite diary. |
+| `MEALSCHOLAR_NOMINATIM_URL` | Public OpenStreetMap Nominatim | Place lookup; the public service allows 1 request/second. |
 
 <details>
 <summary><strong>Accounts, dining data and deployment settings</strong></summary>
@@ -194,14 +190,14 @@ Set these in `.env` or your shell.
 | Variable | Default | Purpose |
 |---|---|---|
 | `MONGODB_URI` | Not set | Persistent accounts/preferences and access to dining data. Without it, accounts/preferences are in memory and dining routes return 503. |
-| `FOODSMART_MONGODB_DB` | `mealscholar` | Accounts and preferences database. |
-| `FOODSMART_DINING_DB` | `umass_dining` | Read-only dining-menu database. |
-| `FOODSMART_AUTH_REQUIRED` | `1` | Require sign-in for meal and diary routes. |
-| `FOODSMART_PUBLIC_URL` | `http://127.0.0.1:8000` | Public origin for account links and cross-site checks. |
-| `FOODSMART_COOKIE_SECURE` | `1` | HTTPS-only session cookies. Set to `0` only when testing accounts over local HTTP. |
-| `FOODSMART_EMAIL_PROVIDER` | `outbox` | Queue account emails; SMTP delivery is not implemented yet. |
-| `FOODSMART_DEMO_VERIFY_LINK` | `0` | Demo-only verification links in responses; never enable publicly. |
-| `FOODSMART_DEV_OUTBOX` | `0` | Development-only outbox endpoint; never enable publicly. |
+| `MEALSCHOLAR_MONGODB_DB` | `mealscholar` | Accounts and preferences database. |
+| `MEALSCHOLAR_DINING_DB` | `umass_dining` | Read-only dining-menu database. |
+| `MEALSCHOLAR_AUTH_REQUIRED` | `1` | Require sign-in for meal and diary routes. |
+| `MEALSCHOLAR_PUBLIC_URL` | `http://127.0.0.1:8000` | Public origin for account links and cross-site checks. |
+| `MEALSCHOLAR_COOKIE_SECURE` | `1` | HTTPS-only session cookies. Set to `0` only when testing accounts over local HTTP. |
+| `MEALSCHOLAR_EMAIL_PROVIDER` | `outbox` | Queue account emails; SMTP delivery is not implemented yet. |
+| `MEALSCHOLAR_DEMO_VERIFY_LINK` | `0` | Demo-only verification links in responses; never enable publicly. |
+| `MEALSCHOLAR_DEV_OUTBOX` | `0` | Development-only outbox endpoint; never enable publicly. |
 
 Do not deploy with in-memory accounts or expose the development outbox. Email delivery must be
 configured and implemented before relying on password-reset emails.
@@ -225,7 +221,7 @@ configured and implemented before relying on password-reset emails.
 
 | Site | Address | Source |
 |---|---|---|
-| **App** | [mealscholar.mannava.org](https://mealscholar.mannava.org) | [`src/foodsmart/site/`](src/foodsmart/site/) + [`web.py`](src/foodsmart/web.py) |
+| **App** | [mealscholar.mannava.org](https://mealscholar.mannava.org) | [`src/mealscholar/site/`](src/mealscholar/site/) + [`web.py`](src/mealscholar/web.py) |
 | **Landing page** | [hackumass.mannava.org](https://hackumass.mannava.org) | [`web/`](web/) |
 
 Both sites deploy on pushes to `main` through
@@ -242,9 +238,9 @@ read [AGENTS.md](AGENTS.md) for ownership, the team board and the PR workflow.
 
 | Area | Start here |
 |---|---|
-| Analysis pipeline and result contract | [`pipeline.py`](src/foodsmart/pipeline.py) · [`schemas.py`](src/foodsmart/schemas.py) |
-| Vision prompts and nutrient arithmetic | [`vision.py`](src/foodsmart/vision.py) · [`compute.py`](src/foodsmart/compute.py) |
-| App and JSON API | [`src/foodsmart/site/`](src/foodsmart/site/) · [`web.py`](src/foodsmart/web.py) |
+| Analysis pipeline and result contract | [`pipeline.py`](src/mealscholar/pipeline.py) · [`schemas.py`](src/mealscholar/schemas.py) |
+| Vision prompts and nutrient arithmetic | [`vision.py`](src/mealscholar/vision.py) · [`compute.py`](src/mealscholar/compute.py) |
+| App and JSON API | [`src/mealscholar/site/`](src/mealscholar/site/) · [`web.py`](src/mealscholar/web.py) |
 | Public landing page | [`web/`](web/) |
 | Regression tests and model evaluation | [`tests/`](tests/) · [`bench/`](bench/) |
 

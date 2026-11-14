@@ -465,10 +465,10 @@ function renderSetup(status) {
   const steps = [];
   if (!status.gemini_ready) {
     steps.push(
-      "<p>Add your Gemini key to <code>.env</code> as <code>GEMINI_API_KEY=…</code>, then restart <code>uv run foodsmart serve</code>.</p>"
+      "<p>Add your Gemini key to <code>.env</code> as <code>GEMINI_API_KEY=…</code>, then restart <code>uv run mealscholar serve</code>.</p>"
     );
   }
-  if (!status.food_db_ready) steps.push("<p>Build the USDA database once: <code>uv run foodsmart fdc-import</code></p>");
+  if (!status.food_db_ready) steps.push("<p>Build the USDA database once: <code>uv run mealscholar fdc-import</code></p>");
   els.setup.innerHTML = steps.length ? `<p class="field-label">Setup needed</p>${steps.join("")}` : "";
   els.setup.hidden = !steps.length;
   state.ready = !steps.length;

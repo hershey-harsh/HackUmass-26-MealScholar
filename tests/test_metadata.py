@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 
 from PIL import ExifTags, Image
 
-from foodsmart.metadata import extract_metadata, load_image
+from mealscholar.metadata import extract_metadata, load_image
 
 
 def photo(tmp_path, *, original=None, offset=None, modified=None, gps=None):

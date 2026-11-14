@@ -1,6 +1,6 @@
 # Gemini benchmark: meal photo → foods → grams
 
-HackUMass XIV, 2026-11-14. 284 Gemini calls: 275 sweep runs (5 real meal photos × 19 configurations × 3 repeats; `xhigh` ran only one repeat) plus 9 calls in one run of the question → answer loop. Later that day, 54 more calls in phase d checked prompt changes for range width (see [Range width](#range-width)), and 75 more checked photos that aren't a meal (phases n and d, see [Photos that aren't a meal](#photos-that-arent-a-meal)). Every call went through the production pipeline: `vision.py` prompt and schema → USDA lookup → totals, same as `foodsmart analyze --no-log`.
+HackUMass XIV, 2026-11-14. 284 Gemini calls: 275 sweep runs (5 real meal photos × 19 configurations × 3 repeats; `xhigh` ran only one repeat) plus 9 calls in one run of the question → answer loop. Later that day, 54 more calls in phase d checked prompt changes for range width (see [Range width](#range-width)), and 75 more checked photos that aren't a meal (phases n and d, see [Photos that aren't a meal](#photos-that-arent-a-meal)). Every call went through the production pipeline: `vision.py` prompt and schema → USDA lookup → totals, same as `mealscholar analyze --no-log`.
 
 Raw data: `bench/results/runs.jsonl`. All tables: `bench/results/summary.md`. Harness: `bench/` (see [Rerun](#rerun)).
 
@@ -160,7 +160,7 @@ More overlays: `bench/results/overlays/gemini-4-hydrogen_low_default/` and, for 
 
 ## Lookup fixes
 
-Branch `gemini-benchmark`, `_Scorer` in `src/foodsmart/nutrition.py`:
+Branch `gemini-benchmark`, `_Scorer` in `src/mealscholar/nutrition.py`:
 
 - **Processed forms.** A candidate containing `concentrate`, `powder`, `dry`, `dried`, `instant`, `dehydrated`, `condensed` or `unprepared` loses 5 points, unless the query asked for that word or the candidate is the prepared form ("…, prepared with water"). Five points outweigh one matched descriptor plus a couple of extra words, which is exactly how "Lemonade, frozen concentrate, pink" used to beat "Lemonade, fruit juice drink".
 - **Pepperoni.** A description named `<main food> with …` now counts as starting with the main food, so `Pizza with pepperoni, …` competes with `Pizza, cheese, …` and wins on the word "pepperoni".
@@ -260,8 +260,8 @@ The rule (the last bullet of `SYSTEM_PROMPT`): only real food or drink that is a
 ## Recommendations
 
 ### Configuration
-- Keep the defaults: `FOODSMART_MODEL=gemini-4-hydrogen`, `FOODSMART_THINKING=low`, no `resolution` override.
-- For a cheaper or faster demo fallback: `FOODSMART_MODEL=gemini-3.6-flash FOODSMART_THINKING=minimal`.
+- Keep the defaults: `MEALSCHOLAR_MODEL=gemini-4-hydrogen`, `MEALSCHOLAR_THINKING=low`, no `resolution` override.
+- For a cheaper or faster demo fallback: `MEALSCHOLAR_MODEL=gemini-3.6-flash MEALSCHOLAR_THINKING=minimal`.
 
 ### Code fixes, ranked by measured impact
 1. **Done on this branch:** the USDA scorer penalizes processed forms the query did not ask for. Runs with a powder/concentrate match went from 54 to 4, all prepared forms or explicitly requested.
@@ -289,7 +289,7 @@ The rule (the last bullet of `SYSTEM_PROMPT`): only real food or drink that is a
 ## Rerun
 
 ```sh
-uv run foodsmart fdc-import                                   # once
+uv run mealscholar fdc-import                                 # once
 uv run --env-file .env python bench/run.py --phase a --phase b   # sweep (resumable; this whole benchmark cost $2.40)
 uv run --env-file .env python bench/run.py --phase c --config 'gemini-4-hydrogen|low|default' --reps 1
 uv run --env-file .env python bench/run.py --phase d --config 'gemini-4-hydrogen|low|default'   # after a prompt change

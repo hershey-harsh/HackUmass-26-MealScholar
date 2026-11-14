@@ -23,11 +23,11 @@ from ground_truth import NON_MEALS, PHOTOS, Photo, classify
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 from run import PROMPT
 
-from foodsmart.compute import add_ranges, summarize
-from foodsmart.config import load_settings
-from foodsmart.nutrition import FoodDatabase
-from foodsmart.pipeline import Workflow
-from foodsmart.schemas import MealResult, Range
+from mealscholar.compute import add_ranges, summarize
+from mealscholar.config import load_settings
+from mealscholar.nutrition import FoodDatabase
+from mealscholar.pipeline import Workflow
+from mealscholar.schemas import MealResult, Range
 
 ROOT = Path(__file__).resolve().parent.parent
 RESULTS = ROOT / "bench" / "results"

@@ -11,11 +11,11 @@ import pytest
 from fastapi.testclient import TestClient
 from pymongo import ReturnDocument
 
-from foodsmart.auth import AuthService
-from foodsmart.auth_store import MemoryAuthStore, utc_now
-from foodsmart.config import load_settings
-from foodsmart.dining import Dining
-from foodsmart.prefs import (
+from mealscholar.auth import AuthService
+from mealscholar.auth_store import MemoryAuthStore, utc_now
+from mealscholar.config import load_settings
+from mealscholar.dining import Dining
+from mealscholar.prefs import (
     GOAL_MAX,
     LOCAL_USER,
     MemoryPrefsStore,
@@ -25,7 +25,7 @@ from foodsmart.prefs import (
     PrefsService,
     dish_key,
 )
-from foodsmart.web import create_app
+from mealscholar.web import create_app
 
 PASSWORD = "correct horse battery"
 SIGN_IN = {"detail": "Sign in to continue."}
@@ -66,7 +66,7 @@ def make_app(tmp_path):
     """App factory: environment variables as keyword arguments; accounts and prefs in memory."""
 
     def make(*, prefs=None, dining=None, **env):
-        settings = load_settings({"FOODSMART_HOME": str(tmp_path), **env})
+        settings = load_settings({"MEALSCHOLAR_HOME": str(tmp_path), **env})
         auth = AuthService.from_settings(settings, store=MemoryAuthStore())
         return create_app(settings, auth=auth, prefs=prefs or MemoryPrefsStore(), dining=dining)
 
@@ -369,7 +369,7 @@ def test_prefs_need_a_session(make_app):
 
 def test_without_required_sign_in_the_local_user_has_prefs(make_app):
     store = MemoryPrefsStore()
-    client = browser(make_app(prefs=store, FOODSMART_AUTH_REQUIRED="0"))
+    client = browser(make_app(prefs=store, MEALSCHOLAR_AUTH_REQUIRED="0"))
     assert client.get("/api/me/prefs").json() == DEFAULTS
     assert patch(client, {"calorie_goal": 1800}).json()["calorie_goal"] == 1800
     assert store.get(LOCAL_USER)["calorie_goal"] == 1800
@@ -480,4 +480,4 @@ def test_mongo_store_queries():
 
 def test_dining_database_setting():
     assert load_settings({}).dining_db == "umass_dining"
-    assert load_settings({"FOODSMART_DINING_DB": "umass_dining_copy"}).dining_db == "umass_dining_copy"
+    assert load_settings({"MEALSCHOLAR_DINING_DB": "umass_dining_copy"}).dining_db == "umass_dining_copy"

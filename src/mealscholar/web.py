@@ -99,7 +99,7 @@ def create_app(
     if places is None:
         places = NominatimPlaces(settings.nominatim_url, USER_AGENT)
 
-    app = FastAPI(title="FoodSmart", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
+    app = FastAPI(title="MealScholar", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
     auth = auth or AuthService.from_settings(settings)
     install_auth(app, auth)
     dining = dining or open_dining(settings)
@@ -115,7 +115,7 @@ def create_app(
 
     def workflow(foods: FoodDatabase) -> Workflow:
         if vision is None:
-            raise HTTPException(503, "Set GEMINI_API_KEY in .env, then restart `foodsmart serve`.")
+            raise HTTPException(503, "Set GEMINI_API_KEY in .env, then restart `mealscholar serve`.")
         return Workflow(vision=vision, foods=foods, places=places)
 
     def logged(diary: Diary, meal_id: int) -> MealResult:

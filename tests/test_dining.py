@@ -15,11 +15,11 @@ import pytest
 from fastapi.testclient import TestClient
 from pymongo.errors import ServerSelectionTimeoutError
 
-from foodsmart import cli
-from foodsmart.auth import AuthService
-from foodsmart.auth_store import MemoryAuthStore, utc_now
-from foodsmart.config import load_settings
-from foodsmart.dining import (
+from mealscholar import cli
+from mealscholar.auth import AuthService
+from mealscholar.auth_store import MemoryAuthStore, utc_now
+from mealscholar.config import load_settings
+from mealscholar.dining import (
     MEALS,
     Alert,
     DigestReport,
@@ -29,9 +29,9 @@ from foodsmart.dining import (
     send_favorites_digests,
     starts_hint,
 )
-from foodsmart.mailer import OutboxSender, SmtpSender
-from foodsmart.prefs import LOCAL_USER, MemoryPrefsStore, Prefs, PrefsService
-from foodsmart.web import create_app
+from mealscholar.mailer import OutboxSender, SmtpSender
+from mealscholar.prefs import LOCAL_USER, MemoryPrefsStore, Prefs, PrefsService
+from mealscholar.web import create_app
 
 EASTERN = ZoneInfo("America/New_York")
 YESTERDAY, TODAY, TOMORROW, NEXT_DAY = (date(2026, 11, 14) + timedelta(days=n) for n in (-1, 0, 1, 2))
@@ -238,7 +238,7 @@ def make_app(tmp_path, clock, source):
     """App factory with the fake menus (dining=False: no MONGODB_URI) and in-memory accounts."""
 
     def make(*, dining=True, prefs=None, **env):
-        settings = load_settings({"FOODSMART_HOME": str(tmp_path), **env})
+        settings = load_settings({"MEALSCHOLAR_HOME": str(tmp_path), **env})
         auth = AuthService.from_settings(settings, store=MemoryAuthStore())
         menus = Dining(source, clock=clock) if dining else None
         return create_app(settings, auth=auth, prefs=prefs or MemoryPrefsStore(), dining=menus)
@@ -591,7 +591,7 @@ def test_my_routes_need_a_session_unless_sign_in_is_optional(make_app):
         res = client.get(path)
         assert res.status_code == 401 and res.json() == SIGN_IN
 
-    local = browser(make_app(FOODSMART_AUTH_REQUIRED="0"))
+    local = browser(make_app(MEALSCHOLAR_AUTH_REQUIRED="0"))
     save_prefs(local, {"favorites": [{"name": "Vegan Chili"}]})
     assert local.get("/api/me/dining/next").json()["items"][1]["favorite"] is True
     assert local.get("/api/me/alerts").json() == [alert("Vegan Chili", 1, TODAY, "lunch")]
@@ -721,10 +721,10 @@ def test_alerts_digest_command(monkeypatch, capsys, tmp_path, source, clock):
     users, prefs = accounts_with_prefs()
     monkeypatch.setattr(cli, "load_dotenv", lambda *args, **kwargs: None)
     monkeypatch.setattr(cli, "open_digest", lambda settings: (users, prefs, Dining(source, clock=clock)))
-    monkeypatch.setenv("FOODSMART_HOME", str(tmp_path))
+    monkeypatch.setenv("MEALSCHOLAR_HOME", str(tmp_path))
     monkeypatch.delenv("MONGODB_URI", raising=False)
-    monkeypatch.setenv("FOODSMART_PUBLIC_URL", "https://meals.example/")
-    monkeypatch.setenv("FOODSMART_EMAIL_PROVIDER", "outbox")
+    monkeypatch.setenv("MEALSCHOLAR_PUBLIC_URL", "https://meals.example/")
+    monkeypatch.setenv("MEALSCHOLAR_EMAIL_PROVIDER", "outbox")
 
     cli.main(["alerts-digest", "--days", "2"])
     assert capsys.readouterr().out == "Queued 1 favorites email(s) for 4 user(s) with email alerts on.\n"
@@ -735,7 +735,7 @@ def test_alerts_digest_command(monkeypatch, capsys, tmp_path, source, clock):
 
 def test_alerts_digest_command_needs_mongodb(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(cli, "load_dotenv", lambda *args, **kwargs: None)
-    monkeypatch.setenv("FOODSMART_HOME", str(tmp_path))
+    monkeypatch.setenv("MEALSCHOLAR_HOME", str(tmp_path))
     monkeypatch.delenv("MONGODB_URI", raising=False)
     for argv, error in (
         (["alerts-digest"], "alerts-digest needs MONGODB_URI: accounts, preferences and menus are in MongoDB."),
@@ -897,7 +897,7 @@ def test_nearest_hall_validates_coordinates(make_app):
 
 
 def test_nearest_hall_needs_a_hall_with_a_menu(clock):
-    from foodsmart.dining import nearest_hall
+    from mealscholar.dining import nearest_hall
 
     halls_without_menus = [dict(loc, dates_available=[]) for loc in LOCATIONS]
     dining = Dining(FakeDining(locations=halls_without_menus), clock=clock)

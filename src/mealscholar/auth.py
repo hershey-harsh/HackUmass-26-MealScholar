@@ -223,21 +223,23 @@ class AuthService:
         if store is None:
             store = open_store(settings)
         if settings.email_provider == "smtp":
-            log.warning("FOODSMART_EMAIL_PROVIDER=smtp is a placeholder: account emails fail until it is implemented.")
+            log.warning(
+                "MEALSCHOLAR_EMAIL_PROVIDER=smtp is a placeholder: account emails fail until it is implemented."
+            )
         if settings.demo_verify_link:
             log.warning(
-                "FOODSMART_DEMO_VERIFY_LINK=1: API responses include email links, so anyone who knows an "
+                "MEALSCHOLAR_DEMO_VERIFY_LINK=1: API responses include email links, so anyone who knows an "
                 "account's email can reset its password. Use it only for demos."
             )
         if settings.dev_outbox:
             log.warning(
-                "FOODSMART_DEV_OUTBOX=1: /api/auth/dev/outbox shows queued emails, password reset links "
+                "MEALSCHOLAR_DEV_OUTBOX=1: /api/auth/dev/outbox shows queued emails, password reset links "
                 "included, to anyone who can reach the server. Use it only on your own machine."
             )
         if settings.cookie_secure and settings.public_url.startswith("http://"):
             log.warning(
-                "FOODSMART_COOKIE_SECURE=1 with an http:// FOODSMART_PUBLIC_URL: browsers keep the session "
-                "cookie only over HTTPS (some also on localhost). Set FOODSMART_COOKIE_SECURE=0 to sign in "
+                "MEALSCHOLAR_COOKIE_SECURE=1 with an http:// MEALSCHOLAR_PUBLIC_URL: browsers keep the session "
+                "cookie only over HTTPS (some also on localhost). Set MEALSCHOLAR_COOKIE_SECURE=0 to sign in "
                 "over plain HTTP, such as from a phone on the local network."
             )
         return cls(store, make_sender(settings.email_provider, store), settings, clock=clock)
@@ -688,7 +690,7 @@ def change_password(
 
 @router.get("/dev/outbox", include_in_schema=False)
 def dev_outbox(auth: Auth) -> list[OutboxItem]:
-    """The last 20 queued emails, for local testing; 404 unless FOODSMART_DEV_OUTBOX=1."""
+    """The last 20 queued emails, for local testing; 404 unless MEALSCHOLAR_DEV_OUTBOX=1."""
     if not auth.settings.dev_outbox:
         raise AuthError(404, "Not Found")
     return [
