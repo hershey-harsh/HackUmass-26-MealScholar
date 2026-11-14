@@ -1722,7 +1722,10 @@ function renderDay() {
   // phones the calories and the tiles share the first screen; laptops show it above the tiles.
   if (view.meals.length) {
     const score = state.prefsOn ? scoreHtml(view) : "";
-    els.dashDay.innerHTML = heroHtml(view) + statsHtml(view) + score + mealsHtml(view);
+    // Phones: the six nutrients and the score swipe sideways, three tiles at a time (swipeHtml).
+    const middle = laptop.matches ? statsHtml(view) + score : swipeHtml(view, score);
+    els.dashDay.innerHTML = heroHtml(view) + middle + mealsHtml(view);
+    restoreSwipe();
     els.dashMicro.innerHTML = microHtml(view) || microEmptyHtml(key, true);
   } else {
     els.dashDay.innerHTML = emptyDayHtml(key);
@@ -1867,6 +1870,74 @@ function statsHtml(view) {
       <p class="note stats__note">${goalsMode() ? GOAL_NOTE : DV_NOTE}</p>
     </section>`;
 }
+
+/** Phones: protein, carbs and fat; swipe for fiber, sugars and sodium; swipe again for the health
+    score. One dot per page; the page shown survives a redraw. */
+function swipeHtml(view, score) {
+  const pages = [
+    ["Protein, carbs and fat", `<ul class="stats stats--macro">${MACROS.map(([key, label]) => statHtml(view, key, label, "macro")).join("")}</ul>`],
+    ["Fiber, sugars and sodium", `<ul class="stats stats--mini">${MINIS.map(([key, label]) => statHtml(view, key, label, "mini")).join("")}</ul>`],
+    ...(score ? [["Health score", score]] : []),
+  ];
+  const at = Math.min(state.swipePage ?? 0, pages.length - 1);
+  return `
+    <section class="stats-block swipe" aria-labelledby="stats-title">
+      <h2 id="stats-title" class="visually-hidden">Nutrients${score ? " and health score" : ""}</h2>
+      <div class="swipe__track" tabindex="0" role="group" aria-label="Swipe for more">
+        ${pages.map(([label, html], i) => `<div class="swipe__page" role="group" aria-label="${i + 1} of ${pages.length}: ${label}">${html}</div>`).join("")}
+      </div>
+      <div class="swipe__dots">
+        ${pages.map(([label], i) => `<button class="swipe__dot" type="button" data-swipe-to="${i}" aria-label="${label}"${i === at ? ' aria-current="true"' : ""}></button>`).join("")}
+      </div>
+      <p class="note stats__note">${goalsMode() ? GOAL_NOTE : DV_NOTE}</p>
+    </section>`;
+}
+
+/** Put the swipe back on the page it showed before a redraw, without animating. */
+function restoreSwipe() {
+  const track = $(".swipe__track", els.dashDay);
+  if (!track) return;
+  const pages = track.children.length;
+  const at = Math.min(state.swipePage ?? 0, pages - 1);
+  track.scrollLeft = at * track.clientWidth;
+  markSwipe(track, at);
+}
+
+function markSwipe(track, at) {
+  $$(".swipe__dot", track.parentElement).forEach((dot, i) => {
+    if (i === at) dot.setAttribute("aria-current", "true");
+    else dot.removeAttribute("aria-current");
+  });
+}
+
+let swipeFrame = 0;
+els.dashDay.addEventListener(
+  "scroll",
+  (event) => {
+    const track = event.target;
+    if (!(track instanceof Element) || !track.classList.contains("swipe__track")) return;
+    cancelAnimationFrame(swipeFrame);
+    swipeFrame = requestAnimationFrame(() => {
+      const at = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+      state.swipePage = at;
+      markSwipe(track, at);
+    });
+  },
+  { capture: true, passive: true }
+);
+
+els.dashDay.addEventListener("click", (event) => {
+  const dot = event.target.closest("[data-swipe-to]");
+  if (!dot) return;
+  const track = $(".swipe__track", dot.closest(".swipe"));
+  const at = Number(dot.dataset.swipeTo);
+  track?.scrollTo({ left: at * track.clientWidth, behavior: reducedMotion.matches ? "auto" : "smooth" });
+});
+
+// Crossing the laptop width swaps the swipe for the open grid, and back.
+laptop.addEventListener("change", () => {
+  if (document.body.dataset.screen === "app" && els.dashDay.childElementCount) renderDay();
+});
 
 function mealRowHtml(m) {
   const kcal = m.totals.energy_kcal;
