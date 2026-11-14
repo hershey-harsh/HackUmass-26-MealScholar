@@ -8,8 +8,5 @@ dist/
 .env
 .DS_Store
 
-# benchmark photos: they carry GPS EXIF (BENCHMARK.md)
-test_pictures/
-
 # agent board local state (tools/board)
 .board/
