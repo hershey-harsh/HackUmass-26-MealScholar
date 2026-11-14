@@ -200,16 +200,16 @@
     <div class="section-head section-head--center">
       <p class="eyebrow">How it works</p>
       <h2 id="how-title" class="h2">From photo to nutrients</h2>
-      <p class="section-sub">Five steps, shown here with an example lunch.</p>
+      <p class="section-sub">Five steps, shown with a real lunch photo.</p>
     </div>
     <ol class="steps">
       <li class="step">
         <span class="step__num">01</span>
         <h3>Snap your meal</h3>
         <p>Take a photo of your plate. It’s analyzed in memory and never stored.</p>
-        <div class="mock" role="img" aria-label="Example camera screen: a plate in the viewfinder and a button to take or choose a photo, marked not stored.">
+        <div class="mock" role="img" aria-label="Camera screen with a real photo: three slices of chicken and red onion pizza on a white plate, and a button to take or choose a photo, marked not stored.">
           <div class="vf">
-            <svg viewBox="0 0 320 200"><use href="#plate"/></svg>
+            <img src="img/snap-meal-640.jpg" srcset="img/snap-meal-640.jpg 640w, img/snap-meal-1080.jpg 1080w" sizes="(max-width: 700px) 92vw, 400px" width="640" height="853" alt="" loading="lazy" decoding="async">
             <i class="vf__c vf__c--tl"></i><i class="vf__c vf__c--tr"></i><i class="vf__c vf__c--bl"></i><i class="vf__c vf__c--br"></i>
           </div>
           <div class="mini mini--bar">
@@ -222,12 +222,11 @@
         <span class="step__num">02</span>
         <h3>Foods and grams</h3>
         <p>Gemini names each food and estimates its weight as a low, likely and high range.</p>
-        <div class="mock" role="img" aria-label="Example: 3 foods found, each with a low, likely and high weight. Chicken breast 110, 130 and 150 grams. White rice 140, 170 and 200 grams. Broccoli 60, 75 and 90 grams.">
+        <div class="mock" role="img" aria-label="1 food found: chicken and red onion pizza, with a low, likely and high weight of 380, 450 and 540 grams, sized against the dinner plate.">
           <div class="mini mini--foods">
-            <div class="ml-head"><span>3 foods found</span><span>low · likely · high</span></div>
-            <div class="ml-row"><span class="pin">1</span><span class="ml-n">Chicken breast</span><span class="ml-g">110 · <b>130</b> · 150 g</span><span class="band band--f1"></span></div>
-            <div class="ml-row"><span class="pin">2</span><span class="ml-n">White rice</span><span class="ml-g">140 · <b>170</b> · 200 g</span><span class="band band--f2"></span></div>
-            <div class="ml-row"><span class="pin">3</span><span class="ml-n">Broccoli</span><span class="ml-g">60 · <b>75</b> · 90 g</span><span class="band band--f3"></span></div>
+            <div class="ml-head"><span>1 food found</span><span>low · likely · high</span></div>
+            <div class="ml-row"><span class="pin">1</span><span class="ml-n">Chicken and red onion pizza</span><span class="ml-g">380 · <b>450</b> · 540 g</span><span class="band band--f2"></span></div>
+            <p class="ml-note">Sized against the dinner plate</p>
           </div>
         </div>
       </li>
@@ -235,13 +234,13 @@
         <span class="step__num">03</span>
         <h3>One question, if needed</h3>
         <p>If the photo is unclear, it asks you one thing, then recomputes.</p>
-        <div class="mock" role="img" aria-label="Example question: Is the rice white or brown? White is picked, and the meal is recomputed with white rice.">
+        <div class="mock" role="img" aria-label="The question it asked about this photo: Is the sauce on the pizza a creamy or butter sauce, or a tomato or BBQ sauce? Creamy or butter is picked, and the food becomes butter chicken and red onion pizza.">
           <div class="mini mini--q">
             <span class="mini__label">One question</span>
-            <span class="mini__q">Is the rice white or brown?</span>
-            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>White</span><span class="opt">Brown</span></span>
+            <span class="mini__q">Is the sauce on the pizza a creamy/butter sauce or a tomato/BBQ sauce?</span>
+            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>Creamy</span><span class="opt">Tomato/BBQ</span></span>
           </div>
-          <div class="toast"><svg><use href="#i-check"/></svg>Recomputed with white rice</div>
+          <div class="toast"><svg><use href="#i-check"/></svg>Now butter chicken pizza</div>
         </div>
       </li>
       <li class="step step--wide step--tint">
@@ -251,25 +250,25 @@
           <p>Nutrients come from USDA FoodData Central: grams times the values per 100 g. The AI never outputs nutrient numbers.</p>
           <span class="dot-chip">USDA data · plain math</span>
         </div>
-        <div class="mock mock--side" role="img" aria-label="Example nutrients for the lunch: calories 385 to 539 kcal, likely 462. Protein 46.7 grams, 79 to 108 percent of the Daily Value. Carbohydrate 53.3 grams, 16 to 23 percent. Worked example: chicken, 130 grams times 31.0 grams of protein per 100 grams, equals 40.3 grams of protein.">
+        <div class="mock mock--side" role="img" aria-label="Nutrients for this pizza: calories 1,011 to 1,436 kcal, likely 1,197. Protein 51.3 grams, 87 to 123 percent of the Daily Value. Carbohydrate 149.8 grams, 46 to 65 percent. Worked example: pizza, 450 grams times 11.4 grams of protein per 100 grams, equals 51.3 grams of protein.">
           <div class="mini mini--nutr">
             <div class="mini__head"><span class="mini__label">Nutrients</span><span class="mini__label">Lunch</span></div>
-            <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>462</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">385–539 kcal</small></div>
-            <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>46.7</b> g</span><span class="band band--prot"></span><small class="nrow__r">79–108% DV</small></div>
-            <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>53.3</b> g</span><span class="band band--carb"></span><small class="nrow__r">16–23% DV</small></div>
+            <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>1,197</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">1,011–1,436 kcal</small></div>
+            <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>51.3</b> g</span><span class="band band--prot"></span><small class="nrow__r">87–123% DV</small></div>
+            <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>149.8</b> g</span><span class="band band--carb"></span><small class="nrow__r">46–65% DV</small></div>
           </div>
-          <div class="formula"><span class="formula__k">Chicken, protein</span>130 g × 31.0 g per 100 g<b>= 40.3 g protein</b></div>
+          <div class="formula"><span class="formula__k">Pizza, protein</span>450 g × 11.4 g per 100 g<b>= 51.3 g protein</b></div>
         </div>
       </li>
       <li class="step step--fix">
         <span class="step__num">05</span>
         <h3>Fix it, log it</h3>
         <p>Set an exact weight or swap the USDA match. Your fixes become your usual portions.</p>
-        <div class="mock" role="img" aria-label="Example fix: white rice changes from 140 to 200 grams to an exact 180 grams. The USDA match, Rice, white, cooked, no added fat, has a Swap button. Then Log to Today, saved as your usual portion.">
+        <div class="mock" role="img" aria-label="Example fix: the pizza changes from 380 to 540 grams to an exact 430 grams. The USDA match, Pizza, cheese, from restaurant or fast food, has a Swap button. Then Log to Today, saved as your usual portion.">
           <div class="mini mini--fix">
-            <div class="fx-head"><span class="pin">2</span><b>White rice</b><span class="fx-chg"><s>140–200 g</s><svg><use href="#i-chev-r"/></svg><span class="fx-new">180 g</span></span></div>
-            <div class="fx-row"><span class="fx-k">Exact weight</span><span class="fx-in">180 g</span><span class="fx-btn">Set</span></div>
-            <div class="fx-row"><span class="fx-k">USDA match</span><span class="fx-food">Rice, white, cooked, no added fat</span><span class="fx-swap">Swap</span></div>
+            <div class="fx-head"><span class="pin">1</span><b>Butter chicken pizza</b><span class="fx-chg"><s>380–540 g</s><svg><use href="#i-chev-r"/></svg><span class="fx-new">430 g</span></span></div>
+            <div class="fx-row"><span class="fx-k">Exact weight</span><span class="fx-in">430 g</span><span class="fx-btn">Set</span></div>
+            <div class="fx-row"><span class="fx-k">USDA match</span><span class="fx-food">Pizza, cheese, from restaurant or fast food</span><span class="fx-swap">Swap</span></div>
             <div class="fx-foot"><span class="fx-log">Log to Today</span><span class="fx-ok"><svg><use href="#i-check"/></svg>Saved as your usual portion</span></div>
           </div>
         </div>
