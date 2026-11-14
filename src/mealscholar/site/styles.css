@@ -449,6 +449,33 @@ main:focus,
   }
 }
 
+/* The narrowest phones: the wordmark gives way, whole, before anything in the bar would cut it to
+   "MealSch…" or push the Settings cog off screen. The mark stays, and the link keeps its name.
+   Widths measured with the pilot pill, Appearance and Settings, and with the alerts bell too. */
+@media (max-width: 20.49em) {
+  .brand > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 23.99em) {
+  .topbar__inner:has(#alerts-button:not([hidden])) .brand > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
 /* The account button: the user's initials in an ink circle. */
 .avatar {
   display: grid;
@@ -718,17 +745,74 @@ body[data-screen="auth"] .footer {
   padding-bottom: calc(32px + var(--safe-bottom));
 }
 
-/* Appearance: System, Light or Dark as native radios drawn like the tab bar, the choice in ink. */
+/* Appearance: a button in the top bar shows the current choice (monitor, sun or moon) and opens a
+   small menu with System, Light and Dark as native radios drawn like the tab bar, the choice in ink.
+   It matches the Settings cog beside it. */
+.theme-btn {
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+@media (hover: hover) {
+  .theme-btn:hover {
+    background: var(--line);
+  }
+}
+
+.theme-btn__icon {
+  display: none;
+}
+
+:root[data-theme-choice="system"] .theme-btn__icon[data-for="system"],
+:root[data-theme-choice="light"] .theme-btn__icon[data-for="light"],
+:root[data-theme-choice="dark"] .theme-btn__icon[data-for="dark"] {
+  display: block;
+}
+
+/* The menu sits in the top layer under its button; the script sets top and right on opening. */
+.theme-menu {
+  position: fixed;
+  inset: auto;
+  width: min(20rem, calc(100vw - 32px));
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-lift);
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top right;
+  transition:
+    opacity var(--dur-2) var(--ease-out),
+    transform var(--dur-2) var(--ease-out),
+    overlay var(--dur-2) allow-discrete,
+    display var(--dur-2) allow-discrete;
+}
+
+.theme-menu:popover-open {
+  opacity: 1;
+  transform: none;
+}
+
+@starting-style {
+  .theme-menu:popover-open {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
 .appearance {
   min-width: 0;
-  margin: 12px 0 0;
+  margin: 0;
   padding: 0;
   border: 0;
 }
 
 .appearance__label {
-  padding: 0;
-  margin-bottom: 8px;
+  padding: 0 0 0 4px;
+  margin-bottom: 10px;
 }
 
 .seg {
