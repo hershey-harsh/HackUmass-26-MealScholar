@@ -570,7 +570,7 @@ html:not(.js) .theme { display: none; }
 }
 .hero .nav-chips { margin: -18px 0 22px; }
 .hero__copy { display: flex; flex-direction: column; align-items: center; }
-.hero__title { max-width: 9.6em; font-size: clamp(36px, 11.2vw, 64px); }
+.hero__title { max-width: 9.6em; font-size: clamp(34px, 9.8vw, 56px); }
 /* The break only applies once the headline has room for "Nutrition from a photo," on one line. */
 .h1-br { display: none; }
 
@@ -657,31 +657,31 @@ html:not(.js) .theme { display: none; }
   .hero__actions .cta__pill { flex: none; }
 }
 @media (min-width: 760px) {
-  .hero__title { max-width: none; font-size: clamp(50px, 7.2vw, 150px); line-height: 1; }
+  .hero__title { max-width: none; font-size: clamp(44px, 5.2vw, 92px); line-height: 1.02; }
   .h1-br { display: inline; }
-  .hero__lede { max-width: 34em; margin-top: 26px; font-size: 18px; }
-  .hero__actions { margin-top: 32px; }
-  .facts { margin-top: 24px; }
+  .hero__lede { max-width: 34em; margin-top: 20px; font-size: 17px; }
+  .hero__actions { margin-top: 26px; }
+  .facts { margin-top: 18px; }
 }
 @media (min-width: 900px) {
-  .hero { padding-top: calc(var(--header-h) + clamp(40px, 6vw, 96px)); }
+  .hero { padding-top: calc(var(--header-h) + clamp(24px, 3.5vw, 56px)); }
 }
 @media (min-width: 1100px) {
-  .hero__lede { font-size: 19px; }
-  .facts { max-width: none; font-size: 14.5px; }
+  .hero__lede { font-size: 18px; }
+  .facts { max-width: none; font-size: 14px; }
 }
 @media (min-width: 1800px) {
-  .hero__lede { font-size: 21px; }
-  .facts { font-size: 15.5px; }
+  .hero__lede { font-size: 19px; }
+  .facts { font-size: 15px; }
 }
 
 /* The fanned screens. Phones (and no JavaScript): a sideways row that snaps, the lunch result
    first. From 760px with app.js: the active screen raised in front, the others tucked behind. */
 .fan {
-  --card-w: min(78vw, 300px);
+  --card-w: min(70vw, 260px);
   --ease-fan: cubic-bezier(.22, .9, .24, 1);
   position: relative;
-  margin-top: clamp(36px, 5vw, 72px);
+  margin-top: clamp(24px, 3.5vw, 48px);
 }
 .fan__track {
   display: flex;
@@ -830,8 +830,8 @@ html:not(.js) .theme { display: none; }
 /* Fanned (set by app.js from 760px). Each card gets --o, its place from the front card
    (-3 to 3), and --a, how far that is. Only transform and opacity animate. */
 .fan.is-fan {
-  --card-w: clamp(250px, 21vw, 372px);
-  --step: clamp(124px, 13.4vw, 262px);
+  --card-w: clamp(220px, 17vw, 300px);
+  --step: clamp(108px, 11vw, 212px);
 }
 .fan.is-fan .fan__track {
   display: block;
