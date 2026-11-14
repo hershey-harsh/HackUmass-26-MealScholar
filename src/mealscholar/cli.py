@@ -233,11 +233,12 @@ def cmd_serve(args: argparse.Namespace, settings: Settings) -> None:
 
 
 def cmd_alerts_digest(args: argparse.Namespace, settings: Settings) -> None:
-    """Queues the emails in the outbox; nothing runs this on a schedule yet."""
+    """Queues the emails in the outbox, or sends them one by one over SMTP; nothing runs this on a
+    schedule yet."""
     if not 1 <= args.days <= MAX_ALERT_DAYS:
         raise ValueError(f"--days must be from 1 to {MAX_ALERT_DAYS}.")
     users, prefs, dining = open_digest(settings)
-    sender = make_sender(settings.email_provider, users)
+    sender = make_sender(settings.email_provider, users, settings.smtp, background=False)
     report = send_favorites_digests(users, prefs, dining, sender, settings.public_url, days=args.days)
     failed = f"; {report.failed} failed" if report.failed else ""
     print(f"Queued {report.queued} favorites email(s) for {report.users} user(s) with email alerts on{failed}.")

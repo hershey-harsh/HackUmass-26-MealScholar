@@ -11,7 +11,9 @@ import logging
 import os
 import re
 import shutil
+import smtplib
 import sqlite3
+import time
 import tracemalloc
 import unicodedata
 from contextlib import closing, suppress
@@ -24,7 +26,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 import mealscholar.auth
-from mealscholar import cli
+from mealscholar import cli, mailer
 from mealscholar.auth import AuthError, AuthService, Client, RateLimiter, Rule, hash_password, verify_password
 from mealscholar.auth_store import (
     EmailTaken,
@@ -35,9 +37,9 @@ from mealscholar.auth_store import (
     Session,
     utc_now,
 )
-from mealscholar.config import load_settings
+from mealscholar.config import SmtpSettings, load_settings
 from mealscholar.diary import Diary
-from mealscholar.mailer import SmtpSender, verification_email
+from mealscholar.mailer import SmtpSender, make_sender, verification_email
 from mealscholar.schemas import FoodItem, MealAnalysis, MealContext, MealResult
 from mealscholar.web import create_app
 
@@ -697,17 +699,170 @@ def test_demo_links_only_when_enabled(make_app):
     assert client.post("/api/auth/forgot-password", json={"email": "nobody@example.com"}).json() == {}
 
 
-def test_smtp_is_a_placeholder_that_does_not_block_sign_up(make_app, caplog):
-    with pytest.raises(NotImplementedError, match="MEALSCHOLAR_EMAIL_PROVIDER=outbox"):
-        SmtpSender().send(verification_email("sam@example.com", "https://meals.example/?verify=x"))
+class FakeSMTP:
+    """Stands in for smtplib.SMTP: records the conversation and the messages sent."""
 
-    app = make_app(MEALSCHOLAR_EMAIL_PROVIDER="smtp")
+    calls: list[str] = []
+    messages: list = []
+    connections: list[tuple[str, int, float]] = []
+    on_send: object = None  # an exception to raise, or a number of seconds to sleep, in send_message
+
+    def __init__(self, host, port, timeout=None):
+        FakeSMTP.connections.append((host, port, timeout))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        FakeSMTP.calls.append("quit")
+        return False
+
+    def ehlo(self):
+        FakeSMTP.calls.append("ehlo")
+
+    def starttls(self, context=None):
+        assert context is not None
+        FakeSMTP.calls.append("starttls")
+
+    def login(self, user, password):
+        FakeSMTP.calls.append(f"login {user}:{password}")
+
+    def send_message(self, msg):
+        if isinstance(FakeSMTP.on_send, BaseException):
+            raise FakeSMTP.on_send
+        if isinstance(FakeSMTP.on_send, (int, float)):
+            time.sleep(FakeSMTP.on_send)
+        FakeSMTP.calls.append("send_message")
+        FakeSMTP.messages.append(msg)
+
+
+@pytest.fixture
+def fake_smtp(monkeypatch):
+    FakeSMTP.calls, FakeSMTP.messages, FakeSMTP.connections, FakeSMTP.on_send = [], [], [], None
+    monkeypatch.setattr(mailer.smtplib, "SMTP", FakeSMTP)
+    return FakeSMTP
+
+
+SMTP_ENV = {
+    "MEALSCHOLAR_EMAIL_PROVIDER": "smtp",
+    "MEALSCHOLAR_SMTP_HOST": "smtp.example",
+    "MEALSCHOLAR_SMTP_USER": "u",
+    "MEALSCHOLAR_SMTP_PASSWORD": "p",
+    "MEALSCHOLAR_EMAIL_FROM": "MealScholar <no-reply@example.com>",
+}
+
+
+def test_smtp_sender_talks_starttls_and_sends(make_app, fake_smtp):
+    app = make_app(**SMTP_ENV)
     client = browser(app)
-    with caplog.at_level(logging.ERROR, logger="mealscholar.auth"):
-        assert register(client).status_code == 201
-    assert "Couldn't send the verify_email email" in caplog.text
-    assert app.state.auth.store.recent_emails(20) == []
+    assert register(client).status_code == 201
+    sender = app.state.auth.sender
+    assert isinstance(sender, SmtpSender)
+    sender.drain(5)
+
+    assert fake_smtp.connections == [("smtp.example", 587, 10.0)]
+    assert [c.split(" ")[0] for c in fake_smtp.calls] == ["ehlo", "starttls", "ehlo", "login", "send_message", "quit"]
+    assert "login u:p" in fake_smtp.calls
+    (msg,) = fake_smtp.messages
+    assert msg["From"] == "MealScholar <no-reply@example.com>"
+    assert msg["To"] == "sam@example.com"
+    assert msg["Subject"] == "Confirm your MealScholar email"
+    assert "/?verify=" in msg.get_content()
+    assert app.state.auth.store.recent_emails(20) == []  # raw links stay out of the database
     assert client.get("/api/status").json()["email_provider"] == "smtp"
+
+
+def test_smtp_sending_does_not_delay_sign_up_or_forgot_password(make_app, fake_smtp):
+    fake_smtp.on_send = 2  # a slow relay
+
+    def timed(call):
+        start = time.perf_counter()
+        res = call()
+        return res.status_code, time.perf_counter() - start
+
+    app = make_app(**SMTP_ENV)
+    client = browser(app)
+    status, took = timed(lambda: register(client))
+    assert (status, took < 0.5) == (201, True)
+    for email in ("sam@example.com", "nobody@example.com"):
+        status, took = timed(lambda email=email: client.post("/api/auth/forgot-password", json={"email": email}))
+        assert (status, took < 0.5) == (202, True), email
+    app.state.auth.sender.drain(10)
+    assert [(m["To"], m["Subject"]) for m in fake_smtp.messages] == [
+        ("sam@example.com", "Confirm your MealScholar email"),
+        ("sam@example.com", "Reset your MealScholar password"),
+    ]
+
+
+@pytest.mark.parametrize("error", [smtplib.SMTPServerDisconnected("Connection unexpectedly closed"), TimeoutError()])
+def test_smtp_failure_does_not_block_sign_up(make_app, fake_smtp, caplog, error):
+    fake_smtp.on_send = error
+    app = make_app(**SMTP_ENV)
+    client = browser(app)
+    with caplog.at_level(logging.WARNING, logger="mealscholar.mailer"):
+        assert register(client).status_code == 201
+        app.state.auth.sender.drain(5)
+    assert "Couldn't send the verify_email email to s***@example.com" in caplog.text
+    assert "sam@example.com" not in caplog.text
+    assert fake_smtp.messages == []
+    assert app.state.auth.store.recent_emails(20) == []
+
+
+def test_starttls_can_be_turned_off(make_app, fake_smtp):
+    app = make_app(**SMTP_ENV, MEALSCHOLAR_SMTP_STARTTLS="0", MEALSCHOLAR_SMTP_PORT="2525")
+    assert register(browser(app)).status_code == 201
+    app.state.auth.sender.drain(5)
+    assert fake_smtp.connections == [("smtp.example", 2525, 10.0)]
+    assert fake_smtp.calls == ["ehlo", "login u:p", "send_message", "quit"]
+
+
+def test_smtp_settings_from_the_environment():
+    assert load_settings({}).smtp is None
+    custom = load_settings(
+        {
+            **SMTP_ENV,
+            "MEALSCHOLAR_SMTP_PORT": "2525",
+            "MEALSCHOLAR_SMTP_STARTTLS": "no",
+            "MEALSCHOLAR_SMTP_TIMEOUT": "3",
+        }
+    ).smtp
+    assert custom == SmtpSettings(
+        host="smtp.example",
+        port=2525,
+        user="u",
+        password="p",
+        sender="MealScholar <no-reply@example.com>",
+        starttls=False,
+        timeout=3.0,
+    )
+    assert load_settings({"MEALSCHOLAR_SMTP_HOST": "smtp.example"}).smtp == SmtpSettings(host="smtp.example")
+
+    for env, name in (
+        ({"MEALSCHOLAR_EMAIL_PROVIDER": "smtp"}, "MEALSCHOLAR_SMTP_HOST"),
+        ({"MEALSCHOLAR_EMAIL_PROVIDER": "smtp", "MEALSCHOLAR_SMTP_HOST": "smtp.example"}, "MEALSCHOLAR_EMAIL_FROM"),
+        ({**SMTP_ENV, "MEALSCHOLAR_SMTP_PORT": "abc"}, "MEALSCHOLAR_SMTP_PORT"),
+        ({**SMTP_ENV, "MEALSCHOLAR_SMTP_PORT": "70000"}, "MEALSCHOLAR_SMTP_PORT"),
+        ({**SMTP_ENV, "MEALSCHOLAR_SMTP_TIMEOUT": "0"}, "MEALSCHOLAR_SMTP_TIMEOUT"),
+        ({**SMTP_ENV, "MEALSCHOLAR_SMTP_TIMEOUT": "soon"}, "MEALSCHOLAR_SMTP_TIMEOUT"),
+    ):
+        with pytest.raises(ValueError, match=name):
+            load_settings(env)
+    with pytest.raises(ValueError, match="MEALSCHOLAR_SMTP_HOST"):
+        make_sender("smtp", MemoryAuthStore(), None)
+
+
+def test_forgot_password_quota_is_per_network_and_email(make_app):
+    app = make_app()
+    register(browser(app))
+
+    def forgot(client):
+        return client.post("/api/auth/forgot-password", json={"email": "sam@example.com"}).status_code
+
+    a = browser(app, ip="198.51.100.4")
+    assert [forgot(a) for _ in range(4)] == [202, 202, 202, 429]
+    before = len(app.state.auth.store.recent_emails(20))
+    assert forgot(browser(app, ip="203.0.113.9")) == 202  # a stranger can't use up Sam's own attempts
+    assert len(app.state.auth.store.recent_emails(20)) == before + 1
 
 
 # --- cross-site requests and protected routes -------------------------------------------
@@ -894,6 +1049,8 @@ def test_account_settings_from_the_environment():
             "MEALSCHOLAR_PUBLIC_URL": "https://meals.example/",
             "MEALSCHOLAR_COOKIE_SECURE": "false",
             "MEALSCHOLAR_EMAIL_PROVIDER": "SMTP",
+            "MEALSCHOLAR_SMTP_HOST": "smtp.example",
+            "MEALSCHOLAR_EMAIL_FROM": "no-reply@example.com",
             "MEALSCHOLAR_DEMO_VERIFY_LINK": "1",
             "MEALSCHOLAR_DEV_OUTBOX": "yes",
         }

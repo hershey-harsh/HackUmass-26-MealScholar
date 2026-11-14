@@ -16,10 +16,10 @@ import pytest
 from fastapi.testclient import TestClient
 from pymongo.errors import ServerSelectionTimeoutError
 
-from mealscholar import cli
+from mealscholar import cli, mailer
 from mealscholar.auth import AuthService
 from mealscholar.auth_store import MemoryAuthStore, utc_now
-from mealscholar.config import load_settings
+from mealscholar.config import SmtpSettings, load_settings
 from mealscholar.dining import (
     MEALS,
     Alert,
@@ -31,7 +31,7 @@ from mealscholar.dining import (
     send_favorites_digests,
     starts_hint,
 )
-from mealscholar.mailer import OutboxSender, SmtpSender
+from mealscholar.mailer import OutboxSender, SmtpSender, make_sender
 from mealscholar.prefs import LOCAL_USER, MemoryPrefsStore, Prefs, PrefsService
 from mealscholar.web import create_app
 
@@ -737,7 +737,7 @@ def accounts_with_prefs():
     return users, prefs
 
 
-def test_digest_emails_confirmed_users_with_email_alerts_on(source, clock):
+def test_digest_emails_confirmed_users_with_email_alerts_on(source, clock, monkeypatch):
     users, prefs = accounts_with_prefs()
     dining = Dining(source, clock=clock)
     report = send_favorites_digests(users, prefs, dining, OutboxSender(users), "https://meals.example", days=1)
@@ -748,8 +748,15 @@ def test_digest_emails_confirmed_users_with_email_alerts_on(source, clock):
     assert email.expires_at - email.created_at == timedelta(days=7)
     assert "Sunday, November 15\n  Dinner at Berkshire Dining Commons: Pad Thai\n" in email.text
 
-    failing = send_favorites_digests(users, prefs, dining, SmtpSender(), "https://meals.example", days=1)
-    assert failing == DigestReport(users=4, queued=0, failed=1)
+    def refuse(host, port, timeout=None):
+        raise OSError(f"[Errno 61] Connection refused: {host}:{port}")
+
+    monkeypatch.setattr(mailer.smtplib, "SMTP", refuse)
+    smtp = SmtpSender(SmtpSettings(host="smtp.invalid", sender="x@example.com"), background=False)
+    failing = send_favorites_digests(users, prefs, dining, smtp, "https://meals.example", days=1)
+    assert failing == DigestReport(users=4, queued=0, failed=1)  # synchronous: the command counts the failure
+    with pytest.raises(ValueError, match="MEALSCHOLAR_SMTP_HOST"):
+        make_sender("smtp", users, None)
 
     kim = users.user_by_email("kim@example.com")  # confirmed; a broken document is skipped, not fatal
     prefs.update(kim.id, {"notify.email": True, "favorites": "not a list"})
