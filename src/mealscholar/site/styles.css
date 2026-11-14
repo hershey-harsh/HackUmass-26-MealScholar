@@ -81,6 +81,12 @@
   --install-scrim: rgba(28, 28, 28, .42);
   --install-ink-2: #4A4A48;
 
+  /* Menu rows that aren't in the person's diet: a warm band, an edge and a tag. */
+  --off-bg: #F6ECD6;
+  --off-edge: #C0892A;
+  --off-tag: #ECD7A6;
+  --off-ink: #5A3C00;
+
   --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
@@ -145,6 +151,10 @@
   --scrim: rgba(0, 0, 0, 0.6);
   --install-scrim: rgba(0, 0, 0, 0.6);
   --install-ink-2: #C4C6C7;
+  --off-bg: #2A2416;
+  --off-edge: #C99A45;
+  --off-tag: #4A3B19;
+  --off-ink: #F2D592;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.32);
   --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.5), 0 18px 44px rgba(0, 0, 0, 0.6);
 }
@@ -4557,40 +4567,7 @@ html.install-open {
   color: var(--ink);
 }
 
-/* ---- the welcome card and health score (the left column on laptops) */
-
-.welcome {
-  display: none;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 20px;
-}
-
-.welcome__text {
-  min-width: 0;
-}
-
-.welcome__greet {
-  font: 300 1.5rem / 1.2 var(--font-sans);
-  letter-spacing: -0.02em;
-  overflow-wrap: anywhere;
-}
-
-.welcome__greet strong {
-  font-weight: 500;
-}
-
-.welcome__sub {
-  margin-top: 4px;
-  font-size: 0.9375rem;
-  color: var(--ink-2);
-}
-
-.welcome__avatar {
-  width: 48px;
-  height: 48px;
-}
+/* ---- the health score (the left column on laptops) */
 
 .score {
   display: grid;
@@ -4647,6 +4624,11 @@ html.install-open {
 .score__note {
   font-size: 0.875rem;
   color: var(--ink-2);
+}
+
+.score__foot {
+  display: grid;
+  gap: 10px;
 }
 
 .score__parts {
@@ -4799,15 +4781,18 @@ html.install-open {
   fill: var(--ink);
 }
 
-.legend__dim {
-  width: 14px;
+.legend__off {
+  width: 16px;
   height: 14px;
-  border-radius: 4px;
-  background: var(--line);
+  border-radius: 2px 4px 4px 2px;
+  background: var(--off-bg);
+  box-shadow: inset 3px 0 0 var(--off-edge), inset 0 0 0 1px color-mix(in srgb, var(--off-edge) 35%, transparent);
 }
 
-/* The list is the one thing that scrolls in that column. */
+/* The list is the one thing that scrolls in that column. Positioned, so the screen-reader-only
+   words in its rows (absolutely placed) stay inside it instead of stretching the page. */
 .dishes {
+  position: relative;
   flex: 1 1 auto;
   min-height: 0;
   max-height: 22rem;
@@ -4830,7 +4815,7 @@ html.install-open {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 10px 0 4px;
+  padding: 10px 8px 4px;
   background: var(--surface);
   font: 500 0.75rem / 1.45 var(--font-sans);
   letter-spacing: 0.14em;
@@ -4847,7 +4832,7 @@ html.install-open {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
   gap: 2px 8px;
-  padding: 8px 0;
+  padding: 8px;
   border-top: 1px solid var(--line);
   font-size: 0.9375rem;
   line-height: 1.35;
@@ -4892,17 +4877,29 @@ html.install-open {
   white-space: nowrap;
 }
 
-/* Not in the diet the person chose: still listed, but faded. Faded with the lighter ink token
-   rather than opacity, so the words keep 4.5:1 (#595959 is 6.7:1 on the card); only the marks
-   go translucent. */
-.dish.is-off .dish__name,
-.dish.is-off .dish__kcal,
-.dish.is-off .dish__warn {
-  color: var(--label);
+/* Not in the diet the person chose: still listed, on a warm band with an edge on the left and a
+   "Not in your diet" tag under the name. Color plus words, never color alone, and nothing fades:
+   the name keeps full ink (14:1 or more on the band in both themes). */
+.dish.is-off {
+  background: var(--off-bg);
+  box-shadow: inset 3px 0 0 var(--off-edge);
 }
 
-.dish.is-off .dish__marks {
-  opacity: 0.78;
+.dish.is-off + .dish.is-off {
+  border-top-color: color-mix(in srgb, var(--off-edge) 22%, var(--off-bg));
+}
+
+.dish__off {
+  justify-self: start;
+  margin-top: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--off-tag);
+  color: var(--off-ink);
+  font: 500 0.75rem / 1.3 var(--font-sans);
+  letter-spacing: 0.01em;
+  /* One line even where the name column is narrow (1024px): the tag may run under the kcal. */
+  white-space: nowrap;
 }
 
 .upcoming__count {
@@ -5020,10 +5017,11 @@ html.install-open {
 
 .strip {
   display: none;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 2px;
   flex: 1 1 auto;
-  max-width: 30rem;
+  max-width: 35rem;
   margin-inline: auto;
   padding: 4px;
   border: 1px solid var(--line);
@@ -5031,10 +5029,65 @@ html.install-open {
   background: var(--surface);
 }
 
+/* One page per week; a swipe or a trackpad scroll lands on a whole week. */
+.strip__track {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  border-radius: 999px;
+}
+
+.strip__track::-webkit-scrollbar {
+  display: none;
+}
+
+.strip__week {
+  display: grid;
+  flex: 0 0 100%;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.strip__nav {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color var(--dur-1) linear, transform var(--dur-1) var(--ease-out);
+}
+
+.strip__nav .icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+}
+
+.strip__nav:active:not([aria-disabled="true"]) {
+  transform: scale(0.92);
+}
+
+.strip__nav[aria-disabled="true"] {
+  color: var(--line-strong);
+  cursor: default;
+}
+
 .strip__day {
   display: grid;
   justify-items: center;
   gap: 2px;
+  min-width: 0;
   min-height: 56px;
   padding: 6px 2px;
   border: 0;
@@ -5084,8 +5137,14 @@ html.install-open {
   color: var(--line-strong);
 }
 
+/* Inside the slide an outline would be cut off at its edges: draw it inside the day. */
+.strip__day:focus-visible {
+  outline-offset: -2px;
+}
+
 @media (hover: hover) {
-  .strip__day:hover:not(:disabled):not([aria-current="date"]) {
+  .strip__day:hover:not(:disabled):not([aria-current="date"]),
+  .strip__nav:hover:not([aria-disabled="true"]) {
     background: var(--surface-2);
   }
 }
@@ -5623,9 +5682,182 @@ body[data-screen="onboard"] .toast {
   }
 }
 
-/* Laptops: the sketch. The week strip on top; the welcome card, calories, health score and tiles
-   on the left; Recently uploaded and the week chart in the middle; the upcoming meal on the right. */
+/* Phones and tablets: the first screen holds the day. A short head, a compact calorie panel and
+   the nutrient tiles straight under it (app.js puts the tiles before the health score), so the
+   numbers and their ranges show without scrolling. Every range stays; only the air goes. */
+@media (max-width: 63.99em) {
+  body[data-prefs="on"] .dash-head {
+    gap: 0;
+    padding: 0 4px;
+  }
+
+  body[data-prefs="on"] .dash-head__greeting {
+    font-size: 0.875rem;
+    line-height: 1.35;
+  }
+
+  /* The day arrows keep their place beside the title; with larger text the date wraps instead. */
+  body[data-prefs="on"] .dash-head__row {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  body[data-prefs="on"] .dash-head__titles {
+    gap: 1px;
+  }
+
+  body[data-prefs="on"] .dash-head .view-title {
+    font-size: 1.75rem;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+
+  body[data-prefs="on"] .dash-head__date {
+    font-size: 0.875rem;
+    line-height: 1.3;
+    text-wrap: balance;
+  }
+
+  body[data-prefs="on"] :is(.dash, .dash-grid) {
+    gap: 12px;
+  }
+
+  /* The calorie panel, */
+  body[data-prefs="on"] .hero {
+    gap: 4px;
+    padding: 14px 18px 14px;
+  }
+
+  body[data-prefs="on"] .hero__value {
+    margin-top: 2px;
+    font-size: 3rem;
+  }
+
+  body[data-prefs="on"] .hero__unit {
+    font-size: 1rem;
+  }
+
+  body[data-prefs="on"] .hero__main {
+    gap: 4px;
+  }
+
+  body[data-prefs="on"] .hero__range {
+    font-size: 0.875rem;
+    line-height: 1.35;
+  }
+
+  body[data-prefs="on"] .hero__foot {
+    gap: 8px;
+    padding-top: 6px;
+  }
+
+  body[data-prefs="on"] .hero .band {
+    height: 10px;
+  }
+
+  body[data-prefs="on"] .hero__left {
+    gap: 0;
+    font-size: 0.9375rem;
+    line-height: 1.35;
+  }
+
+  body[data-prefs="on"] .hero__left-range {
+    font-size: 0.75rem;
+  }
+
+  body[data-prefs="on"] .hero__note {
+    gap: 6px;
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  body[data-prefs="on"] .hero__note .icon {
+    width: 14px;
+    height: 14px;
+    margin-top: 1px;
+  }
+
+  /* The smaller note still gives its Change goal link a 44px tall target. */
+  body[data-prefs="on"] .hero__note .link-btn--inline {
+    padding-block: 14px;
+    margin-block: -14px;
+  }
+
+  /* the health score as one row, the number beside its bar, */
+  body[data-prefs="on"] .score {
+    gap: 8px;
+    padding: 12px 18px 12px;
+  }
+
+  body[data-prefs="on"] .score__main {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+  }
+
+  body[data-prefs="on"] .score__main > .score__empty {
+    grid-column: 1 / -1;
+  }
+
+  body[data-prefs="on"] .score__num {
+    font-size: 2rem;
+  }
+
+  body[data-prefs="on"] .score__of {
+    font-size: 0.875rem;
+  }
+
+  body[data-prefs="on"] .score__bar {
+    height: 8px;
+  }
+
+  body[data-prefs="on"] .score__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+  }
+
+  body[data-prefs="on"] .score__note {
+    flex: 1 1 9rem;
+    font-size: 0.75rem;
+    line-height: 1.35;
+  }
+
+  body[data-prefs="on"] .score__how {
+    flex: 0 0 auto;
+  }
+
+  body[data-prefs="on"] .score__how[open] {
+    flex-basis: 100%;
+  }
+
+  body[data-prefs="on"] .score__how > summary {
+    min-height: 44px;
+    padding: 0 10px 0 12px;
+    font-size: 0.875rem;
+  }
+
+  body[data-prefs="on"] .score__how > summary::after {
+    margin-left: 8px;
+  }
+}
+
+/* Laptops: the sketch. The week strip on top. The left column (calories, health score, nutrient
+   tiles) is compact enough to fit the window and stays pinned under the bar; the middle (Recently
+   uploaded, the week chart, the vitamins) and the right column (the upcoming meal) scroll with the
+   page. The top bar's Snap a meal gives way to the round + button. */
 @media (min-width: 64em) {
+  body[data-prefs="on"] {
+    --pin-top: calc(var(--bar-h) + var(--safe-top) + 16px);
+  }
+
+  body[data-prefs="on"] .snap--bar {
+    display: none;
+  }
+
   body[data-prefs="on"] .dash-head__greeting {
     display: none;
   }
@@ -5642,7 +5874,8 @@ body[data-screen="onboard"] .toast {
     grid-template-columns: minmax(0, 4fr) minmax(0, 5fr);
     grid-template-areas:
       "main mid"
-      "micro micro";
+      "main micro";
+    grid-template-rows: auto 1fr;
     gap: 24px;
   }
 
@@ -5650,7 +5883,7 @@ body[data-screen="onboard"] .toast {
     grid-template-columns: minmax(0, 4fr) minmax(0, 5fr) minmax(0, 3.6fr);
     grid-template-areas:
       "main mid side"
-      "micro micro side";
+      "main micro side";
   }
 
   body[data-prefs="on"] .dash-col {
@@ -5660,8 +5893,31 @@ body[data-screen="onboard"] .toast {
     min-width: 0;
   }
 
+  /* Pinned under the bar. If it's still taller than the window (a short window, larger browser
+     text, an open "How it's scored"), it scrolls inside itself rather than pushing the page. The
+     padding keeps focus rings and card shadows inside the scroll box. */
   body[data-prefs="on"] .dash-col--main {
     grid-area: main;
+    position: sticky;
+    top: var(--pin-top);
+    align-self: start;
+    gap: 10px;
+    max-height: calc(100dvh - var(--pin-top) - 12px);
+    margin: -6px -10px;
+    padding: 6px 10px 8px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  body[data-prefs="on"] .dash-col--main::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* With the scrollbar hidden, a soft fade at the bottom edge says there's more below; app.js sets
+     .has-more only while there is. */
+  body[data-prefs="on"] .dash-col--main.has-more {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent);
   }
 
   body[data-prefs="on"] .dash-col--mid {
@@ -5671,7 +5927,7 @@ body[data-screen="onboard"] .toast {
   body[data-prefs="on"] .dash-col--side {
     grid-area: side;
     position: sticky;
-    top: calc(var(--bar-h) + var(--safe-top) + 16px);
+    top: var(--pin-top);
     align-self: start;
   }
 
@@ -5685,6 +5941,18 @@ body[data-screen="onboard"] .toast {
 
   body[data-prefs="on"] .micro-card {
     grid-area: micro;
+    align-self: start;
+  }
+
+  /* The markup puts the tiles before the health score (the phone order); here the score sits
+     under the calories. Neither the tiles nor the panel hold a control between them, so the tab
+     order is the same either way. */
+  body[data-prefs="on"] .dash-col--main > .hero {
+    order: -2;
+  }
+
+  body[data-prefs="on"] .dash-col--main > .score {
+    order: -1;
   }
 
   body[data-prefs="on"] .meals-block {
@@ -5695,22 +5963,150 @@ body[data-screen="onboard"] .toast {
     display: grid;
   }
 
-  body[data-prefs="on"] .welcome {
-    display: flex;
-  }
-
+  /* The left column, compact: the calories, */
   body[data-prefs="on"] .hero {
     align-self: auto;
-    padding: 24px 24px 20px;
+    gap: 4px;
+    padding: 16px 22px 14px;
   }
 
   body[data-prefs="on"] .hero__value {
-    font-size: 4rem;
+    margin-top: 4px;
+    font-size: 3.25rem;
   }
 
   body[data-prefs="on"] .hero__main {
+    gap: 6px;
     margin-block: 0;
-    padding-block: 8px;
+    padding-block: 0;
+  }
+
+  body[data-prefs="on"] .hero__range {
+    font-size: 0.9375rem;
+  }
+
+  body[data-prefs="on"] .hero__foot {
+    gap: 8px;
+    padding-top: 6px;
+  }
+
+  body[data-prefs="on"] .hero__left {
+    font-size: 1rem;
+  }
+
+  body[data-prefs="on"] .hero__note {
+    font-size: 0.8125rem;
+  }
+
+  body[data-prefs="on"] .hero__note .icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* The smaller note still gives its Change goal link a 44px tall target. */
+  body[data-prefs="on"] .hero__note .link-btn--inline {
+    padding-block: 13px;
+    margin-block: -13px;
+  }
+
+  /* the health score as one row, the number beside its bar, */
+  body[data-prefs="on"] .score {
+    gap: 6px;
+    padding: 12px 20px 10px;
+  }
+
+  body[data-prefs="on"] .score__main {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 18px;
+  }
+
+  body[data-prefs="on"] .score__main > .score__empty {
+    grid-column: 1 / -1;
+  }
+
+  body[data-prefs="on"] .score__num {
+    font-size: 2.25rem;
+  }
+
+  /* The note and "How it's scored" share a row while it's closed; open, it takes the full width. */
+  body[data-prefs="on"] .score__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+  }
+
+  body[data-prefs="on"] .score__note {
+    flex: 1 1 6.5rem;
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+
+  body[data-prefs="on"] .score__how {
+    flex: 0 0 auto;
+  }
+
+  body[data-prefs="on"] .score__how[open] {
+    flex-basis: 100%;
+  }
+
+  body[data-prefs="on"] .score__how > summary {
+    min-height: 44px;
+    padding: 0 12px 0 14px;
+    font-size: 0.875rem;
+  }
+
+  body[data-prefs="on"] .score__how > summary::after {
+    margin-left: 10px;
+  }
+
+  /* and the tiles, three to a row with less padding; each keeps its range. */
+  body[data-prefs="on"] .dash-col--main .stats-block {
+    gap: 8px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stats {
+    gap: 8px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat {
+    gap: 2px;
+    padding: 10px 12px 11px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat__label {
+    line-height: 1.2;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat__figure {
+    gap: 1px;
+  }
+
+  body[data-prefs="on"] .dash-col--main :is(.stat__range, .stat__dv) {
+    line-height: 1.2;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat .band {
+    margin-top: 5px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat--macro .stat__value strong {
+    font-size: 1.625rem;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat--mini {
+    padding: 9px 12px 10px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat--mini .stat__value strong {
+    font-size: 1.25rem;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stats__note {
+    font-size: 0.8125rem;
+    line-height: 1.45;
   }
 
   body[data-prefs="on"] .dash-empty {
@@ -5740,9 +6136,11 @@ body[data-screen="onboard"] .toast {
   }
 }
 
-/* Between 64em and 80em the three columns are narrow: a little less air between them. */
+/* Between 64em and 80em the three columns are narrow: a little less air between them, and the
+   left column a larger share so its tiles still sit three to a row. */
 @media (min-width: 64em) and (max-width: 79.99em) {
   body[data-prefs="on"][data-dining="on"] .dash-grid {
+    grid-template-columns: minmax(0, 4.5fr) minmax(0, 4.6fr) minmax(0, 3.4fr);
     gap: 18px;
   }
 
@@ -5750,17 +6148,303 @@ body[data-screen="onboard"] .toast {
     gap: 18px;
   }
 
+  body[data-prefs="on"] .dash-col--main {
+    gap: 10px;
+  }
+
   body[data-prefs="on"] .hero__value {
-    font-size: 3.5rem;
+    font-size: 3rem;
   }
 }
 
-/* Up to 82em the shell fills the window and the fixed + button (60px, 28px up from the bottom)
-   lands on the side column's corner. The card ends above the button both at the top of the page,
-   where the column starts under the title and week strip (138px), and once the column is pinned,
-   so no menu row ever sits under it. From 82em the + sits beside the shell and the card keeps its
-   full height. */
-@media (min-width: 64em) and (max-width: 81.99em) {
+/* Short laptop windows (768px or so tall): a little less air in the left column so it still fits. */
+@media (min-width: 64em) and (max-height: 51.25em) {
+  body[data-prefs="on"] .dash-col--main {
+    gap: 8px;
+  }
+
+  body[data-prefs="on"] .hero {
+    padding-block: 14px 12px;
+  }
+
+  body[data-prefs="on"] .score {
+    padding-block: 10px 8px;
+  }
+
+  body[data-prefs="on"] .hero__value {
+    font-size: 2.875rem;
+  }
+
+  body[data-prefs="on"] .hero__foot {
+    gap: 6px;
+  }
+
+  body[data-prefs="on"] .dash-col--main :is(.stats-block, .stats) {
+    gap: 6px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stats__note {
+    line-height: 1.35;
+  }
+}
+
+/* Tall windows: the compact column would leave the slot's lower half empty, so it takes back some
+   air in steps (992px, 1080px, 1280px tall). The panel, the score and the tiles grow and still end
+   inside the slot, and inside the first screen when the page is at the top. */
+@media (min-width: 64em) and (min-height: 62em) {
+  body[data-prefs="on"] .dash-col--main {
+    gap: 12px;
+  }
+
+  body[data-prefs="on"] .hero {
+    gap: 5px;
+    padding: 18px 24px 16px;
+  }
+
+  body[data-prefs="on"] .hero__value {
+    margin-top: 6px;
+    font-size: 3.5rem;
+  }
+
+  body[data-prefs="on"] .hero__foot {
+    gap: 10px;
+    padding-top: 8px;
+  }
+
+  body[data-prefs="on"] .score {
+    gap: 8px;
+    padding: 14px 22px 12px;
+  }
+
+  body[data-prefs="on"] .score__num {
+    font-size: 2.5rem;
+  }
+
+  body[data-prefs="on"] .dash-col--main :is(.stats-block, .stats) {
+    gap: 10px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat {
+    gap: 3px;
+    padding: 13px 14px 13px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat--macro .stat__value strong {
+    font-size: 1.875rem;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat--mini .stat__value strong {
+    font-size: 1.375rem;
+  }
+}
+
+@media (min-width: 64em) and (min-height: 67.5em) {
+  body[data-prefs="on"] .dash-col--main {
+    gap: 16px;
+  }
+
+  body[data-prefs="on"] .hero {
+    gap: 6px;
+    padding: 22px 26px 20px;
+  }
+
+  body[data-prefs="on"] .hero__value {
+    margin-top: 8px;
+    font-size: 3.75rem;
+  }
+
+  body[data-prefs="on"] .hero__main {
+    gap: 8px;
+  }
+
+  body[data-prefs="on"] .hero__range {
+    font-size: 1rem;
+  }
+
+  body[data-prefs="on"] .hero__foot {
+    gap: 12px;
+    padding-top: 10px;
+  }
+
+  body[data-prefs="on"] .hero__left {
+    font-size: 1.0625rem;
+  }
+
+  body[data-prefs="on"] .score {
+    gap: 10px;
+    padding: 18px 24px 14px;
+  }
+
+  body[data-prefs="on"] .score__num {
+    font-size: 2.75rem;
+  }
+
+  body[data-prefs="on"] .dash-col--main :is(.stats-block, .stats) {
+    gap: 12px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat {
+    gap: 4px;
+    padding: 16px 16px 16px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat .band {
+    margin-top: 8px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat--macro .stat__value strong {
+    font-size: 2rem;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat--mini {
+    padding: 14px 16px 15px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat--mini .stat__value strong {
+    font-size: 1.5rem;
+  }
+}
+
+/* Very tall windows (about 1280px and up, a 1440p screen): a little more again. */
+@media (min-width: 82em) and (min-height: 80em) {
+  body[data-prefs="on"] .dash-col--main {
+    gap: 22px;
+  }
+
+  body[data-prefs="on"] .hero {
+    gap: 10px;
+    padding: 30px 32px 28px;
+  }
+
+  body[data-prefs="on"] .hero__value {
+    margin-top: 12px;
+    font-size: 5.25rem;
+  }
+
+  body[data-prefs="on"] .hero__unit {
+    font-size: 1.25rem;
+  }
+
+  body[data-prefs="on"] .hero__range {
+    font-size: 1.125rem;
+  }
+
+  body[data-prefs="on"] .hero__foot {
+    gap: 16px;
+    padding-top: 14px;
+  }
+
+  body[data-prefs="on"] .hero .band {
+    height: 14px;
+  }
+
+  body[data-prefs="on"] .hero__left {
+    font-size: 1.1875rem;
+  }
+
+  body[data-prefs="on"] .hero__left-range {
+    font-size: 0.875rem;
+  }
+
+  body[data-prefs="on"] .hero__note {
+    font-size: 0.875rem;
+  }
+
+  body[data-prefs="on"] .score {
+    gap: 14px;
+    padding: 26px 30px 22px;
+  }
+
+  body[data-prefs="on"] .score__num {
+    font-size: 3.5rem;
+  }
+
+  body[data-prefs="on"] .score__bar {
+    height: 12px;
+  }
+
+  body[data-prefs="on"] .score__note {
+    font-size: 0.875rem;
+  }
+
+  body[data-prefs="on"] .dash-col--main :is(.stats-block, .stats) {
+    gap: 16px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat {
+    gap: 6px;
+    padding: 22px 22px 22px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat__label {
+    font-size: 1rem;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat .band {
+    margin-top: 10px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat--macro .stat__value strong {
+    font-size: 2.75rem;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat--mini {
+    padding: 20px 22px 21px;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stat--mini .stat__value strong {
+    font-size: 2rem;
+  }
+
+  body[data-prefs="on"] .dash-col--main :is(.stat__range, .stat__dv) {
+    font-size: 0.875rem;
+  }
+
+  body[data-prefs="on"] .dash-col--main .stats__note {
+    font-size: 0.9375rem;
+  }
+}
+
+/* Wide windows: the dashboard and the top bar use the width instead of leaving it as margin. The
+   columns keep their proportions, so the middle's lines stay comfortable. Other views keep the
+   1200px column under the wider bar. */
+@media (min-width: 82em) {
+  body[data-prefs="on"] {
+    --wide: 1760px;
+    --wide-pad: clamp(32px, 2.5vw, 56px);
+  }
+
+  body[data-prefs="on"] .topbar__inner {
+    max-width: calc(var(--wide) + 2 * var(--wide-pad));
+    padding-inline: var(--wide-pad);
+  }
+
+  body[data-prefs="on"][data-view="today"] .shell {
+    max-width: calc(var(--wide) + 2 * var(--wide-pad));
+    padding-inline: var(--wide-pad);
+  }
+
+  body[data-prefs="on"][data-view="today"] .footer {
+    max-width: calc(var(--wide) + 2 * var(--wide-pad));
+    padding-inline: calc(var(--wide-pad) + 4px);
+  }
+
+  body[data-prefs="on"][data-dining="on"] .dash-grid {
+    gap: 28px;
+  }
+
+  body[data-prefs="on"] .dash-col--mid,
+  body[data-prefs="on"] .dash-col--side {
+    gap: 28px;
+  }
+}
+
+/* Wherever the dashboard reaches the window's right edge, the fixed + button (60px, 28px up from
+   the bottom) lands on the side column's corner. The card ends above the button both at the top of
+   the page, where the column starts under the title and week strip (138px), and once the column is
+   pinned, so no menu row ever sits under it; app.js sets the exact height on scroll and resize and
+   drops it once the + sits clear of the column. This is the fallback before the script runs. */
+@media (min-width: 64em) and (max-width: 129.99em) {
   body[data-prefs="on"] .dash-col--side .upcoming {
     max-height: calc(100dvh - var(--bar-h) - var(--safe-top) - 138px - 104px);
   }
