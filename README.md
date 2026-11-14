@@ -107,6 +107,7 @@ uv run foodsmart week                                      # 7-day averages, mic
 
 ```sh
 uvx ruff@0.17.5 check          # lint; CI runs the same version (.github/workflows/lint.yml)
+uvx ruff@0.17.5 format         # format; CI fails on unformatted files (ruff format --check)
 uv run pytest
 uv run python bench/report.py --rematch   # replay the USDA lookup on recorded Gemini output, no API calls; see BENCHMARK.md
 ```
