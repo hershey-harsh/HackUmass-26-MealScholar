@@ -1,11 +1,13 @@
+import math
 from datetime import datetime
 
 import pytest
 from PIL import Image
 
 from mealscholar.diary import Diary
+from mealscholar.insights import summarize_days
 from mealscholar.pipeline import UnknownFood, Workflow, correct
-from mealscholar.schemas import FoodItem, MealAnalysis
+from mealscholar.schemas import FoodItem, MealAnalysis, Range
 
 
 def item(name, query, low, likely, high, *, method="unknown", hidden_fat=False):
@@ -68,9 +70,15 @@ def test_totals_are_grams_times_database_values_with_ranges(food_db, analysis, m
     rice, pizza, sauce = result.items
     assert (rice.match.fdc_id, pizza.match.fdc_id, sauce.match) == (1, 6, None)
     kcal = result.totals["energy_kcal"]
-    assert kcal.low == pytest.approx(129 * 1.5 + 266 * 1.0)
     assert kcal.likely == pytest.approx(129 * 2.0 + 266 * 1.2)
-    assert kcal.high == pytest.approx(129 * 2.6 + 266 * 1.5)
+    # The foods aren't all off in the same direction at once, so the meal range is narrower than
+    # every low and every high added up. Part of the error is shared, so it's wider than for
+    # independent errors.
+    for side, widths in (
+        (kcal.likely - kcal.low, (129 * 0.5, 266 * 0.2)),
+        (kcal.high - kcal.likely, (129 * 0.6, 266 * 0.3)),
+    ):
+        assert math.hypot(*widths) < side < sum(widths)
     assert result.daily_value_pct["protein_g"].likely == pytest.approx(100 * (2.6 * 2.0 + 11 * 1.2) / 50)
     # Rice has no vitamin D row, so the vitamin D total covers the pizza only.
     assert "vitamin_d_ug" in result.partial_nutrients
@@ -109,7 +117,9 @@ def test_correction_collapses_range_and_swaps_match(food_db, analysis, meal_phot
     assert (rice.item.grams_low, rice.item.grams_likely, rice.item.grams_high) == (300, 300, 300)
     assert rice.match.fdc_id == 2 and old_match in rice.alternatives
     assert rice.nutrients["energy_kcal"].likely == pytest.approx(96 * 3)
-    assert fixed.totals["energy_kcal"].likely == pytest.approx(96 * 3 + 266 * 1.2)
+    # A weighed food adds no width: the meal's range is the pizza's alone.
+    kcal = fixed.totals["energy_kcal"]
+    assert (kcal.low, kcal.likely, kcal.high) == pytest.approx((288 + 266 * 1.0, 288 + 266 * 1.2, 288 + 266 * 1.5))
     with pytest.raises(UnknownFood):
         correct(result, 0, food_db, fdc_id=999_999)
 
@@ -121,7 +131,20 @@ def test_diary_round_trip_and_usual_portions(tmp_path, food_db, analysis, meal_p
     saved = diary.save(result)
     assert diary.get(saved.id) == saved
     assert diary.meals_between(saved.context.taken_at.date(), saved.context.taken_at.date()) == [saved]
+    # Meals logged before a change to the totals math are shown with today's totals.
+    diary.save(saved.model_copy(update={"totals": {"energy_kcal": Range(low=1, likely=2, high=3)}}))
+    assert diary.get(saved.id).totals == saved.totals
 
     diary.remember_portion("White  Rice", 300)
     diary.remember_portion("white rice", 400)
     assert diary.usual_portions() == {"white rice": 350}
+
+
+def test_day_total_is_narrower_than_its_meals_added_up(food_db, analysis, meal_photo):
+    _, lunch = analyze(food_db, analysis, meal_photo)
+
+    (day,) = summarize_days([lunch, lunch])
+
+    meal, total = lunch.totals["energy_kcal"], day.totals["energy_kcal"]
+    assert total.likely == pytest.approx(2 * meal.likely)
+    assert meal.high - meal.likely < total.high - total.likely < 2 * (meal.high - meal.likely)

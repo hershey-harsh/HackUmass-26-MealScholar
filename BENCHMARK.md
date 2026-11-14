@@ -1,6 +1,6 @@
 # Gemini benchmark: meal photo → foods → grams
 
-HackUMass XIV, 2026-11-14. 284 Gemini calls: 275 sweep runs (5 real meal photos × 19 configurations × 3 repeats; `xhigh` ran only one repeat) plus 9 calls in one run of the question → answer loop. Every call went through the production pipeline: `vision.py` prompt and schema → USDA lookup → totals, same as `mealscholar analyze --no-log`.
+HackUMass XIV, 2026-11-14. 284 Gemini calls: 275 sweep runs (5 real meal photos × 19 configurations × 3 repeats; `xhigh` ran only one repeat) plus 9 calls in one run of the question → answer loop. Later that day, 54 more calls in phase d checked prompt changes for range width (see [Range width](#range-width)). Every call went through the production pipeline: `vision.py` prompt and schema → USDA lookup → totals, same as `mealscholar analyze --no-log`.
 
 Raw data: `bench/results/runs.jsonl`. All tables: `bench/results/summary.md`. Harness: `bench/` (see [Rerun](#rerun)).
 
@@ -19,6 +19,7 @@ Raw data: `bench/results/runs.jsonl`. All tables: `bench/results/summary.md`. Ha
   - Pepperoni pizza was named correctly in 54 of 55 runs but matched to a pepperoni pizza only once.
   - **Both lookup bugs are fixed on this branch** (see [Lookup fixes](#lookup-fixes)). Replayed on the same Gemini output: kcal in band 179 → 230 of 275 runs, runs with a powder/concentrate match 54 → 4 (the 4 are prepared forms or explicitly requested), pepperoni 1/54 → 50/54. Hydrogen `low` goes from 73% to 93% kcal in band.
 - **Gemini's bounding boxes are accurate** (IoU 0.95–0.98 against hand-drawn boxes on every model). Drawing them on the photo costs nothing extra and makes a strong demo moment.
+- **Meal ranges were wider than they need to be** (#54). Every food's low and every food's high were added up, as if all the foods on a plate were off in the same direction at once. They now combine as partly correlated errors. On Hydrogen `low` photos with several foods, the kcal range shrinks from 51% to 38% of likely, and every reference amount is still inside. Telling Gemini that low and high are the 10th and 90th percentile changed nothing measurable.
 
 ## What was tested
 
@@ -194,6 +195,46 @@ Measured by redoing the USDA lookup on the 275 recorded Gemini outputs with `ben
 - 3.x models still call the ginger ale iced tea. The calories now land in range only because brewed sweet tea (32) and ginger ale (34) have about the same density.
 - A salad sent as one item (`Salad, vegetable, with cheese and dressing`) still matches "Salad dressing, NFS".
 
+## Range width
+
+Issue #54: meal #7 on the live site showed 945–1,455 kcal, a 510 kcal spread around a likely value of 1,163.
+
+**Adding every low and every high was the main cause.** `compute.add_ranges` added up each food's low and each food's high, which assumes every food on the plate is off in the same direction at once. Now the distances from likely add up as partly correlated errors, `sqrt((1 − c)·Σw² + c·(Σw)²)` with `c = SHARED_ERROR = 0.3`. That's the old sum at c = 1 and independent errors at c = 0. Day totals use the same rule, and a weighed food adds no width.
+
+Sweep runs with several labeled foods (the pizza and both salads), USDA lookup redone with current code:
+
+| Runs | c | kcal range, median % of likely | Reference grams inside the range | Reference kcal inside the range |
+|---|---|---|---|---|
+| Hydrogen `low` | 1 (before) | 51% | 9/9 | 9/9 |
+| Hydrogen `low` | **0.3 (now)** | **38%** | **9/9** | **9/9** |
+| Hydrogen `low` | 0 | 30% | 7/9 | 8/9 |
+| All 19 configs | 1 (before) | 55% | 130/152 | 131/152 |
+| All 19 configs | 0.3 (now) | 42% | 119/152 | 123/152 |
+| All 19 configs | 0 | 35% | 101/152 | 115/152 |
+
+- **Why 0.3:** across all configs, coverage falls steadily as c drops, with no clear point to stop, so c is a judgment call. 0.3 keeps every reference inside the range on the production config, and 0 does not. The errors aren't independent, because every food is sized against the same plate.
+- **Meal #7:** from the item ranges in the issue, the total becomes 1,010–1,369 kcal, a 359 kcal spread instead of 510. The diary recomputes totals when it reads a meal, so logged meals show the new range too.
+- **Photos of one food don't change:** a single food's range is its own. On those photos the width comes from Gemini's item ranges, a median of −29% / +33% of likely for Hydrogen `low`.
+
+**Defining low and high as the 10th and 90th percentile changed nothing measurable.** Phase d reran Hydrogen `low` (5 photos × 3 reps, analyze and answer) with two prompts in the same hour. `0e460f6e` told Gemini that low and high are the 10th and 90th percentile, and to make the range as wide as its uncertainty and no wider. `56e180c6` is the sweep's analysis prompt, so it serves as a control; only its refine prompt changed (below).
+
+| Runs | Item range below / above likely | kcal range, one food | kcal range, several foods | Reference grams inside the range |
+|---|---|---|---|---|
+| Sweep (night of Nov 13) | −29% / +33% | 56% | 38% | 15/15 |
+| Phase d control, sweep's analysis prompt | −30% / +38% | 65% | 39% | 15/15 |
+| Phase d, 10th/90th percentile prompt | −32% / +40% | 68% | 40% | 15/15 |
+
+The percentile prompt lands within 3 points of the control. The same prompt, rerun about 10 hours after the sweep, gave one-food ranges 9 points wider, so widths need a same-day control to compare. The percentile wording isn't kept.
+
+**The refine prompt now narrows what the answer pins down.** When the answer gives an amount ("about 12 oz", "about 3 tablespoons"), the refine prompt asks Gemini to narrow the low and high of the items it affects. On the 9 phase d runs with such an answer, those items' ranges went from 73% to 22% of likely (median), and the meal's kcal range shrank to 0.69× its width before the answer. Gemini already narrowed them without the instruction (phase c, 3 runs: 81% → 35%, meal range 0.72×), so the gain is small.
+
+**Omelette lookup.** `Egg, omelet, with cheese, spinach, and tomatoes, cooked in oil` matched "Egg, whole, fried with oil" (192 kcal/100 g). The main-food-first rule only accepted descriptions that start with "Egg," or "Egg with", but FNDDS also joins the main food and its first descriptor: "Egg omelet or scrambled egg, …". The rule now accepts that, so the query matches "Egg omelet or scrambled egg, with cheese, made with oil" (212). The replay is unchanged (230/275, 4, 50/54). On 81 everyday queries, 4 matches changed:
+- 2 omelette queries now match an omelette.
+- `Chicken, breast, grilled` matched raw chicken breast and now matches "Chicken breast, grilled with sauce, skin eaten".
+- `Chicken, nuggets` matched "Chicken, back" and now matches "Chicken nuggets, NFS".
+
+**Still open:** only weighed meals can show whether a narrower range is still honest (see [Limitations](#limitations)).
+
 ## Recommendations
 
 ### Configuration
@@ -229,6 +270,7 @@ Measured by redoing the USDA lookup on the 275 recorded Gemini outputs with `ben
 uv run mealscholar fdc-import                                 # once
 uv run --env-file .env python bench/run.py --phase a --phase b   # sweep (resumable; this whole benchmark cost $2.40)
 uv run --env-file .env python bench/run.py --phase c --config 'gemini-4-hydrogen|low|default' --reps 1
+uv run --env-file .env python bench/run.py --phase d --config 'gemini-4-hydrogen|low|default'   # after a prompt change
 uv run python bench/report.py              # recorded results -> bench/results/summary.md
 uv run python bench/report.py --rematch    # redo the USDA lookup with current code -> summary-rematched.md
 uv run python bench/report.py --rematch --check   # same, exit 1 if worse than REMATCH_LIMITS (what CI runs)

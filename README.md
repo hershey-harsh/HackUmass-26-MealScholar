@@ -15,26 +15,35 @@ A HackUMass XIV project, piloting at UMass.
   <img alt="Google Gemini" src="https://img.shields.io/badge/Gemini-8E75B2?logo=googlegemini&amp;logoColor=white">
   <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&amp;logoColor=white">
   <img alt="MongoDB Atlas" src="https://img.shields.io/badge/MongoDB_Atlas-47A248?logo=mongodb&amp;logoColor=white">
-  <br>
   <img alt="SQLite" src="https://img.shields.io/badge/SQLite-003B57?logo=sqlite&amp;logoColor=white">
   <img alt="HTML5" src="https://img.shields.io/badge/HTML5-E34F26?logo=html5&amp;logoColor=white">
   <img alt="CSS" src="https://img.shields.io/badge/CSS-663399?logo=css&amp;logoColor=white">
   <img alt="JavaScript" src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&amp;logoColor=black">
 </p>
 
-[Open the app](https://mealscholar.mannava.org) · [Visit the website](https://hackumass.mannava.org) · [Quick start](#quick-start) · [Workflow](#workflow) · [Team](#team) · [Benchmarks](BENCHMARK.md)
+[Open the app](https://mealscholar.mannava.org) · [Visit the website](https://hackumass.mannava.org)
+
+[Features](#at-a-glance) · [Quick start](#quick-start) · [Workflow](#workflow) · [Development](#development) · [Team](#team)
 
 </div>
 
 ---
 
-Snap your meal. Gemini identifies the foods and estimates their portions; a local USDA database
-supplies the nutrition facts. MealScholar turns those estimates into nutrient ranges you can
-inspect, correct and log.
+MealScholar is a photo-based food diary built for students, piloting at UMass.
+Gemini identifies the foods and estimates their portions; USDA FoodData Central supplies
+the nutrition facts. Review the sources, correct a match and log your meal.
 
 > [!IMPORTANT]
 > **The AI never invents nutrient numbers.** Nutrients come from USDA FoodData Central and
 > arithmetic, not from the model.
+
+<p align="center">
+  <a href="https://mealscholar.mannava.org">
+    <img src=".github/assets/mealscholar-app.png" alt="MealScholar's Analyze screen with photo upload, an opt-in location switch and an explanation of the nutrition workflow." width="960">
+  </a>
+  <br>
+  <sub>The Analyze screen, captured from the local app. Choose a meal photo to get started.</sub>
+</p>
 
 ## At a glance
 
@@ -47,46 +56,30 @@ inspect, correct and log.
 | **Phone-first app** | Today and Analyze tabs, camera entry points and Add to Home Screen. |
 | **Campus dining APIs** | UMass Dining locations, menus, dish search, nearby halls and favorites alerts. |
 
-Account and preference APIs are also included: registration, sessions, per-user diaries,
-user-selected goals, dining preferences and favorites. The sign-in/onboarding UI is still being
-completed, and emails currently queue to an outbox rather than being delivered.
+### Current limitations
 
-> [!NOTE]
-> **Campus dining:** menu browsing is implemented, but photo-to-nutrient calculations still use
-> USDA only. Campus-menu nutrient matching is tracked in [TODO.md](TODO.md).
+- **USDA-only photo matching.** Dining-menu browsing is implemented, but campus-menu nutrients
+  are not yet part of photo analysis.
+- **Account UI in progress.** Registration, sessions, per-user diaries, goals and preference
+  APIs exist; the sign-in and onboarding screens are still being completed.
+- **No email delivery yet.** Account emails queue to an outbox; SMTP delivery is not implemented.
 
-## Workflow
-
-```mermaid
-flowchart LR
-    Photo(["Photo + context<br/>Location is opt-in"]) --> Vision["Gemini vision<br/>Foods + portions"]
-    Vision --> USDA[("USDA lookup<br/>Matches + alternatives")]
-    USDA --> Math["Nutrient math<br/>Low · likely · high"]
-    Math --> Result["Meal result<br/>Ranges + % Daily Value"]
-    Result --> Diary(["Food diary<br/>Daily + weekly views"])
-    Result -.->|Optional answer| Refine["Gemini refinement<br/>Text only"]
-    Refine --> USDA
-```
-
-Loose USDA matches are suggestions, not counted foods, until a match is selected.
-Choosing another USDA food recomputes the result without another photo analysis.
-
-The pipeline is in [`pipeline.py`](src/mealscholar/pipeline.py); the shared JSON contract is
-[`MealResult`](src/mealscholar/schemas.py). The model's prompt and image preparation live in
-[`vision.py`](src/mealscholar/vision.py), while [`compute.py`](src/mealscholar/compute.py) handles the math.
+See [TODO.md](TODO.md) for remaining work.
 
 ## Quick start
 
-Requires [uv](https://docs.astral.sh/uv/). It installs Python 3.12 if needed.
-Run these commands from a clone of this repository.
+You'll need [Git](https://git-scm.com/) and [uv](https://docs.astral.sh/uv/).
+uv installs Python 3.12 if needed. No frontend build step is required.
 
-**1. Install dependencies**
+**1. Clone and install**
 
 ```sh
+git clone https://github.com/hershey-harsh/HackUmass-26-MealScholar.git
+cd HackUmass-26-MealScholar
 uv sync
 ```
 
-**2. Create a local `.env`**
+**2. Create `.env` in the project root**
 
 Get a Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey), then add:
 
@@ -106,8 +99,9 @@ uv run mealscholar fdc-import
 uv run mealscholar serve
 ```
 
-Open **http://127.0.0.1:8000**. The one-time import downloads roughly 17 MB and creates
-`~/.mealscholar/fdc.sqlite`. Local API documentation is at **http://127.0.0.1:8000/api/docs**.
+Open **[localhost:8000](http://127.0.0.1:8000)**, choose a photo and review the detected foods.
+The one-time import downloads roughly 17 MB and creates `~/.mealscholar/fdc.sqlite`.
+Interactive API documentation is at **[/api/docs](http://127.0.0.1:8000/api/docs)**.
 
 <details>
 <summary><strong>Testing from your phone</strong></summary>
@@ -122,10 +116,30 @@ Keep this single-user development server on a trusted network.
 
 </details>
 
+## Workflow
+
+```mermaid
+flowchart LR
+    Photo(["Photo + context<br/>Location is opt-in"]) --> Vision["Gemini vision<br/>Foods + portions"]
+    Vision --> USDA[("USDA lookup<br/>Matches + alternatives")]
+    USDA --> Math["Nutrient math<br/>Low · likely · high"]
+    Math --> Result["Meal result<br/>Ranges + % Daily Value"]
+    Result --> Diary(["Food diary<br/>Daily + weekly views"])
+    Result -.->|Optional answer| Refine["Gemini refinement<br/>Text only"]
+    Refine --> USDA
+```
+
+Loose USDA matches are suggestions, not counted foods, until a match is selected.
+Choosing another USDA food recomputes the result without another photo analysis.
+
+
 ## Command line
 
 ```sh
+# Analyze a photo and print the full result.
 uv run mealscholar analyze lunch.jpg --json
+
+# Review today's meals and the weekly summary.
 uv run mealscholar day
 uv run mealscholar week
 ```
@@ -190,8 +204,9 @@ configured and implemented before relying on password-reset emails.
 ## Rules the code enforces
 
 - **Data, not guesses:** the model estimates foods and grams; USDA data supplies the nutrients.
-- **Ranges stay visible:** photo-based amounts have low/likely/high estimates. Exact-weight
-  corrections through the CLI or API can collapse a range.
+- **Ranges stay visible:** photo-based amounts have low/likely/high estimates. A meal's or a day's
+  range adds its foods' errors as partly correlated (`compute.SHARED_ERROR`), not every low and
+  every high at once. Exact-weight corrections through the CLI or API can collapse a range.
 - **Private by default:** location is opt-in; coordinates and photos are not stored in the diary.
   Images sent to Gemini are re-encoded without EXIF, using `store=False`.
 - **Estimates, not diagnosis:** micronutrients are labelled as estimates; weekly averages count
@@ -213,6 +228,21 @@ as described in [AGENTS.md](AGENTS.md).
 
 ## Development
 
+Start with an [issue](https://github.com/hershey-harsh/HackUmass-26-MealScholar/issues) and
+read [AGENTS.md](AGENTS.md) for ownership, the team board and the PR workflow.
+
+### Project map
+
+| Area | Start here |
+|---|---|
+| Analysis pipeline and result contract | [`pipeline.py`](src/mealscholar/pipeline.py) · [`schemas.py`](src/mealscholar/schemas.py) |
+| Vision prompts and nutrient arithmetic | [`vision.py`](src/mealscholar/vision.py) · [`compute.py`](src/mealscholar/compute.py) |
+| App and JSON API | [`src/mealscholar/site/`](src/mealscholar/site/) · [`web.py`](src/mealscholar/web.py) |
+| Public landing page | [`web/`](web/) |
+| Regression tests and model evaluation | [`tests/`](tests/) · [`bench/`](bench/) |
+
+### Checks
+
 ```sh
 uvx ruff@0.17.5 check
 uvx ruff@0.17.5 format --check
@@ -226,8 +256,9 @@ Use `uvx ruff@0.17.5 format` to apply formatting.
 
 CI: [Lint and formatting](https://github.com/hershey-harsh/HackUmass-26-MealScholar/actions/workflows/lint.yml) · [USDA lookup regression](https://github.com/hershey-harsh/HackUmass-26-MealScholar/actions/workflows/lookup-regression.yml)
 
+### Further reading
+
 - [Benchmarks](BENCHMARK.md) — model comparisons, latency, cost and lookup findings.
-- [Team TODO](TODO.md) — remaining work and known limitations.
 - [Submission draft](submissions/devpost.md) — project story and judging notes.
 - [Film plan](video/film-plan.md) — demo-video shots and production schedule.
 
@@ -274,3 +305,9 @@ Built for HackUMass XIV by three teammates.
   via Nominatim.
 - **Campus menus:** UMass Dining data in MongoDB Atlas, currently used by the dining APIs,
   not by the photo nutrient calculation.
+
+---
+
+<p align="center">
+  <a href="#mealscholar">Back to top</a>
+</p>

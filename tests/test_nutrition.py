@@ -28,6 +28,13 @@ def test_main_food_named_first_without_comma_counts(food_db):
     assert top(food_db, query, ("cooked",)) == 13
 
 
+def test_main_food_joined_with_its_first_descriptor_counts(food_db):
+    # Gemini writes "Egg, omelet, ..."; FNDDS names it "Egg omelet or scrambled egg, ...". A fried
+    # egg must not win just because its name starts with "Egg,".
+    query = "Egg, omelet, with cheese, spinach, and tomatoes, cooked in oil"
+    assert top(food_db, query, ("fried", "cooked", "oil")) == 19
+
+
 def test_another_food_starting_with_the_main_food_is_not_it(food_db):
     # "Salad dressing, NFS" (430 kcal/100 g) starts with "Salad" but is not a salad.
     assert top(food_db, "Salad, mixed greens, raw", ("raw",)) == 17
