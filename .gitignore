@@ -7,3 +7,6 @@ dist/
 *.sqlite.tmp
 .env
 .DS_Store
+
+# agent board local state (tools/board)
+.board/
