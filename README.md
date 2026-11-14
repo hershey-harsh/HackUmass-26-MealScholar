@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="https://mealscholar.mannava.org">
-  <img src="src/foodsmart/site/icons/icon-192.png" alt="MealScholar plate-and-leaf logo" width="88" height="88">
+  <img src="src/mealscholar/site/icons/icon-192.png" alt="MealScholar plate-and-leaf logo" width="88" height="88">
 </a>
 
 # MealScholar
