@@ -238,6 +238,19 @@ preferences, not the diary. Back up both stores and verify restoration.
   is a label reference, not a prescribed goal. No insulin or carb-dosing advice.
 - **Bounded image decoding:** photos over 50 megapixels are refused before their pixels are decoded.
   Web uploads also have a 25 MB encoded-body limit and return 413 with resizing guidance.
+- **Shared model-request budgets:** photo uploads and clarifying answers together allow 10 attempts
+  per signed-in account and 100 per network in a sliding 10-minute window. Guests have the network
+  limit too. IPv6 addresses in one /64 share a network allowance, and forwarded visitor IPs are
+  trusted only from the local tunnel. Refused requests return 429 with `Retry-After` before model work;
+  photo uploads are checked before reading the image body. Admitted attempts count even if the
+  photo is invalid or analysis fails.
+- **Password storage:** new passwords use scrypt with N=2^17, r=8 and p=1. Existing hashes retain
+  their encoded parameters and still verify; password changes/resets use the stronger settings.
+  Hashing remains limited to four concurrent operations, about 128 MiB each (roughly 512 MiB total).
+
+Request counters are in process memory: they reset on restart and each server process has its own
+allowance. They are not a project-wide spending cap. Configure provider quotas and billing alerts
+separately; a billing alert alone does not stop spending.
 
 ## Sites and deployment
 

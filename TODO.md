@@ -35,8 +35,10 @@ The first browser responses loaded assets stamped `1960e30`; deployments continu
   - **Done when:** both HTTP hosts redirect permanently to the equivalent HTTPS path/query; HTTPS responses send an intentional HSTS policy. Enable subdomain coverage only after confirming affected subdomains support TLS. Verify sign-in and phone upload still work. This is a Cloudflare/deployment change: coordinate with Harsh, not an unapproved workflow edit.
 
 - [ ] **AUD-03 · Joseph + Harsh: bound photo-analysis abuse and model spend.**
-  - **Evidence:** `web.py`'s analysis endpoint has no request limiter; the existing auth limiter does not protect Gemini analysis. Public sign-in is currently off. This was established from source/configuration, not a load test.
+  - **Audit evidence (before #119):** the analysis endpoint had no request limiter; the existing auth limiter did not protect Gemini analysis. Public sign-in was off. This was established from source/configuration, not a production load test.
   - **Done when:** photo analysis and model-backed answer/refinement have per-account and per-network limits, return actionable 429/`Retry-After` responses when exhausted, and do not call Gemini after rejection. Configure enforceable API/model quotas and billing alerts; alerts alone are not a spending cap. Confirm the deployed limits and quota owner on the board.
+  - [x] **Joseph · #119 server enforcement:** photos and clarifying answers share sliding limits of 10 attempts per account and 100 per network per 10 minutes. Guests are network-limited too; IPv6 /64 grouping and trusted-tunnel identity reuse the existing auth rules. Refusals return 429/`Retry-After` before model work; the photo quota is checked before reading upload bytes. Tests cover both endpoints, account/network separation, expiry, guest mode, forwarded-header spoofing and no model calls after rejection. API/auth tests: 99 passed; targeted Ruff checks passed; the actual isolated CLI server returned 429 for both routes at exhaustion.
+  - [ ] **Harsh + Joseph:** configure and confirm enforceable provider quotas and billing alerts on the board. The in-process counters reset on restart and are per worker, not a project-wide spending cap. This is why AUD-03 remains open.
 
 ### P1 — core promise, trust and deployment correctness
 
@@ -72,7 +74,7 @@ The first browser responses loaded assets stamped `1960e30`; deployments continu
   - **Evidence:** landing FAQ 04 promises a swap “from the campus menu or USDA”; the correction API/sheet currently selects USDA foods, not campus dishes. A campus result's USDA match may supply only micronutrients, so it must not be presented as the source of all nutrition. The app still contains “No targets” copy even though user-chosen goals exist.
   - **Done when:** either campus-dish swapping works end to end or the FAQ clearly describes the supported USDA correction. Explain provenance changes, retain ranges and micronutrient estimate labels, and replace unconditional “No targets” with optional/user-chosen goal wording. Do not advertise “one tap” where a search-and-confirm flow is required.
 
-**Existing pre-user security work remains required:** section 5's account-enumeration response, password-hash work factor and decoded-image pixel limit are still open. This audit did not run password attacks or oversized-image requests.
+**Still-open account-security work:** section 5's account-enumeration response remains open. Password-hash and decoded-image-limit tasks are completed below; neither closes the remaining P0 deployment gates.
 
 ### P2 — demonstration, usability, accessibility and discovery
 
@@ -219,7 +221,7 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
 - [ ] Every PR includes tests and a clean Ruff run, plus screenshots for UI changes. Post on the board when a contract changes (an API, a schema, an env var).
 - [ ] Before real users:
   - [x] Implement a real email sender. #106 added SMTP support; this is no longer a placeholder-only implementation. Production activation and delivered verification/reset email checks remain open: the live audit still saw `email_provider: outbox`.
-  - Analysis rate limits and enforceable Gemini quotas are tracked in **AUD-03** (P0 while anonymous analysis is exposed).
+  - Server request limits are implemented in **#119**; provider quota/billing confirmation remains under **AUD-03**. Anonymous diary isolation is still **AUD-01**.
   - [ ] Rotate the Gemini key and the Mongo connection string if they were shared in chat.
   - Account/preferences **and SQLite diary** backup/restore are tracked in **AUD-09**; diaries are not stored in Atlas.
   - [ ] Move hosting off a personal Mac mini.
@@ -227,7 +229,7 @@ These come from the recommendations in `BENCHMARK.md`, ordered by measured impac
     - [x] Require a confirmed email before the unsolicited favorites digest (`dining.py`). Retain this guard when SMTP is enabled; delivered-email/digest go-live checks are **AUD-05**.
     - [ ] Stop revealing existing accounts through sign-up's 409 response; define a uniform public response and an appropriate email path.
     - [x] Scope forgot-password throttling by network and by `(network, email)`; the current `auth.py` already implements this. The old global per-email quota task is obsolete.
-    - [ ] Raise scrypt's work factor from N=2^14 toward OWASP's 2^17. It's stored in each hash, so existing passwords keep working.
+    - [x] **Joseph · #119:** raise new-password scrypt to N=2^17, r=8, p=1, with a 256 MiB OpenSSL memory ceiling and the existing four-operation concurrency bound (about 128 MiB per hash). Existing N=2^14 hashes still verify from their stored parameters; password changes/resets use the stronger cost. API/auth tests: 99 passed, including legacy verification and real hashing.
   - [x] **Joseph · #112**: enforce a 50-megapixel ceiling in the shared photo loader before pixel decoding. The web API returns 413 with lower-resolution guidance. Regression coverage includes a 60 MP image below Pillow's default warning threshold; existing JPEG/HEIC paths remain covered. API/metadata tests: 27 passed.
 - [ ] Weigh 10 real meals on a kitchen scale, so the benchmark has real error bars instead of estimates. Then check that the narrower meal ranges from #54 still contain the weighed amounts, and retune `compute.SHARED_ERROR`.
 - [x] Run `bench/report.py --rematch` in CI as a regression check: the Lookup regression workflow (#22), with the USDA download cached.

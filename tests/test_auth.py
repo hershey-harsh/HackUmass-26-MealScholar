@@ -79,6 +79,7 @@ class FakeVision:
 
     def __init__(self) -> None:
         self.contexts: list[str] = []
+        self.answers = 0
 
     def analyze(self, jpeg: bytes, context: str) -> MealAnalysis:
         self.contexts.append(context)
@@ -93,6 +94,7 @@ class FakeVision:
         )
 
     def refine(self, analysis: MealAnalysis, question: str, answer: str) -> MealAnalysis:
+        self.answers += 1
         return analysis
 
 
@@ -360,7 +362,7 @@ def test_auth_bodies_are_capped_and_answers_are_not_cached(make_app):
 def test_password_hash_format():
     encoded = hash_password("pässwörd ünicode")
     scheme, n, r, p, salt, key = encoded.split("$")
-    assert (scheme, n, r, p) == ("scrypt", "16384", "8", "1")
+    assert (scheme, n, r, p) == ("scrypt", "131072", "8", "1")
     assert len(base64.b64decode(salt)) == 16 and len(base64.b64decode(key)) == 32
     assert verify_password("pässwörd ünicode", encoded)
     assert verify_password(unicodedata.normalize("NFD", "pässwörd ünicode"), encoded)  # same text, other encoding
@@ -368,6 +370,14 @@ def test_password_hash_format():
     assert hash_password("same") != hash_password("same")  # fresh salt every time
     for broken in ("", "scrypt$1$2$3", encoded.replace("scrypt$", "bcrypt$"), encoded.replace("$8$", "$x$")):
         assert not verify_password("anything", broken)
+
+
+def test_passwords_hashed_before_the_work_factor_upgrade_still_verify():
+    salt = b"legacy-salt-1234"
+    key = hashlib.scrypt(PASSWORD.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32, maxmem=64 * 2**20)
+    encoded = f"scrypt$16384$8$1${base64.b64encode(salt).decode()}${base64.b64encode(key).decode()}"
+    assert verify_password(PASSWORD, encoded)
+    assert not verify_password("wrong password", encoded)
 
 
 # --- rate limits ---------------------------------------------------------------------
@@ -426,6 +436,77 @@ def test_rate_limiter_slides_and_counts_nothing_it_refuses():
     assert attempt("c") == 50
     now[0] = 1060.0
     assert attempt("c") is None
+
+
+def test_photos_and_answers_share_an_account_budget_across_networks(make_app, clock, monkeypatch):
+    monkeypatch.setattr(mealscholar.auth, "ANALYSIS_PER_USER", Rule("analysis-user", 3, 600))
+    vision = FakeVision()
+    app = make_app(vision=vision)
+    app.state.auth.limiter = RateLimiter(clock=lambda: clock.now.timestamp())
+    sam = browser(app, ip="198.51.100.1")
+    register(sam)
+    meals = [sam.post("/api/meals", content=photo(), headers=JPEG).json() for _ in range(2)]
+    answered = sam.post(f"/api/meals/{meals[0]['id']}/answer", json={"answer": "yes"})
+    assert answered.status_code == 200
+
+    # A new network or cookie jar cannot reset this account's allowance.
+    elsewhere = browser(app, ip="203.0.113.1")
+    elsewhere.cookies.update(sam.cookies)
+    limited = elsewhere.post("/api/meals", content=b"not an image")
+    assert limited.status_code == 429 and int(limited.headers["Retry-After"]) == 600
+    limited_answer = elsewhere.post(f"/api/meals/{meals[1]['id']}/answer", json={"answer": "yes"})
+    assert limited_answer.status_code == 429
+    assert (len(vision.contexts), vision.answers) == (2, 1)  # neither refusal called the model
+
+    lee = browser(app, ip="198.51.100.1")
+    register(lee, email="lee@example.com")
+    assert lee.post("/api/meals", content=photo(), headers=JPEG).status_code == 200
+    clock.advance(seconds=600)
+    assert elsewhere.post(f"/api/meals/{meals[1]['id']}/answer", json={"answer": "yes"}).status_code == 200
+    assert (len(vision.contexts), vision.answers) == (3, 2)
+
+
+@pytest.mark.parametrize("required", ["0", "1"])
+def test_network_budget_covers_accounts_guests_and_answers(make_app, monkeypatch, required):
+    monkeypatch.setattr(mealscholar.auth, "ANALYSIS_PER_IP", Rule("analysis-ip", 2, 600))
+    vision = FakeVision()
+    app = make_app(vision=vision, MEALSCHOLAR_AUTH_REQUIRED=required)
+    first = browser(app, ip="198.51.100.1")
+    second = browser(app, ip="198.51.100.1")
+    outside = browser(app, ip="203.0.113.1")
+    if required == "1":
+        for i, client in enumerate((first, second, outside)):
+            assert register(client, email=f"user{i}@example.com").status_code == 201
+    meal = first.post("/api/meals", content=photo(), headers=JPEG).json()
+    assert second.post("/api/meals", content=photo(), headers=JPEG).status_code == 200
+    limited = first.post(f"/api/meals/{meal['id']}/answer", json={"answer": "yes"})
+    assert limited.status_code == 429 and 0 < int(limited.headers["Retry-After"]) <= 600
+    assert first.post("/api/meals", content=photo(), headers=JPEG).status_code == 429
+    assert (len(vision.contexts), vision.answers) == (2, 0)
+    assert outside.post("/api/meals", content=photo(), headers=JPEG).status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("first_ip", "second_ip", "limited"),
+    [
+        ("127.0.0.1", "127.0.0.1", False),  # the trusted tunnel forwards distinct visitors
+        ("192.168.1.50", "192.168.1.50", True),  # a LAN caller cannot spoof that header
+        ("2001:db8::1", "2001:db8::2", True),
+        ("2001:db8::1", "2001:db8:0:1::1", False),
+        ("::ffff:198.51.100.1", "198.51.100.1", True),
+    ],
+)
+def test_analysis_uses_the_existing_trusted_network_identity(make_app, monkeypatch, first_ip, second_ip, limited):
+    monkeypatch.setattr(mealscholar.auth, "ANALYSIS_PER_IP", Rule("analysis-ip", 1, 600))
+    vision = FakeVision()
+    app = make_app(vision=vision, MEALSCHOLAR_AUTH_REQUIRED="0")
+    first = browser(app, {"CF-Connecting-IP": "203.0.113.1"}, ip=first_ip)
+    second = browser(app, {"CF-Connecting-IP": "203.0.113.2"}, ip=second_ip)
+    assert first.post("/api/meals", content=photo(), headers=JPEG).status_code == 200
+    result = second.post("/api/meals", content=photo(), headers=JPEG)
+    assert result.status_code == (429 if limited else 200)
+    assert len(vision.contexts) == (1 if limited else 2)
+    assert first.post("/api/meals", content=photo(), headers=JPEG).status_code == 429
 
 
 def test_an_ipv6_slash_64_counts_as_one_client(make_app, clock):

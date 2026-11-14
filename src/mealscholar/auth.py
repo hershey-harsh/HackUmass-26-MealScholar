@@ -63,9 +63,9 @@ BAD_LINK = "That link is invalid or has expired."
 
 # --- passwords ----------------------------------------------------------------
 
-SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_LEN = 2**14, 8, 1, 32
-_SCRYPT_MAXMEM = 64 * 2**20
-_hash_slots = threading.BoundedSemaphore(4)  # each scrypt run takes 16 MiB of memory
+SCRYPT_N, SCRYPT_R, SCRYPT_P, SCRYPT_LEN = 2**17, 8, 1, 32
+_SCRYPT_MAXMEM = 256 * 2**20
+_hash_slots = threading.BoundedSemaphore(4)  # each current scrypt run needs about 128 MiB
 
 
 def hash_password(password: str) -> str:
@@ -127,6 +127,8 @@ FORGOT_MAIL_PER_USER = Rule("forgot-mail", 5, 60 * 60)
 RESEND_PER_USER = Rule("resend", 3, 60 * 60)
 CHANGE_PASSWORD_PER_USER = Rule("change-password", 10, 15 * 60)
 DELETE_ACCOUNT_PER_USER = Rule("delete-account", 10, 15 * 60)
+ANALYSIS_PER_USER = Rule("analysis-user", 10, 10 * 60)
+ANALYSIS_PER_IP = Rule("analysis-ip", 100, 10 * 60)  # campus Wi-Fi can share one network
 
 
 class RateLimiter:
@@ -257,6 +259,14 @@ class AuthService:
     def logout(self, token: str | None) -> None:
         if _plausible_token(token):
             self.store.delete_session(_digest(token))
+
+    def limit_analysis(self, owner: str | None, client: Client) -> None:
+        """Photos and clarifying answers share a budget; guests are limited by network."""
+        network = (ANALYSIS_PER_IP, client.network)
+        if owner is None:
+            self._limit(network)
+        else:
+            self._limit((ANALYSIS_PER_USER, owner), network)
 
     # account flows
 
@@ -634,6 +644,9 @@ def _client(request: Request) -> Client:
     if (address := _ip(peer)) is not None and address.is_loopback:
         ip = request.headers.get("cf-connecting-ip", "").strip() or peer
     return Client(ip=ip[:64] or "unknown", user_agent=request.headers.get("user-agent"))
+
+
+RequestClient = Annotated[Client, Depends(_client)]
 
 
 def _ip(text: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
