@@ -669,7 +669,11 @@ def test_demo_links_only_when_enabled(make_app):
     url = register(client).json()["demo_verify_url"]
     assert url.startswith("https://meals.example/?verify=")
     assert url.split("verify=")[1] == emailed_token(app, "verify")
-    assert client.post("/api/auth/resend-verification").json()["demo_verify_url"].startswith("https://meals.example/?verify=")
+    assert (
+        client.post("/api/auth/resend-verification")
+        .json()["demo_verify_url"]
+        .startswith("https://meals.example/?verify=")
+    )
     res = client.post("/api/auth/verify-email", json={"token": url.split("verify=")[1]})
     assert res.json()["user"]["email_verified"] is True
 

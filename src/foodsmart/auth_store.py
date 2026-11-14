@@ -402,9 +402,7 @@ class MongoAuthStore:
 
     def revoke_email_tokens(self, user_id: str, purpose: TokenPurpose, now: datetime) -> None:
         if (oid := _object_id(user_id)) is not None:
-            self._tokens.update_many(
-                {"user_id": oid, "purpose": purpose, "used_at": None}, {"$set": {"used_at": now}}
-            )
+            self._tokens.update_many({"user_id": oid, "purpose": purpose, "used_at": None}, {"$set": {"used_at": now}})
 
     def queue_email(self, email: OutboxEmail) -> None:
         self._outbox.insert_one(asdict(email))
