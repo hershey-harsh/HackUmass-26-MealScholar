@@ -6,6 +6,7 @@ Photos arrive as the raw request body and stay in memory; they are never written
 from __future__ import annotations
 
 import io
+import logging
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
 from datetime import date
@@ -15,7 +16,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from PIL import UnidentifiedImageError
+from PIL import Image
 from pydantic import BaseModel, Field
 
 from .auth import AuthService, DiaryOwner, install_auth
@@ -33,6 +34,8 @@ from .vision import GeminiVision, VisionError, VisionModel
 
 SITE = Path(__file__).parent / "site"
 MAX_PHOTO_BYTES = 25 * 1024 * 1024
+
+log = logging.getLogger(__name__)
 
 
 class Status(BaseModel):
@@ -121,14 +124,21 @@ def create_app(
             raise HTTPException(404, f"No meal #{meal_id}.")
         return result
 
-    def error(status: int):
+    def error(status: int, reply: str | None = None):
+        """`reply` replaces the exception's text in the response when that text can hold server
+        paths or a provider's raw error; the full text goes to the server log instead."""
+
         async def handler(request: Request, exc: Exception) -> JSONResponse:
-            return JSONResponse({"detail": str(exc)}, status_code=status)
+            if reply is None:
+                return JSONResponse({"detail": str(exc)}, status_code=status)
+            # The path only: the query can carry the device location.
+            log.warning("%s %s answered %d: %s", request.method, request.url.path, status, exc)
+            return JSONResponse({"detail": reply}, status_code=status)
 
         return handler
 
-    app.add_exception_handler(FoodDatabaseMissing, error(503))
-    app.add_exception_handler(VisionError, error(502))
+    app.add_exception_handler(FoodDatabaseMissing, error(503, "The food database isn't set up on the server yet."))
+    app.add_exception_handler(VisionError, error(502, "Couldn't analyze the photo right now. Try again in a moment."))
     app.add_exception_handler(UnknownFood, error(404))
 
     @app.get("/api/status")
@@ -170,7 +180,11 @@ def create_app(
                 result = workflow(foods).analyze(
                     io.BytesIO(photo), device_location=location, usual_portions=diary.usual_portions()
                 )
-            except UnidentifiedImageError as exc:
+            except Image.DecompressionBombError as exc:
+                raise HTTPException(413, "That photo has too many pixels. Send a regular camera photo.") from exc
+            # Not an image, or cut off (UnidentifiedImageError is an OSError too). In this block only the
+            # in-memory photo raises OSError: Gemini, place and database failures have their own types.
+            except OSError as exc:
                 raise HTTPException(415, "Couldn't read that image. Use a JPEG, PNG or HEIC photo.") from exc
             return diary.save(result) if result.items else result
 
