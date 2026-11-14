@@ -151,7 +151,18 @@ _NEGATIONS = frozenset(
 # 192 kcal/100 g vs 25-46 for the drink). Penalized harder than a negation, unless the query asks
 # for the form or the entry is its prepared version ("..., frozen concentrate, prepared with water").
 _PROCESSED = frozenset(
-    {"concentrate", "concentrated", "powder", "powdered", "dry", "dried", "instant", "dehydrated", "condensed", "unprepared"}
+    {
+        "concentrate",
+        "concentrated",
+        "powder",
+        "powdered",
+        "dry",
+        "dried",
+        "instant",
+        "dehydrated",
+        "condensed",
+        "unprepared",
+    }
 )
 _PROCESSED_PENALTY = 5
 _NICHE_CATEGORY = re.compile(r"^(baby|formula|fast foods|restaurant foods|american indian)", re.IGNORECASE)
