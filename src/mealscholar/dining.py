@@ -239,6 +239,11 @@ class DiningSource(Protocol):
         case, most often seen first."""
         ...
 
+    def catalog(self, location_ids: Sequence[int], limit: int) -> Iterable[Mapping[str, Any]]:
+        """Up to `limit` dishes any of these locations has served (the dishes collection), most
+        often seen first, with their nutrition facts."""
+        ...
+
 
 _ITEM_FIELDS = (
     "dish_id",
@@ -253,6 +258,9 @@ _ITEM_FIELDS = (
     "diets",
 )
 _FACT_FIELDS = ("name", "meal", "category", "dish_id", "serving_size", "calories", "nutrition", "healthfulness_score")
+CATALOG_MEAL = "any"
+"""The meal of a dish from a location's past menus, used when no menu is posted for the day."""
+CATALOG_LIMIT = 400
 
 
 class MongoDiningSource:
@@ -286,6 +294,15 @@ class MongoDiningSource:
         return (
             self._db["dishes"]
             .find({"name": {"$regex": str(pattern), "$options": "i"}}, dict.fromkeys(fields, True))
+            .sort([("occurrence_count", -1), ("name", 1)])
+            .limit(int(limit))
+        )
+
+    def catalog(self, location_ids: Sequence[int], limit: int) -> Iterable[Mapping[str, Any]]:
+        fields = ("name", "serving_size", "calories", "nutrition", "healthfulness_score")
+        return (
+            self._db["dishes"]
+            .find({"location_ids": {"$in": [int(i) for i in location_ids]}}, dict.fromkeys(fields, True))
             .sort([("occurrence_count", -1), ("name", 1)])
             .limit(int(limit))
         )
@@ -376,10 +393,32 @@ class Dining:
 
     def dishes_on(self, location_id: int, day: date) -> tuple[DishFacts, ...]:
         """The location's dishes on `day` with their nutrition labels, in menu order, once per meal
-        and dish name; a dish whose label can't be right is left out (_dish_facts). Empty when
-        there is no menu."""
+        and dish name, together with the Grab N' Go in the same building. When neither has a menu
+        that day (an older photo; Grab N' Go posts none at weekends), the dishes they have served
+        before, most often first, under the meal CATALOG_MEAL. A dish whose label can't be right
+        is left out (_dish_facts). Empty when there is nothing at all."""
         key = ("facts", int(location_id), day)
-        return self._cached(key, lambda: _dish_facts_on(self.source.menu_items(int(location_id), day.isoformat())))
+        return self._cached(key, lambda: self._dishes_on(int(location_id), day))
+
+    def _dishes_on(self, location_id: int, day: date) -> tuple[DishFacts, ...]:
+        ids = (location_id, *self._grab_n_go(location_id))
+        facts = _dish_facts_on(doc for i in ids for doc in self.source.menu_items(i, day.isoformat()))
+        if facts:
+            return facts
+        return _dish_facts_on({**doc, "meal": CATALOG_MEAL} for doc in self.source.catalog(ids, CATALOG_LIMIT))
+
+    def _grab_n_go(self, location_id: int) -> tuple[int, ...]:
+        """The Grab N' Go locations in a dining commons' building: "Berkshire" has "Berkshire Grab N' Go"."""
+        locations = self.locations()
+        hall = next((loc for loc in locations if loc.id == location_id and loc.is_dining_commons), None)
+        if hall is None:
+            return ()
+        prefix = hall.name.split()[0].lower()  # "Worcester" or "Worcester Dining Commons"
+        return tuple(
+            loc.id
+            for loc in locations
+            if loc.id != location_id and loc.name.lower().startswith(prefix) and "grab" in loc.name.lower()
+        )
 
     def next_meal(self, location_id: int) -> NextMeal:
         """The meal on now, or the next one, at the location, by MEAL_HOURS. Meals that aren't on

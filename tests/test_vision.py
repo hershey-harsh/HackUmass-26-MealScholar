@@ -82,8 +82,8 @@ def test_context_prompt_names_the_date_and_lists_the_menu():
         "- Pad Thai (serving: 8 OZ)",
         "- Water (serving: unknown)",
     ]
-    assert lines[6].startswith("If a food is one of these dishes, set menu_item to that exact name")
-    assert "name stays what the photo shows" in lines[6] and "Estimate grams for every item either way." in lines[6]
+    assert lines[6].startswith("The photo was taken here, so for each food pick the listed dish of the same kind")
+    assert "set menu_item to that exact name" in lines[6] and "Estimate grams for every item either way." in lines[6]
     assert "Today's menu" not in context_prompt(context, {}, [], hall="Worcester Dining Commons")
 
     many = [dish(f"Dish {n}") for n in range(MENU_NAMES + 20)]
@@ -226,3 +226,11 @@ def test_refine_sends_text_only():
 def test_prompts_carry_the_benchmark_fixes():
     assert "never add a second entry" in REFINE_PROMPT
     assert "edge of the photo" in SYSTEM_PROMPT and "one sentence" in SYSTEM_PROMPT
+
+
+def test_context_prompt_says_when_no_menu_is_posted():
+    context = MealContext(taken_at=datetime(2026, 10, 7, 12, 32), time_source="exif", meal_slot="lunch")
+    past = [dish("Chicken Tikka Masala Rasoi", "any", "4 oz"), dish("Berkshire Burger", "any")]
+    lines = context_prompt(context, {}, past, hall="Berkshire").splitlines()
+    assert lines[1] == "Dishes Berkshire has served (no menu is posted for this day), most common first:"
+    assert lines[2] == "- Chicken Tikka Masala Rasoi (serving: 4 oz)"

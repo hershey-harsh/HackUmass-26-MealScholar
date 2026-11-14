@@ -23,6 +23,7 @@ from mealscholar.auth import AuthService
 from mealscholar.auth_store import MemoryAuthStore, utc_now
 from mealscholar.config import SmtpSettings, load_settings
 from mealscholar.dining import (
+    CATALOG_MEAL,
     MEALS,
     Alert,
     DigestReport,
@@ -251,6 +252,11 @@ class FakeDining:
         self._read("dishes")
         regex = re.compile(pattern, re.IGNORECASE)  # as {"$regex": pattern, "$options": "i"}
         found = [dish for dish in self._dishes if regex.search(dish["name"])]
+        return copy.deepcopy(sorted(found, key=lambda d: (-d["occurrence_count"], d["name"]))[:limit])
+
+    def catalog(self, location_ids, limit):
+        self._read("dishes")
+        found = [dish for dish in self._dishes if set(dish.get("location_ids", ())) & set(location_ids)]
         return copy.deepcopy(sorted(found, key=lambda d: (-d["occurrence_count"], d["name"]))[:limit])
 
 
@@ -860,7 +866,7 @@ def test_dishes_on_reads_one_query_and_caches(source, clock):
     dining = Dining(source, clock=clock)
     facts = dining.dishes_on(1, TODAY)
     assert dining.dishes_on(1, TODAY) is facts  # the cached object
-    assert source.reads == {"menu_items": 1}
+    assert source.reads == {"menu_items": 1, "locations": 1}  # locations: is there a Grab N' Go too
     assert [(dish.meal, dish.name) for dish in facts] == [  # menu order
         ("dinner", "Pad Thai"),
         ("dinner", "Chicken Tikka Masala"),  # in two categories, listed once
@@ -886,7 +892,8 @@ def test_dishes_on_reads_one_query_and_caches(source, clock):
     assert (pizza.serving_size, pizza.serving_grams) == ("1 slice", None)
     assert (tikka.serving_size, tikka.serving_grams, tikka.per_serving["sodium_mg"]) == ("6 OZ", 170.1, 620)
     assert (chili.serving_size, chili.serving_grams) == ("8 OZL", 236.56)
-    assert dining.dishes_on(7, TODAY) == ()  # Blue Wall has no menu today
+    # Blue Wall has no menu today, so the dishes it has served stand in
+    assert [(d.meal, d.name) for d in dining.dishes_on(7, TODAY)] == [(CATALOG_MEAL, "Cheese Pizza")]
     assert dining.location_name(1) == WORCESTER
     assert dining.location_name(999) is None
 
@@ -1091,7 +1098,7 @@ def test_odd_menu_items_are_read_carefully(clock):
         dining.dishes_on(5, TOMORROW)
     source.down = False
     assert dining.dishes_on(5, TOMORROW) == ()  # the failure wasn't cached: read again
-    assert source.reads == {"menu_items": 2}
+    assert source.reads == {"menu_items": 2, "locations": 1, "dishes": 1}  # an empty day looks at past dishes too
 
 
 # --- nearest dining hall ---------------------------------------------------------
@@ -1135,3 +1142,47 @@ def test_dish_search_drops_nul_bytes(make_app):
     client = browser(make_app())
     assert client.get("/api/dining/dishes", params={"q": "pi\x00zza"}).status_code == 200
     assert client.get("/api/dining/dishes", params={"q": "\x00\x00"}).json() == []
+
+
+def test_a_hall_includes_its_grab_n_go_and_falls_back_to_dishes_it_has_served(clock):
+    """Berkshire's dishes include Berkshire Grab N' Go's; on a day with no menu at either (an older
+    photo, a weekend), the dishes they have served before stand in, most often seen first."""
+    label = {"calories": 150, "nutrition": {"protein_g": 10.6, "total_carb_g": 5.2, "total_fat_g": 9.8}}
+    locations = [
+        {"_id": 4, "name": "Berkshire", "is_dining_commons": True},
+        {"_id": 10666, "name": "Berkshire Grab N' Go", "is_dining_commons": False},
+        {"_id": 10667, "name": "Worcester Grab N' Go", "is_dining_commons": False},
+        {"_id": 7, "name": "Blue Wall", "is_dining_commons": False},
+    ]
+    items = [
+        {"location_id": 4, "date": "2026-11-14", "name": "Tantanmen Ramen Bar", "meal": "dinner", **label},
+        {"location_id": 10666, "date": "2026-11-14", "name": "Chicken Tikka Masala Rasoi", "meal": "lunch", **label},
+        {"location_id": 10667, "date": "2026-11-14", "name": "Worcester Wrap", "meal": "lunch", **label},
+    ]
+    dishes = [
+        {
+            "_id": "a",
+            "name": "Chicken Tikka Masala Rasoi",
+            "location_ids": [1, 4, 10666],
+            "occurrence_count": 8,
+            **label,
+        },
+        {"_id": "b", "name": "Berkshire Burger", "location_ids": [4], "occurrence_count": 30, **label},
+        {"_id": "c", "name": "Blue Wall Bowl", "location_ids": [7], "occurrence_count": 99, **label},
+        {"_id": "d", "name": "No Label", "location_ids": [4], "occurrence_count": 50, "calories": None},
+    ]
+    dining = Dining(FakeDining(locations=locations, menus=[], dishes=dishes, items=items), clock=clock)
+
+    today = dining.dishes_on(4, TODAY)
+    assert [(d.meal, d.name) for d in today] == [
+        ("dinner", "Tantanmen Ramen Bar"),
+        ("lunch", "Chicken Tikka Masala Rasoi"),
+    ]
+
+    older = dining.dishes_on(4, TODAY - timedelta(days=38))
+    assert [(d.meal, d.name) for d in older] == [
+        (CATALOG_MEAL, "Berkshire Burger"),
+        (CATALOG_MEAL, "Chicken Tikka Masala Rasoi"),
+    ]
+    assert older[1].per_serving["energy_kcal"] == 150
+    assert dining.dishes_on(7, TODAY - timedelta(days=38))[0].name == "Blue Wall Bowl"  # no Grab N' Go to add

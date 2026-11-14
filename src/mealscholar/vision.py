@@ -29,6 +29,8 @@ FINAL_STATUSES = ("failed", "cancelled", "budget_exceeded", "requires_action")
 MENU_NAMES = 100
 """Menu dishes listed in the prompt at most: the meal on at the photo's time first, whole
 (campus.candidates), so the cap only ever cuts other meals."""
+CATALOG_NAMES = 400
+"""Past dishes listed when a hall has no menu that day (dining.CATALOG_LIMIT): most common first."""
 
 SYSTEM_PROMPT = """\
 You estimate food portions from meal photos for a nutrition logger.
@@ -50,12 +52,20 @@ You estimate food portions from meal photos for a nutrition logger.
 - hidden_fat_likely is true when cooking oil, butter, dressing or sauce is probably there
   but not visible.
 - box_2d is the item's bounding box [ymin, xmin, ymax, xmax] normalized to 0-1000.
-- menu_item and servings_low/likely/high: only when the message lists today's menu and the
-  food is clearly that listed dish; otherwise null. name always describes what the photo
-  shows, never the menu.
-- question: at most one short question about the single uncertainty with the biggest
-  calorie impact (cooking fat, drink size, sugar in a drink, hidden layer, sauce amount).
-  The question is one sentence. Use null when nothing material is uncertain.
+- menu_item and servings_low/likely/high: when the message lists a dining hall's menu, the
+  photo was almost certainly taken there, so match each food to the listed dish of the same
+  kind (an omelet to the omelet station, a slice to the listed pizza) even when the photo
+  can't confirm every detail, and let the menu settle what the food is when the photo alone
+  is ambiguous (a noodle soup is the pho or the ramen the hall served that day). A station
+  that lists parts (broth, noodles, a protein) gets one item per visible part. Leave
+  menu_item null only when nothing listed is that kind of food. name describes the food,
+  using the menu's word for it when you matched one.
+- question: usually null. Ask only when one answer would change the calories a lot AND the
+  person eating can answer it at a glance: which of two listed dishes it is, whether a drink
+  is diet or regular, how big a cup or bowl is, whether a plate is shared or seconds, or how
+  many pieces are hidden. Never ask about cooking oil, butter, recipes or ingredients (they
+  didn't cook it), and never ask for grams, ounces, spoons or anything already visible.
+  Ask it in one sentence.
 - Only a meal counts: real food or drink that is about to be eaten or drunk. Otherwise return
   is_food=false and an empty items list. That includes a photo with no food at all, and one that
   shows only food models or replicas (plastic display food), food on display in a shop window or
@@ -132,13 +142,22 @@ def context_prompt(
         known = "; ".join(f"{name}: {grams} g" for name, grams in usual_portions.items())
         lines.append(f"This user's usual portions from past corrections: {known}.")
     if menu:
-        lines.append(f"Today's menu at {hall}, dishes for this meal first:")
-        lines += [f"- {d.name} (serving: {d.serving_size or 'unknown'})" for d in menu[:MENU_NAMES]]
+        past = all(d.meal == "any" for d in menu)  # dining.CATALOG_MEAL: no menu posted that day
         lines.append(
-            "If a food is one of these dishes, set menu_item to that exact name and servings_low/likely/high "
-            "to how many of its listed servings are on the plate, as a range like grams. name stays what "
-            "the photo shows. Otherwise set menu_item and the servings to null. Estimate grams for every "
-            "item either way."
+            f"Dishes {hall} has served (no menu is posted for this day), most common first:"
+            if past
+            else f"Today's menu at {hall}, dishes for this meal first:"
+        )
+        lines += [
+            f"- {d.name} (serving: {d.serving_size or 'unknown'})"
+            for d in menu[: CATALOG_NAMES if past else MENU_NAMES]
+        ]
+        lines.append(
+            "The photo was taken here, so for each food pick the listed dish of the same kind (stations "
+            "like an omelet bar or a ramen bar count) and set menu_item to that exact name, with "
+            "servings_low/likely/high as how many of its listed servings are on the plate, as a range like "
+            "grams. Leave menu_item and the servings null only for a food nothing listed resembles. "
+            "Estimate grams for every item either way."
         )
     return "\n".join(lines)
 

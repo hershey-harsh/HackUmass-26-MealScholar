@@ -432,7 +432,7 @@ def test_prompt_lists_the_meals_dishes_first_and_the_date(food_db, analysis, mea
     assert prompt.startswith("Photo taken Fri 2026-11-13 12:30 local time (lunch).")
     assert f"Today's menu at {WORCESTER}, dishes for this meal first:" in prompt
     assert prompt.index("- Cheese Pizza (serving: 1 Slice)") < prompt.index("- Pad Thai (serving: 8 OZ)")
-    assert "name stays what the photo shows" in prompt
+    assert "set menu_item to that exact name" in prompt
 
 
 def test_answer_rematches_against_the_same_menu(food_db, analysis, meal_photo, campus):
