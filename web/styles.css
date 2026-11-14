@@ -1343,6 +1343,15 @@ html:not(.js) .rail-ctrl { display: none; }
   box-shadow: 0 16px 36px rgba(28, 28, 28, .08);
 }
 .video-ph .chip { position: absolute; z-index: 1; top: 12px; left: 12px; }
+/* Small slots (the two half-width cards beside the text): a smaller play glyph and no index, so
+   nothing overlaps the chip. */
+.video-frame { container-type: inline-size; }
+@container (max-width: 320px) {
+  .video-ph .chip { top: 8px; left: 8px; }
+  .video-ph__idx { display: none; }
+  .video-ph__play { width: 44px; height: 44px; }
+  .video-ph__play svg { width: 18px; height: 18px; margin-left: 2px; }
+}
 .video-ph__idx {
   position: absolute;
   z-index: 1;
