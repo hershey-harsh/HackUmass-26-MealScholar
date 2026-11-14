@@ -8098,3 +8098,75 @@ body .recent .recent-card {
     column-gap: 10px;
   }
 }
+
+/* ---- How busy a hall is, from its live cam: a dot and a few words, never colour alone. */
+
+:root {
+  --busy-quiet: #2f7a4d;
+  --busy-moderate: #a86a12;
+  --busy-busy: #b23a3a;
+}
+
+:root[data-theme="dark"] {
+  --busy-quiet: #63c08a;
+  --busy-moderate: #e3aa4f;
+  --busy-busy: #f08a8a;
+}
+
+.busy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.busy__level {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.busy__dot {
+  flex: none;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--busy-dot, var(--ink-2));
+}
+
+.busy--quiet {
+  --busy-dot: var(--busy-quiet);
+}
+
+.busy--moderate {
+  --busy-dot: var(--busy-moderate);
+}
+
+.busy--busy {
+  --busy-dot: var(--busy-busy);
+}
+
+.busy__dot.busy--quiet {
+  background: var(--busy-quiet);
+}
+
+.busy__dot.busy--moderate {
+  background: var(--busy-moderate);
+}
+
+.busy__dot.busy--busy {
+  background: var(--busy-busy);
+}
+
+.hall-chip .busy__dot {
+  margin-left: 2px;
+}
+
+.menu-card__head .busy,
+.upcoming__head .busy {
+  margin-top: 2px;
+}

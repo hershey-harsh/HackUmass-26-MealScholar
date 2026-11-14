@@ -3782,6 +3782,7 @@ function ensureUpcoming() {
 
 async function loadUpcoming() {
   if (!diningOn() || document.body.dataset.screen !== "app") return;
+  ensureBusy();
   const seq = ++upcomingSeq;
   const epoch = state.epoch;
   els.dashSide.innerHTML = upcomingSkeletonHtml();
@@ -3821,6 +3822,7 @@ function renderUpcoming() {
     <div class="upcoming__head">
       <h2 id="upcoming-title" class="eyebrow">Upcoming meal</h2>
       <p class="upcoming__hall">${esc(hall)}${SEP}${settingsLinkHtml("Change", "dining")}</p>
+      ${busyBadgeHtml(meal?.location?.id ?? locationId ?? state.prefs.dining_halls[0])}
     </div>`;
   const nearest = note ? nearestNoteHtml(note, "side") : "";
   if (error) {
@@ -3958,9 +3960,63 @@ function pickHall(id) {
 
 const hallLabel = (id) => menus.data.get(id)?.meal?.location?.name ?? (id === DEFAULT_HALL ? "Dining hall" : hallNameById(id) ?? `Hall ${id}`);
 
+// ---- How busy each hall is, from its live cam (GET /api/dining/busy; the cams/ sampler)
+
+const busyNow = { halls: new Map(), at: 0, pending: null, off: false, sig: "" };
+const BUSY_TTL = 60_000;
+const BUSY_TEXT = { quiet: "Quiet now", moderate: "Getting busy", busy: "Busy now" };
+
+/** Fetch the readings when they are over a minute old. Redraws only when a level or count changed. */
+function ensureBusy() {
+  if (busyNow.off || busyNow.pending || Date.now() - busyNow.at < BUSY_TTL || !diningOn()) return;
+  busyNow.pending = api("/api/dining/busy", { session: false })
+    .then((reply) => {
+      const halls = new Map((Array.isArray(reply?.halls) ? reply.halls : []).map((h) => [Number(h.location_id), h]));
+      busyNow.halls = halls;
+      busyNow.at = Date.now();
+      const sig = JSON.stringify([...halls.values()].map((h) => [h.location_id, h.level, h.people]));
+      if (sig === busyNow.sig) return;
+      busyNow.sig = sig;
+      if (document.body.dataset.screen !== "app") return;
+      if (state.view === "menu") renderMenu();
+      if (state.upcoming && !state.upcoming.error) renderUpcoming();
+    })
+    .catch((err) => {
+      busyNow.at = Date.now();
+      if (err.status === 503 || err.status === 404) busyNow.off = true; // no hall cams on this server
+    })
+    .finally(() => {
+      busyNow.pending = null;
+    });
+}
+
+setInterval(() => {
+  if (!document.hidden && document.body.dataset.screen === "app") ensureBusy();
+}, BUSY_TTL);
+
+const busyHall = (id) => {
+  const hall = busyNow.halls.get(Number(id));
+  return hall && BUSY_TEXT[hall.level] ? hall : null;
+};
+
+/** "Quiet now · 8 people in view · 2 min ago", from the hall's live cam. */
+function busyBadgeHtml(id) {
+  const hall = busyHall(id);
+  if (!hall) return "";
+  const people = Number.isFinite(hall.people) ? `${hall.people} ${hall.people === 1 ? "person" : "people"} in view` : "";
+  const mins = Math.round((Date.now() - Date.parse(hall.updated_at)) / 60_000);
+  const ago = Number.isFinite(mins) ? (mins < 1 ? "just now" : `${mins} min ago`) : "";
+  const meta = [people, ago].filter(Boolean).join(" · ");
+  return `
+    <p class="busy busy--${hall.level}" title="From the hall's live cam">
+      <span class="busy__dot" aria-hidden="true"></span><span class="busy__level">${BUSY_TEXT[hall.level]}</span>${meta ? `<span class="busy__meta">${SEP}<span aria-hidden="true">· </span>${meta}</span>` : ""}
+    </p>`;
+}
+
 /** Draw the tab from what's known and fetch what isn't: every hall's next meal, side by side. */
 async function ensureMenus() {
   if (document.body.dataset.screen !== "app" || !diningOn()) return;
+  ensureBusy();
   const epoch = state.epoch;
   // With location on, find the nearest hall first (once), so it leads the chips.
   if (els.location.checked && !state.nearest) {
@@ -4010,7 +4066,7 @@ function renderMenu() {
         .map(
           (id) => `
         <button class="hall-chip" type="button" data-hall="${id}" aria-pressed="${id === pick}">
-          ${id === near ? `<span class="hall-chip__near">${icon("pin")}<span class="visually-hidden">Nearest: </span></span>` : ""}<span>${esc(hallLabel(id))}</span>
+          ${id === near ? `<span class="hall-chip__near">${icon("pin")}<span class="visually-hidden">Nearest: </span></span>` : ""}<span>${esc(hallLabel(id))}</span>${busyHall(id) ? `<span class="busy__dot busy--${busyHall(id).level}" aria-hidden="true"></span><span class="visually-hidden">, ${BUSY_TEXT[busyHall(id).level].toLowerCase()}</span>` : ""}
         </button>`
         )
         .join("")}
@@ -4089,6 +4145,7 @@ function menuCardHtml(id, meal, near) {
     <article class="card menu-card" aria-labelledby="menu-meal-title">
       <header class="menu-card__head">
         <p class="eyebrow">${esc(hall)}</p>
+        ${busyBadgeHtml(meal.location?.id ?? id)}
         <h2 id="menu-meal-title" class="menu-card__meal"><strong>${esc(label)}</strong>${whenText ? `<span class="menu-card__when">${SEP}${esc(whenText)}</span>` : ""}</h2>
         ${hint ? `<p class="menu-card__hint">${esc(hint)}</p>` : ""}
         ${nearNote}
