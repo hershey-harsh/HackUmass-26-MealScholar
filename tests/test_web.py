@@ -6,9 +6,11 @@ import zlib
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
+from test_metadata import IPHONE_HEIC, heic
 
 from mealscholar.config import load_settings
 from mealscholar.dining import Dining
+from mealscholar.insights import SCORE_MINUS, SCORE_PLUS
 from mealscholar.schemas import FoodItem, MealAnalysis
 from mealscholar.vision import VisionError
 from mealscholar.web import create_app
@@ -205,7 +207,76 @@ def test_a_photo_that_is_not_a_meal_is_not_logged(home):
     meal = res.json()
     assert (meal["id"], meal["items"], meal["totals"], meal["question"]) == (None, [], {}, None)
     assert meal["notes"] == ["No food or drink detected in the photo."]
-    assert app.get(f"/api/days/{meal['context']['taken_at'][:10]}").json()["meals"] == []
+    day = app.get(f"/api/days/{meal['context']['taken_at'][:10]}").json()
+    assert day["meals"] == [] and day["health"] is None
+
+
+def test_day_view_carries_the_score(home):
+    app = client(home, CampusVision())
+    meal = app.post("/api/meals", content=jpeg()).json()
+    day = app.get(f"/api/days/{meal['context']['taken_at'][:10]}").json()
+    assert len(day["meals"]) == 1
+    health = day["health"]
+    assert isinstance(health["score"], int) and 0 <= health["score"] <= 100
+    expected = [*SCORE_PLUS, *SCORE_MINUS, "sugars_g"]
+    assert [p["key"] for p in health["parts"]] == expected
+    assert health["parts"][0]["plus"] is True and health["parts"][-1]["plus"] is False
+    assert health["note"] == "A rough guide, not medical advice."
+
+
+# --- when the meal happened: EXIF from a HEIC, then the phone's clock, then the upload -----
+
+
+def on_day(app, day: str, meal_id: int) -> bool:
+    return meal_id in [m["id"] for m in app.get(f"/api/days/{day}").json()["meals"]]
+
+
+def test_heic_upload_is_dated_from_its_exif(home):
+    app = client(home, CampusVision())
+    res = app.post("/api/meals", content=heic(**IPHONE_HEIC), headers={"Content-Type": "image/heic"})
+    assert res.status_code == 200
+    meal = res.json()
+    assert meal["context"]["time_source"] == "exif"
+    assert meal["context"]["taken_at"].startswith("2026-11-13T12:34:56-05:00")
+    assert meal["context"]["place"] is None  # photo GPS stays opt-in, so no place lookup
+    assert on_day(app, "2026-11-13", meal["id"])
+
+
+def test_taken_at_dates_a_photo_without_exif(home):
+    app = client(home, CampusVision())
+    res = app.post("/api/meals?taken_at=2026-11-13T23:50:00%2B09:00", content=jpeg())
+    assert res.status_code == 200
+    meal = res.json()
+    assert meal["context"]["time_source"] == "device"
+    assert meal["context"]["taken_at"] == "2026-11-13T23:50:00+09:00"
+    assert not any("using upload time" in n for n in meal["notes"])
+    assert on_day(app, "2026-11-13", meal["id"]) and not on_day(app, "2026-11-14", meal["id"])
+
+
+def test_taken_at_in_utc_is_accepted_and_filed_under_that_clock(home):
+    app = client(home, CampusVision())
+    res = app.post("/api/meals?taken_at=2026-11-13T23:50:00Z", content=jpeg())
+    assert res.status_code == 200
+    meal = res.json()
+    assert meal["context"]["time_source"] == "device"
+    assert meal["context"]["taken_at"].endswith(("+00:00", "Z"))
+    assert on_day(app, "2026-11-13", meal["id"])  # UTC's date, not the phone's: send local time
+
+
+def test_taken_at_without_an_offset_is_refused(home):
+    app = client(home, CampusVision())
+    res = app.post("/api/meals?taken_at=2026-11-13T23:50:00", content=jpeg())
+    assert res.status_code == 400
+    assert res.json()["detail"] == "taken_at needs a UTC offset, such as 2026-11-14T12:30:00-05:00."
+    assert app.post("/api/meals?taken_at=2026-11-13T23:50:00+09:00", content=jpeg()).status_code == 422
+
+
+def test_exif_time_beats_taken_at(home):
+    app = client(home, CampusVision())
+    res = app.post("/api/meals?taken_at=2026-11-14T08:00:00-05:00", content=heic(**IPHONE_HEIC))
+    assert res.status_code == 200
+    assert res.json()["context"]["time_source"] == "exif"
+    assert res.json()["context"]["taken_at"].startswith("2026-11-13T12:34:56")
 
 
 # --- campus matching through the API: only an explicit location_id switches it on -----

@@ -7,7 +7,7 @@ from PIL import Image
 from mealscholar.campus import serving_grams
 from mealscholar.diary import Diary
 from mealscholar.dining import DiningUnavailable, DishFacts
-from mealscholar.insights import summarize_days
+from mealscholar.insights import SCORE_MINUS, SCORE_PLUS, SUGARS_DV_G, health_score, summarize_days
 from mealscholar.nutrients import NUTRIENTS
 from mealscholar.pipeline import BadCorrection, UnknownFood, Workflow, correct, meal_name
 from mealscholar.schemas import FoodItem, MealAnalysis, MenuRef, Range
@@ -552,3 +552,50 @@ def test_meal_name_joins_the_items():
     assert meal_name(items[:2]) == "rice and pizza"
     assert meal_name(items[:3]) == "rice, pizza and sauce"
     assert meal_name(items) == "rice, pizza, sauce and 2 more"
+
+
+# --- the day's nutrient-balance score, the same rules as site/app.js healthScore ----------
+
+
+def flat(value):
+    return Range(low=value, likely=value, high=value)
+
+
+SCORE_ORDER = (*SCORE_PLUS, *SCORE_MINUS, "sugars_g")
+
+
+def test_health_score_matches_the_apps_rules():
+    dv_pct = {"protein_g": flat(100), "fiber_g": flat(50), "sodium_mg": flat(150), "sat_fat_g": flat(80)}
+    totals = {"sugars_g": flat(60)}  # no Daily Value for total sugars: scored against 50 g
+    health = health_score(totals, dv_pct)
+    assert [p.key for p in health.parts] == list(SCORE_ORDER)
+    by_key = {p.key: p for p in health.parts}
+    assert (by_key["protein_g"].pct, by_key["protein_g"].points, by_key["protein_g"].plus) == (100, 12.5, True)
+    assert (by_key["fiber_g"].pct, by_key["fiber_g"].points) == (50, 6.25)
+    assert (by_key["calcium_mg"].pct, by_key["calcium_mg"].points) == (None, 0)
+    assert (by_key["sodium_mg"].pct, by_key["sodium_mg"].points, by_key["sodium_mg"].plus) == (150, -5.0, False)
+    assert (by_key["sat_fat_g"].pct, by_key["sat_fat_g"].points) == (80, 0)
+    assert (by_key["sugars_g"].pct, by_key["sugars_g"].points) == (pytest.approx(120), pytest.approx(-2.0))
+    assert by_key["sugars_g"].label == "Total sugars" and by_key["vitamin_a_ug"].label == "Vitamin A (RAE)"
+    assert health.score == 12  # 12.5 + 6.25 - 5 - 2 = 11.75
+    assert health.note == "A rough guide, not medical advice."
+
+    plenty = {key: flat(200) for key in SCORE_PLUS}
+    assert health_score({}, plenty).score == 100  # clamped per part, never over 100
+    assert health_score({}, {"protein_g": flat(100)}).score == 13  # 12.5: halves round up like Math.round
+    nothing = health_score({}, {})
+    assert nothing.score is None and len(nothing.parts) == 11 and all(p.pct is None for p in nothing.parts)
+
+    added = health_score({"added_sugars_g": flat(75), "sugars_g": flat(10)}, {})
+    sugars = added.parts[-1]
+    assert (sugars.key, sugars.label, sugars.pct, sugars.points) == ("added_sugars_g", "Added sugars", 150, -5.0)
+
+
+def test_health_score_pct_falls_back_to_totals_over_daily_value():
+    totals = {"protein_g": flat(25), "sodium_mg": flat(4600), "sugars_g": flat(25), "energy_kcal": flat(800)}
+    health = health_score(totals, {})
+    by_key = {p.key: p for p in health.parts}
+    assert by_key["protein_g"].pct == 50 and by_key["protein_g"].points == 6.25  # 25 g of the 50 g DV
+    assert by_key["sodium_mg"].pct == 200 and by_key["sodium_mg"].points == -10  # 2 x 2300 mg
+    assert by_key["sugars_g"].pct == 100 * 25 / SUGARS_DV_G and by_key["sugars_g"].points == 0
+    assert health.score == 0  # 6.25 - 10 clamps at 0

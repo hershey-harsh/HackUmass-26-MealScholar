@@ -9,7 +9,7 @@ import io
 import logging
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -25,7 +25,7 @@ from .config import USER_AGENT, Settings
 from .context import NominatimPlaces, PlaceLookup
 from .diary import Diary
 from .dining import Dining, install_dining, open_dining
-from .insights import summarize_days
+from .insights import HealthScore, health_score, summarize_days
 from .nutrients import NUTRIENTS
 from .nutrition import FoodDatabase, FoodDatabaseMissing
 from .pipeline import BadCorrection, UnknownFood, Workflow, correct
@@ -83,6 +83,8 @@ class DayView(BaseModel):
     meals: list[MealResult]
     totals: dict[str, Range]
     daily_value_pct: dict[str, Range]
+    health: HealthScore | None = None
+    """The day's nutrient-balance score (insights.health_score); None for a day with no meals."""
 
 
 def create_app(
@@ -168,12 +170,21 @@ def create_app(
         lat: float | None = None,
         lon: float | None = None,
         location_id: Annotated[int | None, Query(ge=1, le=MAX_LOCATION_ID)] = None,
+        taken_at: datetime | None = None,
     ) -> MealResult:
         """Body: the photo bytes (JPEG, PNG, HEIC). `lat`/`lon`: device location, opt-in.
         `location_id`: the dining location whose menu the foods are matched against (from
-        /api/dining/nearest or the user's dining halls); without it nutrients come from USDA only."""
+        /api/dining/nearest or the user's dining halls); without it nutrients come from USDA only.
+        `taken_at`: the phone's local time at capture with its UTC offset, ISO 8601 such as
+        2026-11-14T12:30:00-05:00 (URL-encode a '+'; an unencoded '+' is read as a space and
+        answers 422). Used only when the photo carries no EXIF time; `context.time_source` is
+        then 'device'. Send local time with its offset, not UTC: a 'Z' or +00:00 time is accepted
+        but the diary files the meal under that clock's date, so an evening meal sent as UTC
+        lands on the next day."""
         if (lat is None) != (lon is None):
             raise HTTPException(400, "lat and lon go together.")
+        if taken_at is not None and taken_at.tzinfo is None:
+            raise HTTPException(400, "taken_at needs a UTC offset, such as 2026-11-14T12:30:00-05:00.")
         photo = bytearray()
         async for chunk in request.stream():
             photo += chunk
@@ -182,15 +193,20 @@ def create_app(
         if not photo:
             raise HTTPException(400, "Send the photo as the request body.")
         location = (lat, lon) if lat is not None and lon is not None else None
-        return await run_in_threadpool(_analyze, bytes(photo), location, owner, location_id)
+        return await run_in_threadpool(_analyze, bytes(photo), location, owner, location_id, taken_at)
 
     def _analyze(
-        photo: bytes, location: tuple[float, float] | None, owner: str | None, location_id: int | None
+        photo: bytes,
+        location: tuple[float, float] | None,
+        owner: str | None,
+        location_id: int | None,
+        taken_at: datetime | None,
     ) -> MealResult:
         with stores(owner) as (foods, diary):
             try:
                 result = workflow(foods).analyze(
                     io.BytesIO(photo),
+                    device_time=taken_at,
                     device_location=location,
                     usual_portions=diary.usual_portions(),
                     location_id=location_id,
@@ -267,7 +283,13 @@ def create_app(
         if not summaries:
             return DayView(day=day, meals=[], totals={}, daily_value_pct={})
         s = summaries[0]
-        return DayView(day=s.day, meals=s.meals, totals=s.totals, daily_value_pct=s.daily_value_pct)
+        return DayView(
+            day=s.day,
+            meals=s.meals,
+            totals=s.totals,
+            daily_value_pct=s.daily_value_pct,
+            health=health_score(s.totals, s.daily_value_pct),
+        )
 
     app.mount("/", StaticFiles(directory=SITE, html=True), name="site")
     return app
