@@ -8356,3 +8356,118 @@ body .recent .recent-card {
 .auth-head > .eyebrow + .view-title {
   margin-top: -4px;
 }
+
+/* ---- Hall cam: the busy line opens the hall's latest boxed clip in the panel sheet (openCam in app.js). */
+
+.busy--cam {
+  min-height: 44px;
+  margin-block: -6px -4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.busy--cam .busy__meta {
+  transition: color var(--dur-1) linear;
+}
+
+.busy__chev {
+  display: inline-grid;
+  place-items: center;
+  vertical-align: -3px;
+  margin-left: 2px;
+  color: var(--ink-2);
+  transition: transform var(--dur-2) var(--ease-out), color var(--dur-1) linear;
+}
+
+.busy__chev .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.busy--cam:focus-visible {
+  border-radius: 8px;
+}
+
+@media (hover: hover) {
+  .busy--cam:hover .busy__meta,
+  .busy--cam:hover .busy__chev {
+    color: var(--ink);
+  }
+
+  .busy--cam:hover .busy__chev {
+    transform: translateX(2px);
+  }
+}
+
+.busy--cam:active .busy__chev {
+  transform: translateX(4px);
+}
+
+.cam {
+  display: grid;
+  gap: 10px;
+  min-width: 0; /* the video's own 960px width must not widen the sheet */
+  margin: 0;
+}
+
+.cam__frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius-inner);
+  background: var(--panel);
+}
+
+.cam__video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cam.is-missing .cam__frame::after {
+  content: "This clip isn't available. A new one comes every few minutes.";
+  position: absolute;
+  inset: auto 0 0;
+  padding: 10px 14px;
+  background: var(--panel);
+  color: var(--on-panel-2);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.cam__caption {
+  min-width: 0;
+}
+
+.cam__live {
+  justify-self: start;
+}
+
+.cam__live .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.cam__note {
+  max-width: 60ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .busy__chev,
+  .busy--cam .busy__meta {
+    transition: none;
+  }
+
+  .busy--cam:hover .busy__chev,
+  .busy--cam:active .busy__chev {
+    transform: none;
+  }
+}

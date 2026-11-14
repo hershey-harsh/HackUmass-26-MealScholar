@@ -27,9 +27,12 @@ LOCATIONS_COLLECTION = "locations"
 MODEL_NAME = os.environ.get("UMASS_CAMS_MODEL", "yolo11n.pt")
 CONF = 0.35
 IMGSZ = 1280  # the streams are 1280x720; at 640 people across the room are missed
-WINDOW_S = 20.0
-FRAME_INTERVAL_S = 2.0
-TOTAL_BUDGET_S = 115.0
+WINDOW_S = 16.0
+FRAME_INTERVAL_S = 0.5  # 32 frames a window: the clip plays smoothly and ByteTrack keeps ids between frames
+# Four halls take ~85 s when WebKit plays at once; 146 s was measured with three WebKit timeouts
+# falling back to Chromium. launchd starts a pass every 180 s and never overlaps two.
+TOTAL_BUDGET_S = 150.0
+CLIP_SIZE = (960, 540)  # the boxed clip and poster the app shows; frames are 1280x720
 
 LOCAL_TZ = "America/New_York"
 
@@ -67,6 +70,14 @@ def mongodb_uri() -> str:
 
 def playwright_browsers_path() -> str | None:
     return setting("PLAYWRIGHT_BROWSERS_PATH")
+
+
+def clip_dir() -> Path:
+    """Where each hall's latest boxed clip goes (<location_id>.mp4 and .jpg). The MealScholar app reads
+    them from its data folder (MEALSCHOLAR_HOME/cams), so that is the default."""
+    return Path(
+        setting("UMASS_CAMS_CLIP_DIR") or Path.home() / "Services" / "mealscholar" / "data" / "cams"
+    ).expanduser()
 
 
 def ensure_dirs() -> None:
