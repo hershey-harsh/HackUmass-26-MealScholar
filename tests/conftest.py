@@ -68,7 +68,8 @@ def food_db_path(tmp_path_factory) -> Path:
     downloads.mkdir()
     for ds in DATASETS:
         with zipfile.ZipFile(downloads / ds.filename, "w") as zf:
-            zf.writestr(ds.filename.removesuffix(".zip") + ".json", json.dumps({ds.root_key: FIXTURE_FOODS[ds.data_type]}))
+            payload = {ds.root_key: FIXTURE_FOODS[ds.data_type]}
+            zf.writestr(ds.filename.removesuffix(".zip") + ".json", json.dumps(payload))
     db_path = root / "fdc.sqlite"
     build_database(db_path, downloads, log=lambda _: None)
     return db_path

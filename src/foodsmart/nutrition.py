@@ -141,7 +141,10 @@ _STOPWORDS = frozenset(
 # Qualifiers that change nutrition a lot (diet cola, non-dairy latte); a description carrying
 # one the query did not ask for is penalized beyond an ordinary extra word.
 _NEGATIONS = frozenset(
-    {"no", "non", "without", "meatless", "diet", "free", "nonfat", "decaffeinated", "unsweetened", "light", "reduced", "low"}
+    {
+        "no", "non", "without", "meatless", "diet", "free", "nonfat", "decaffeinated",
+        "unsweetened", "light", "reduced", "low",
+    }
 )
 _NICHE_CATEGORY = re.compile(r"^(baby|formula|fast foods|restaurant foods|american indian)", re.IGNORECASE)
 # "NFS" / "NS as to ..." entries are USDA's generic defaults: the right pick when the photo
