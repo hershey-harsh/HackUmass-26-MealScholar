@@ -30,7 +30,7 @@ The landing page says "Campus menu first" in the hero, feature 03, step 04 and t
 - [ ] **Harsh**: the menu item count doesn't match. The landing page says 24,191; the board post said 25,613. Pick one source.
 - [ ] Calorie goals shipped in #15, but four places still say "no calorie targets" (`AGENTS.md` section 5 is fixed in `ac951d2`):
   - **Joseph**: `README.md` (Rules) and the `insights.py` docstring
-  - **Harsh**: the app footer in `site/index.html` and the header comment in `site/app.js`
+  - **Harsh**: the app footer in `site/index.html` and the header comment in `site/app.js`. Both go away with the app UI update he has in flight (onboarding, goals, laptop dashboard).
 - [ ] **Harsh + Gabby**: the landing page shows three "Coming soon" screen recordings. Record them once the chain is merged, or hide that section before judging.
 
 ## 3. Accuracy (Joseph)
