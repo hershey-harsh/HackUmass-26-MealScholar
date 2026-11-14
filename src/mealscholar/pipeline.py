@@ -243,7 +243,7 @@ def correct(
         if dish is not None and dish.serving_grams is None:
             # The app's only amount control sends grams; a counted serving can't be scaled by them.
             notes.append(
-                f"'{item.name}' is weighed now, so USDA numbers are used; "
+                f"'{item.name}' has an amount in grams now, so USDA numbers are used; "
                 f"the menu lists {dish.name} per {dish.serving_size}."
             )
             dish = None

@@ -251,8 +251,11 @@ def test_servings_and_grams_corrections_on_campus_items(home):
     assert (slice_["source"], slice_["dish"], slice_["match"]["fdc_id"]) == ("usda", None, 6)
     assert slice_["item"]["menu_item"] is None and slice_["item"]["servings_likely"] is None
     assert slice_["nutrients"]["energy_kcal"]["likely"] == pytest.approx(266)
-    note = "'pizza slice' is weighed now, so USDA numbers are used; the menu lists Cheese Pizza per 1 Slice."
+    note = (
+        "'pizza slice' has an amount in grams now, so USDA numbers are used; the menu lists Cheese Pizza per 1 Slice."
+    )
     assert note in res.json()["notes"]
+    assert not any("weigh" in n for n in res.json()["notes"])
     assert app.get(f"/api/meals/{meal['id']}").json() == res.json()
 
     res = app.patch(url, json={"servings": 1})

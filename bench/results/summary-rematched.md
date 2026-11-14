@@ -15,7 +15,7 @@
 | `4-hydrogen` low | 15/15 | 5.9 | 9.3 | 2394 | 1064 | 435 | 375 | 0.0097 | 9.67 |
 | `4-hydrogen` low · prompt 0e460f6e | 15/15 | 5.4 | 14.4 | 2514 | 1064 | 488 | 360 | 0.0101 | 10.13 |
 | `4-hydrogen` low · prompt 56e180c6 | 15/15 | 6.1 | 8.5 | 2394 | 1064 | 517 | 358 | 0.0102 | 10.15 |
-| `4-hydrogen` low · prompt e9181571 (current) | 15/15 | 5.4 | 7.5 | 2477 | 1064 | 478 | 368 | 0.0101 | 10.06 |
+| `4-hydrogen` low · prompt e9181571 | 15/15 | 5.4 | 7.5 | 2477 | 1064 | 478 | 368 | 0.0101 | 10.06 |
 | `4-hydrogen` low · res ultra_high | 15/15 | 5.9 | 9.7 | 3490 | 2160 | 447 | 378 | 0.0114 | 11.43 |
 | `4-hydrogen` medium | 15/15 | 8.4 | 12.9 | 2394 | 1064 | 1052 | 353 | 0.0141 | 14.12 |
 | `4-hydrogen` high | 15/15 | 8.7 | 16.9 | 2394 | 1064 | 1195 | 355 | 0.0152 | 15.22 |
@@ -42,7 +42,7 @@
 | `4-hydrogen` low | 97% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 8% | 100% | 83% | 100% | 0.96 | 7% |
 | `4-hydrogen` low · prompt 0e460f6e | 95% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 7% | 100% | 67% | 92% | 0.97 | 5% |
 | `4-hydrogen` low · prompt 56e180c6 | 95% | 100% / 100% | 100% / 100% | 100% | 0.00 | 100% | 7% | 100% | 67% | 92% | 0.97 | 6% |
-| `4-hydrogen` low · prompt e9181571 (current) | 100% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 4% | 83% | 100% | 100% | 0.96 | 5% |
+| `4-hydrogen` low · prompt e9181571 | 100% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 4% | 83% | 100% | 100% | 0.96 | 5% |
 | `4-hydrogen` low · res ultra_high | 97% | 67% / 67% | 100% / 100% | 100% | 0.00 | 100% | 4% | 100% | 83% | 100% | 0.98 | 3% |
 | `4-hydrogen` medium | 97% | 100% / 100% | 100% / 100% | 100% | 0.00 | 100% | 6% | 100% | 83% | 83% | 0.97 | 4% |
 | `4-hydrogen` high | 100% | 100% / 100% | 100% / 100% | 100% | 0.00 | 100% | 7% | 83% | 100% | 75% | 0.97 | 4% |
@@ -69,7 +69,7 @@
 | `4-hydrogen` low | 100% | 0% | 100% | 93% | 10% | 0.88 | 27% |
 | `4-hydrogen` low · prompt 0e460f6e | 100% | 13% | 100% | 87% | 9% | 0.86 | 33% |
 | `4-hydrogen` low · prompt 56e180c6 | 100% | 0% | 100% | 93% | 8% | 0.93 | 27% |
-| `4-hydrogen` low · prompt e9181571 (current) | 100% | 0% | 100% | 87% | 7% | 0.81 | 27% |
+| `4-hydrogen` low · prompt e9181571 | 100% | 0% | 100% | 87% | 7% | 0.81 | 27% |
 | `4-hydrogen` low · res ultra_high | 100% | 0% | 100% | 93% | 7% | 0.90 | 33% |
 | `4-hydrogen` medium | 100% | 0% | 100% | 100% | 6% | 0.95 | 33% |
 | `4-hydrogen` high | 100% | 7% | 100% | 93% | 10% | 0.94 | 40% |
@@ -101,7 +101,7 @@ contains the reference amount.
 | `4-hydrogen` low | −29% / +33% | 56% | 38% | 51% | 100% | 93% |
 | `4-hydrogen` low · prompt 0e460f6e | −32% / +40% | 68% | 40% | 53% | 100% | 87% |
 | `4-hydrogen` low · prompt 56e180c6 | −30% / +38% | 65% | 39% | 54% | 100% | 87% |
-| `4-hydrogen` low · prompt e9181571 (current) | −29% / +36% | 58% | 39% | 51% | 100% | 87% |
+| `4-hydrogen` low · prompt e9181571 | −29% / +36% | 58% | 39% | 51% | 100% | 87% |
 | `4-hydrogen` low · res ultra_high | −29% / +36% | 58% | 38% | 49% | 100% | 93% |
 | `4-hydrogen` medium | −33% / +36% | 68% | 38% | 52% | 100% | 100% |
 | `4-hydrogen` high | −33% / +38% | 60% | 46% | 63% | 100% | 93% |
@@ -128,7 +128,7 @@ contains the reference amount.
 | `4-hydrogen` low | soft drink, ginger ale ×2, tea, iced, brewed, black, unsweetened ×1 | lemonade, pink ×3 | salad dressing, honey mustard ×5, salad dressing, honey mustard, regular ×1, salad, mixed greens, with red onion, no dressing ×1 |
 | `4-hydrogen` low · prompt 0e460f6e | soft drink, ginger ale ×2, tea, iced, sweetened ×1 | lemonade, pink, prepared from frozen concentrate ×1, lemonade, pink ×1, lemonade, pink, prepared ×1 | salad dressing, honey mustard ×5, salad dressing, honey mustard, regular ×1, salad, mixed greens with red onion, no dressing ×1, salad, green, with red onion, no dressing ×1 |
 | `4-hydrogen` low · prompt 56e180c6 | soft drink, ginger ale ×3 | lemonade, pink ×2, fruit juice drink, pink lemonade, with ice ×1 | salad dressing, honey mustard ×6, salad, green, with red onion, no dressing ×2 |
-| `4-hydrogen` low · prompt e9181571 (current) | soft drink, ginger ale ×2, tea, iced, brewed, unsweetened ×1 | lemonade, pink ×2, fruit juice drink, pink lemonade ×1 | salad dressing, honey mustard ×6 |
+| `4-hydrogen` low · prompt e9181571 | soft drink, ginger ale ×2, tea, iced, brewed, unsweetened ×1 | lemonade, pink ×2, fruit juice drink, pink lemonade ×1 | salad dressing, honey mustard ×6 |
 | `4-hydrogen` low · res ultra_high | soft drink, ginger ale ×2, tea, iced, brewed, sweetened ×1 | lemonade, pink ×2, fruit juice drink, pink lemonade ×1 | salad dressing, honey mustard ×4, salad dressing, honey mustard, regular ×2, salad, green, with red onion, no dressing ×1 |
 | `4-hydrogen` medium | soft drink, ginger ale ×3 | lemonade, pink ×3 | salad dressing, honey mustard, regular ×3, salad dressing, honey mustard ×3, arugula, raw, with red onion, no dressing ×1 |
 | `4-hydrogen` high | soft drink, ginger ale ×3 | lemonade, pink ×2, lemonade, pink, prepared from powder or concentrate ×1 | salad dressing, honey mustard, regular ×4, salad dressing, honey mustard ×2 |

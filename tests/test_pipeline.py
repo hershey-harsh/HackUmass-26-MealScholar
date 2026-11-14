@@ -492,9 +492,11 @@ def test_corrections_on_campus_items(food_db, campus_meal):
     assert (slice_.source, slice_.dish, slice_.match.fdc_id, slice_.item.menu_item) == ("usda", None, 6, None)
     assert slice_.item.servings_likely is None
     assert flat(slice_.nutrients["energy_kcal"]) and slice_.nutrients["energy_kcal"].likely == pytest.approx(266 * 2.5)
-    assert "'pizza slice' is weighed now, so USDA numbers are used; the menu lists Cheese Pizza per 1 Slice." in (
-        weighed.notes
+    note = (
+        "'pizza slice' has an amount in grams now, so USDA numbers are used; the menu lists Cheese Pizza per 1 Slice."
     )
+    assert note in weighed.notes
+    assert not any("weigh" in n for n in weighed.notes), "nobody weighs anything"
     assert weighed.totals["energy_kcal"].likely == pytest.approx(186 / 113.4 * 200 + 266 * 2.5)
 
     old_donor = result.items[0].match
