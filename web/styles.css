@@ -364,7 +364,7 @@ p { text-wrap: pretty; }
   white-space: nowrap;
 }
 .brand svg { width: 30px; height: 30px; flex: none; }
-.brand svg rect, #mark rect { fill: var(--mark-tile); }
+.brand svg, .ps-mark { color: var(--mark-tile); }
 .nav-main { display: none; }
 
 /* Theme: System, Light or Dark as native radios drawn as segments (app.js; hidden without it).
