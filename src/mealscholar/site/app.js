@@ -411,22 +411,37 @@ const laptop = matchMedia("(min-width: 64em)");
 const PLUS_LANE = 104; // the 60px button, 28px from the bottom, and a 16px gap above it
 let sideFitQueued = false;
 
+// The parts that don't change while scrolling (the + lane and the pinned line) are measured once
+// per render or resize; a scroll frame then reads one rectangle and writes only when the height
+// changes, so Safari isn't forced through a layout on every frame.
+const sideFit = { lane: 16, pinned: 0, last: "" };
+
+function measureSideFit() {
+  const card = $(".upcoming", els.dashSide);
+  if (!card) return;
+  const plus = els.plus && getComputedStyle(els.plus).display !== "none" ? els.plus.getBoundingClientRect() : null;
+  // Clear of the +, the card still ends 16px above the window's bottom edge.
+  sideFit.lane = plus && plus.left < card.getBoundingClientRect().right ? PLUS_LANE : 16;
+  // Never measure from above the pinned line: once the page end pushes the column up, the card
+  // keeps its pinned height and moves with it, instead of growing into the space it left.
+  sideFit.pinned = parseFloat(getComputedStyle(els.dashSide).top) || 0;
+  sideFit.last = "";
+}
+
 function fitSideCard() {
   sideFitQueued = false;
   const card = $(".upcoming", els.dashSide);
   if (!card) return;
-  const plus = els.plus && getComputedStyle(els.plus).display !== "none" ? els.plus.getBoundingClientRect() : null;
-  const box = card.getBoundingClientRect();
   if (!laptop.matches || document.body.dataset.view !== "today") {
-    card.style.maxHeight = "";
+    if (sideFit.last !== "") card.style.maxHeight = "";
+    sideFit.last = "";
     return;
   }
-  // Clear of the +, the card still ends 16px above the window's bottom edge.
-  const lane = plus && plus.left < box.right ? PLUS_LANE : 16;
-  // Never measure from above the pinned line: once the page end pushes the column up, the card
-  // keeps its pinned height and moves with it, instead of growing into the space it left.
-  const pinned = parseFloat(getComputedStyle(els.dashSide).top) || 0;
-  card.style.maxHeight = `${Math.max(240, Math.round(window.innerHeight - lane - Math.max(box.top, pinned)))}px`;
+  const top = Math.max(card.getBoundingClientRect().top, sideFit.pinned);
+  const value = `${Math.max(240, Math.round(window.innerHeight - sideFit.lane - top))}px`;
+  if (value === sideFit.last) return;
+  card.style.maxHeight = value;
+  sideFit.last = value;
 }
 
 function queueSideFit() {
@@ -435,13 +450,18 @@ function queueSideFit() {
   requestAnimationFrame(fitSideCard);
 }
 
+function remeasureSideFit() {
+  measureSideFit();
+  queueSideFit();
+}
+
 const onScroll = () => {
   els.topbar.classList.toggle("is-scrolled", window.scrollY > 4);
   queueSideFit();
 };
 window.addEventListener("scroll", onScroll, { passive: true });
-window.addEventListener("resize", queueSideFit);
-laptop.addEventListener("change", queueSideFit);
+window.addEventListener("resize", remeasureSideFit);
+laptop.addEventListener("change", remeasureSideFit);
 
 /** Laptops: the pinned left column scrolls inside itself when it's taller than its slot (larger
     browser text, a short window, an open "How it's scored"). Its scrollbar is hidden, so a soft fade
@@ -3640,6 +3660,7 @@ function renderUpcoming() {
       </div>
       <p class="upcoming__count">${items.length} item${items.length === 1 ? "" : "s"} on the menu</p>
     </section>`;
+  measureSideFit();
   fitSideCard();
 }
 
