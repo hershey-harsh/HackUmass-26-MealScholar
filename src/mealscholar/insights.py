@@ -2,16 +2,57 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 
+from pydantic import BaseModel
+
 from .compute import add_ranges, daily_value_pct
-from .nutrients import NUTRIENTS
+from .nutrients import BY_KEY, NUTRIENTS
 from .schemas import MealResult, Range
 
 LOW_DV_PCT = 50.0
 """A micronutrient day counts as low when the likely intake is under half the Daily Value."""
+
+# The day's "nutrient balance" score, 0 to 100, exactly as the app computes it: the likely amounts
+# against the FDA Daily Values. Points toward 100% of the DV for the nutrients most people get too
+# little of, points off past 100% for the ones most people get too much of. Information only: no
+# goals of ours are read, and it is never medical advice.
+SCORE_PLUS = (
+    "protein_g",
+    "fiber_g",
+    "calcium_mg",
+    "iron_mg",
+    "potassium_mg",
+    "vitamin_a_ug",
+    "vitamin_c_mg",
+    "vitamin_d_ug",
+)
+SCORE_MINUS = ("sat_fat_g", "sodium_mg")
+SUGARS_DV_G = 50.0
+"""The label's Daily Value for added sugars; total sugars have none (nutrients.py), so both score against it."""
+PLUS_POINTS = 100 / len(SCORE_PLUS)
+MINUS_POINTS = 10.0
+SCORE_NOTE = "A rough guide, not medical advice."
+
+
+class ScorePart(BaseModel):
+    key: str
+    label: str
+    pct: float | None
+    """Likely % of the Daily Value; None when the day has no number for this nutrient."""
+    points: float
+    plus: bool
+
+
+class HealthScore(BaseModel):
+    score: int | None
+    """0-100; None when no part has data."""
+    parts: list[ScorePart]
+    note: str = SCORE_NOTE
 
 
 @dataclass(frozen=True, slots=True)
