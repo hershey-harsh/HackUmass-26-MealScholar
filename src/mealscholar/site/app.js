@@ -4542,7 +4542,7 @@ function passwordSectionHtml(user) {
 }
 
 /** System, Light or Dark, saved on this device. The theme script in index.html applies the choice
-    and keeps this control and the footer's in step (both carry data-theme-input). */
+    when a data-theme-input control changes. */
 function appearanceSectionHtml() {
   const choice = window.MealScholarTheme?.choice() ?? "system";
   const option = (value, label, glyph) => `
