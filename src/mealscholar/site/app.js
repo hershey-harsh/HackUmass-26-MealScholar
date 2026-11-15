@@ -32,6 +32,7 @@ const els = {
   railAlerts: $("#rail-alerts"),
   railDot: $("#rail-alerts .rail__dot"),
   railSettings: $("#rail-settings"),
+  railLogout: $("#rail-logout"),
   viewfinder: $("#viewfinder"),
   library: $("#photo"),
   camera: $("#camera"),
@@ -2668,6 +2669,7 @@ function updateAccountUi() {
   const settingsOnly = !user && state.prefsOn && state.localUser; // no account, but settings to change
   els.accountButton.hidden = !(user || settingsOnly);
   els.railSettings.hidden = !(user || settingsOnly);
+  els.railLogout.hidden = !user;
   els.accountButton.classList.toggle("avatar--gear", settingsOnly);
   document.body.dataset.account = user ? "on" : "off";
   if (settingsOnly) {
@@ -3484,7 +3486,7 @@ function renderAccountBody() {
     ${passwordSectionHtml(user)}
     <p class="account__status status" role="status"></p>
     <button class="btn btn--soft btn--block" type="button" data-install${installable() ? "" : " hidden"}>${icon("home")}Add to Home Screen</button>
-    <button class="btn btn--secondary btn--block" type="button" data-action="sign-out">${icon("logout")}Sign out</button>
+    <button class="btn btn--secondary btn--block" type="button" data-action="sign-out">${icon("logout")}Log out</button>
     ${dataSectionHtml(user)}`;
 }
 
@@ -3635,18 +3637,20 @@ els.account.addEventListener("change", prefsChange);
 
 els.accountButton.addEventListener("click", openAccount);
 
+/** Log out, from Settings or the sidebar. A failure shows in Settings when it's open, else as a toast. */
 async function signOut(button) {
   await withBusy(button, async () => {
     try {
       await api("/api/auth/logout", { method: "POST" });
     } catch (err) {
       if (err.status !== 401) {
-        setStatus(err.message, { error: true, target: $(".account__status", els.account) });
+        if (els.account.open) setStatus(err.message, { error: true, target: $(".account__status", els.account) });
+        else toast(`Couldn't log out. ${err.message}`);
         return;
       }
     }
     leaveAccount("welcome"); // the sheet closes at once, so focus can land on Welcome
-    toast("You're signed out.");
+    toast("You're logged out.");
   });
 }
 
@@ -6071,6 +6075,7 @@ function accountIdHtml(user) {
             : '<span class="chip chip--alert">Not confirmed</span>'
         }</p>
       </div>
+      <button class="btn btn--soft account__logout" type="button" data-action="sign-out">${icon("logout")}Log out</button>
     </div>
     ${
       user.email_verified
@@ -6200,7 +6205,6 @@ function renderSettingsBody() {
     ${user ? passwordSectionHtml(user) : ""}
     <p class="account__status status" role="status"></p>
     <button class="btn btn--soft btn--block" type="button" data-install${installable() ? "" : " hidden"}>${icon("home")}Add to Home Screen</button>
-    ${user ? `<button class="btn btn--secondary btn--block" type="button" data-action="sign-out">${icon("logout")}Sign out</button>` : ""}
     ${dataSectionHtml(user)}`;
 }
 
@@ -6574,6 +6578,7 @@ els.plus.addEventListener("click", snapMeal);
 // The sidebar's Alerts and Settings do what the bell and the avatar do.
 els.railAlerts.addEventListener("click", openAlerts);
 els.railSettings.addEventListener("click", openAccount);
+els.railLogout.addEventListener("click", () => signOut(els.railLogout));
 
 els.bell.addEventListener("click", openAlerts);
 

@@ -9111,3 +9111,28 @@ body .week-view .micro-card {
     background: none;
   }
 }
+
+/* ---- Nov 15: Log out sits beside the account at the top of Settings (and in the sidebar on laptops). */
+.account__logout {
+  flex: none;
+  margin-left: auto;
+  min-height: 44px;
+  padding: 0 14px 0 12px;
+  gap: 7px;
+  font-size: 0.875rem;
+}
+
+.account__logout .icon {
+  width: 17px;
+  height: 17px;
+}
+
+/* Menu: every station heading gets the same top space, and the gap between stations sits under each
+   one instead, so the first heading in each column lines up with the others across the columns. */
+.menu-cat {
+  padding-bottom: 18px;
+}
+
+.menu-cat .dishes__cat {
+  padding-top: 10px;
+}
