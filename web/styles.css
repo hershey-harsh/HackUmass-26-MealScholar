@@ -2224,3 +2224,10 @@ html:not(.js) .rail-ctrl { display: none; }
 .gallery__frame > img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .gallery__frame--shot { background: var(--surface-2); }
 @media (min-width: 900px) { #videos .gallery { max-width: 980px; margin-inline: auto; } }
+
+/* Features and Examples: the line under the heading sits right under it instead of in a column of its
+   own, and the Features head lines up with its centered cards. */
+#videos .section-head--split, #examples .section-head--split { display: block; }
+#videos .section-head--split .section-sub, #examples .section-head--split .section-sub { max-width: 40em; margin-top: 16px; padding-bottom: 0; }
+#videos .head-actions, #examples .head-actions { margin-top: 20px; }
+@media (min-width: 900px) { #videos .section-head { max-width: 980px; margin-inline: auto; } }
