@@ -3687,17 +3687,21 @@ body[data-screen="auth"] .footer {
   color: var(--ink-2);
 }
 
-/* The account sheet. */
+/* The account sheet. Log out sits beside the email while the email fits on one line there, else it
+   drops under it; the email always stays beside the avatar (56px and its 14px gap). */
 .account__id {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 14px;
 }
 
 .account__who {
   display: grid;
+  flex: 1 1 auto;
   gap: 6px;
   min-width: 0;
+  max-width: calc(100% - 70px);
 }
 
 .account__email {
