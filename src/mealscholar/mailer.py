@@ -266,6 +266,43 @@ def password_reset_email(to: str, link: str) -> Email:
     )
 
 
+def account_deletion_email(to: str, link: str) -> Email:
+    """Asked from a signed-in device (POST /api/auth/delete-account); the link is the confirmation."""
+    return Email(
+        to=to,
+        subject="Confirm deleting your MealScholar account",
+        text=(
+            "Someone signed in to your MealScholar account asked to delete it. To go ahead, open:\n\n"
+            f"{link}\n\n"
+            "Opening the link deletes the account and everything in it: every meal you logged and its "
+            "photo, your goal, dining halls, favorite foods and settings, and your sign-in. This can't "
+            "be undone.\n\n"
+            "The link expires in 1 hour and works once. If you didn't ask for this, do nothing: your "
+            "account stays as it is. Changing your password signs out every other device.\n"
+        ),
+        purpose="delete_account",
+        html=html_email(
+            "Someone signed in to your MealScholar account asked to delete it. To go ahead, use the "
+            "button below. To keep the account, do nothing.",
+            details=[
+                (
+                    "Deleting the account removes",
+                    [
+                        "Every meal you logged and its photo",
+                        "Your goal, dining halls, favorite foods and settings",
+                        "Your sign-in; this can't be undone",
+                    ],
+                )
+            ],
+            link=link,
+            button="Delete my account",
+            footer="You got this because someone signed in to the MealScholar account for this address asked to "
+            "delete it. The link expires in 1 hour and works once. If it wasn't you, do nothing: your account "
+            "stays as it is. Changing your password signs out every other device.",
+        ),
+    )
+
+
 def password_changed_email(to: str, app_url: str) -> Email:
     """After a password change or reset. `app_url` is the app's address, where Forgot password is."""
     link = f"{app_url}/"

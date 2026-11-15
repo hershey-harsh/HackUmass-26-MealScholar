@@ -23,7 +23,7 @@ from .config import Settings
 
 log = logging.getLogger(__name__)
 
-TokenPurpose = Literal["verify_email", "reset_password"]
+TokenPurpose = Literal["verify_email", "reset_password", "delete_account"]
 EmailPurpose = Literal[TokenPurpose, "password_changed", "favorites_digest"]
 
 

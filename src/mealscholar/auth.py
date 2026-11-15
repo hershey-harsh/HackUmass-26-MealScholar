@@ -1,4 +1,4 @@
-"""Accounts: registration, sign-in sessions, email confirmation and password reset.
+"""Accounts: registration, sign-in sessions, email confirmation, password reset and account deletion.
 
 Passwords are hashed with scrypt. The browser holds a random session token in an HttpOnly
 cookie and the server stores only its SHA-256, so a copy of the database can't sign anyone in.
@@ -38,7 +38,15 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .auth_store import AuthStore, EmailTaken, EmailToken, OutboxEmail, Session, TokenPurpose, User, open_store, utc_now
 from .config import Settings
-from .mailer import Email, EmailSender, make_sender, password_changed_email, password_reset_email, verification_email
+from .mailer import (
+    Email,
+    EmailSender,
+    account_deletion_email,
+    make_sender,
+    password_changed_email,
+    password_reset_email,
+    verification_email,
+)
 
 log = logging.getLogger(__name__)
 
@@ -46,8 +54,17 @@ SESSION_COOKIE = "ms_session"
 SESSION_TTL = timedelta(days=30)
 SESSION_TOUCH_EVERY = timedelta(minutes=5)
 """How often a session's last_seen_at is written, at most."""
-TOKEN_TTL: dict[TokenPurpose, timedelta] = {"verify_email": timedelta(hours=24), "reset_password": timedelta(hours=1)}
-LINK_PARAM: dict[TokenPurpose, str] = {"verify_email": "verify", "reset_password": "reset"}
+TOKEN_TTL: dict[TokenPurpose, timedelta] = {
+    "verify_email": timedelta(hours=24),
+    "reset_password": timedelta(hours=1),
+    "delete_account": timedelta(hours=1),
+}
+LINK_PARAM: dict[TokenPurpose, str] = {"verify_email": "verify", "reset_password": "reset", "delete_account": "delete"}
+COMPOSE: dict[TokenPurpose, Callable[[str, str], Email]] = {
+    "verify_email": verification_email,
+    "reset_password": password_reset_email,
+    "delete_account": account_deletion_email,
+}
 
 MIN_PASSWORD, MAX_PASSWORD = 8, 128
 MAX_EMAIL, MAX_NAME, MAX_USER_AGENT, MAX_TOKEN = 254, 80, 200, 128
@@ -127,6 +144,7 @@ FORGOT_MAIL_PER_USER = Rule("forgot-mail", 5, 60 * 60)
 RESEND_PER_USER = Rule("resend", 3, 60 * 60)
 CHANGE_PASSWORD_PER_USER = Rule("change-password", 10, 15 * 60)
 DELETE_ACCOUNT_PER_USER = Rule("delete-account", 10, 15 * 60)
+DELETE_MAIL_PER_USER = Rule("delete-mail", 5, 60 * 60)  # delete links to one inbox, like reset links
 
 
 class RateLimiter:
@@ -347,16 +365,36 @@ class AuthService:
             raise AuthError(401, "Your current password is incorrect.", field="current_password")
         return self._new_password(user, new, client)
 
+    def request_deletion(self, user: User) -> str | None:
+        """Emails a one-time link that deletes the account (confirm_deletion); nothing is deleted
+        yet, and doing nothing keeps the account. Returns the link when demo links are on."""
+        self._limit((DELETE_MAIL_PER_USER, user.id))
+        return self._demo(self._email_link(user, "delete_account"))
+
+    def confirm_deletion(self, token: str, erase: Callable[[str], object] | None = None) -> User:
+        """Uses the link's token up, runs `erase` with the user id (the app's own data for this
+        user: meals, preferences), then deletes the account and signs it out everywhere. The token
+        decides whose account goes, signed in or not. Returns the deleted user."""
+        found = self._email_token(token, "delete_account", use=True)
+        user = self.store.user_by_id(found.user_id) if found else None
+        if user is None:
+            raise AuthError(400, BAD_LINK, field="token")
+        self._erase_and_delete(user, erase)
+        return user
+
     def delete_account(self, user: User, password: str, erase: Callable[[str], object] | None = None) -> None:
-        """Checks the password, runs `erase` with the user id (the app's own data for this user:
-        meals, preferences), then deletes the account and signs it out everywhere. A wrong
-        password deletes nothing."""
+        """Deletes at once on the right password: the fallback for a server whose emails don't go
+        out (settings.email_sending), where a delete link could never arrive. A wrong password
+        deletes nothing."""
         self._limit((DELETE_ACCOUNT_PER_USER, user.id))
         if _length(password) > MAX_PASSWORD or not verify_password(password, user.password_hash):
             raise AuthError(401, "That password is incorrect.", field="password")
+        self._erase_and_delete(user, erase)
+
+    def _erase_and_delete(self, user: User, erase: Callable[[str], object] | None) -> None:
         if erase is not None:
             erase(user.id)
-        self.store.delete_user(user.id)
+        self.store.delete_user(user.id)  # with its sessions, email tokens and queued emails
 
     def recent_emails(self, limit: int = 20) -> list[OutboxEmail]:
         return self.store.recent_emails(limit)
@@ -409,8 +447,7 @@ class AuthService:
             EmailToken(_digest(token), user.id, purpose, created_at=now, expires_at=now + TOKEN_TTL[purpose])
         )
         link = f"{self.settings.public_url}/?{LINK_PARAM[purpose]}={token}"
-        compose = verification_email if purpose == "verify_email" else password_reset_email
-        self._send(compose(user.email, link))
+        self._send(COMPOSE[purpose](user.email, link))
         return link
 
     def _send(self, email: Email) -> None:
@@ -545,7 +582,8 @@ class PasswordChange(BaseModel):
 
 
 class AccountDeletion(BaseModel):
-    password: str
+    password: str | None = None
+    """Only read on a server whose emails don't go out; see delete_account."""
 
 
 class UserInfo(BaseModel):
@@ -584,6 +622,12 @@ class VerificationReply(BaseModel):
 
 class ResetReply(BaseModel):
     """Always empty: the reset link only ever goes out by email."""
+
+
+class DeletionReply(BaseModel):
+    """The delete link went out by email; it is in the reply only when demo links are on."""
+
+    demo_delete_url: str | None = Field(default=None, exclude_if=_is_none)
 
 
 class OutboxItem(BaseModel):
@@ -728,13 +772,40 @@ def change_password(
     return UserReply(user=UserInfo.of(signed_in.user))
 
 
-@router.post("/delete-account", status_code=204)
-def delete_account(body: AccountDeletion, request: Request, user: CurrentUser, auth: Auth) -> Response:
-    """Deletes the account and everything kept for it (meals, preferences), then signs out."""
-    auth.delete_account(user, body.password, getattr(request.app.state, "erase_user_data", None))
+def _signed_out(auth: AuthService) -> Response:
     response = Response(status_code=204)
     response.delete_cookie(SESSION_COOKIE, path="/", secure=auth.settings.cookie_secure, httponly=True, samesite="lax")
     return response
+
+
+@router.post(
+    "/delete-account",
+    status_code=202,
+    response_model=DeletionReply,
+    responses={204: {"description": "Deleted at once: the password path, on a server whose emails don't go out."}},
+)
+def delete_account(
+    request: Request, user: CurrentUser, auth: Auth, body: AccountDeletion | None = None
+) -> DeletionReply | Response:
+    """Emails a link that deletes the account (202); nothing is deleted until it is opened, see
+    /confirm-delete. Only on a server whose emails don't go out (GET /api/status email_sending
+    false) does a body of {"password": ...} delete the account and everything kept for it at
+    once (204) and sign out, as before."""
+    if body is not None and body.password is not None and not auth.settings.email_sending:
+        auth.delete_account(user, body.password, getattr(request.app.state, "erase_user_data", None))
+        return _signed_out(auth)
+    return DeletionReply(demo_delete_url=auth.request_deletion(user))
+
+
+@router.post("/confirm-delete", status_code=204)
+def confirm_delete(body: LinkToken, request: Request, auth: Auth) -> Response:
+    """`token` comes from the emailed link (?delete=...). Works signed in or not: the link says
+    whose account goes. Deletes everything kept for it (meals, preferences) and the account with
+    its sessions, and clears the cookie unless this browser is signed in as someone else."""
+    auth.confirm_deletion(body.token, getattr(request.app.state, "erase_user_data", None))
+    if auth.session_user_id(request.cookies.get(SESSION_COOKIE)) is not None:  # another account's link
+        return Response(status_code=204)
+    return _signed_out(auth)
 
 
 @router.get("/dev/outbox", include_in_schema=False)
@@ -828,7 +899,7 @@ class AuthRouteGuard:
 
 class HideQueryValues(logging.Filter):
     """Hides query values in uvicorn's access log, which prints every request's path and query:
-    the tokens of email links (/?verify=..., /?reset=...) and device coordinates
+    the tokens of email links (/?verify=..., /?reset=..., /?delete=...) and device coordinates
     (POST /api/meals?lat=...&lon=..., GET /api/dining/nearest?lat=...&lon=...), which must never
     be stored."""
 

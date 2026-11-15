@@ -8675,3 +8675,46 @@ body[data-ranges="off"] .band__tick {
 body[data-ranges="off"] [data-ranges-only] {
   display: none;
 }
+
+/* ---- Delete account by email (auth.py delete-account → confirm-delete). Settings → Your data shows
+   the "Check your email" panel in the .data-ask box once the link is out; the ?delete= screen lists
+   what goes in hairline rows under a small label, then the danger button over Keep it. */
+
+.data-ask__sent:focus {
+  outline: none;
+}
+
+.data-ask .delete__ask strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.data-ask .banner__status {
+  margin: -2px 0 0;
+}
+
+.delete-what {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px 4px;
+}
+
+.delete-what__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.delete-what__list li {
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.delete-choice {
+  display: grid;
+  gap: 10px;
+}

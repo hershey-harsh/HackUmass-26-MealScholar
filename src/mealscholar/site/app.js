@@ -110,6 +110,9 @@ const state = {
   demoVerifyUrl: null,
   resendUntil: 0, // ms timestamp: Resend link waits until then (after a send, or a 429)
   resetToken: null,
+  deleteToken: null, // from a ?delete= link: the Delete your account? screen posts it
+  deleteUntil: 0, // ms timestamp: the delete panel's Resend waits until then
+  deleteDemoUrl: null,
   authPath: [], // signed out: the account screens stacked on Welcome, e.g. ["signin", "forgot"]
   // Bumped whenever the account changes (sign in, sign out, session end). Work started under an
   // older epoch (an analysis, opening a meal) drops its result instead of showing it to someone else.
@@ -3155,6 +3158,44 @@ const AUTH_SCREENS = {
         <button class="btn btn--primary btn--block" type="button" data-auth="${next}">${label}</button>
       </div>`;
   },
+
+  // ?delete=TOKEN: the emailed link's last check. Nothing happens until Delete my account is pressed.
+  delete: ({ phase = "ask", message = "" } = {}) => {
+    if (phase === "failed") {
+      const how = state.user ? "You can ask for a new one in Settings, under Your data." : "Sign in to ask for a new one in Settings, under Your data.";
+      return `
+        <div class="auth-screen">
+          <header class="auth-head">
+            <p class="eyebrow">Account</p>
+            <h1 class="view-title" tabindex="-1">That link didn't work</h1>
+            <p class="lede">Delete links work for 1 hour and only once. ${how}</p>
+          </header>
+          <p class="status is-error" role="alert">${esc(message)}</p>
+          <button class="btn btn--primary btn--block" type="button" data-auth="${state.user ? "app" : "signin"}">${state.user ? "Continue" : "Sign in"}</button>
+        </div>`;
+    }
+    return `
+      <div class="auth-screen">
+        <header class="auth-head">
+          <p class="eyebrow">Account</p>
+          <h1 class="view-title" tabindex="-1">Delete your account?</h1>
+          <p class="lede">This is the last step. Everything in the account goes with it, and it can't be undone.</p>
+        </header>
+        <div class="card delete-what">
+          <p class="eyebrow">What goes</p>
+          <ul class="delete-what__list">
+            <li>Every meal you logged and its photo</li>
+            <li>Your goal, dining halls, favorite foods and settings</li>
+            <li>Your sign-in. The email can sign up again.</li>
+          </ul>
+        </div>
+        <p class="form-error" role="alert" hidden></p>
+        <div class="delete-choice">
+          <button class="btn btn--danger btn--block" type="button" data-action="confirm-delete">${icon("trash")}Delete my account</button>
+          <button class="btn btn--secondary btn--block" type="button" data-auth="${state.user ? "app" : "welcome"}">Keep it</button>
+        </div>
+      </div>`;
+  },
 };
 
 // ---- forms
@@ -3601,6 +3642,11 @@ els.account.addEventListener("click", (event) => {
       return clearHistory(button);
     case "erase-data":
       return eraseData(button);
+    case "delete-email":
+    case "delete-resend":
+      return requestDeleteLink(button);
+    case "demo-delete":
+      return demoDelete();
   }
   prefsClick(event); // the Settings widgets (chips, favorites, nearest hall)
 });
@@ -3719,6 +3765,150 @@ async function deleteAccount(form) {
     startOver("Your account and its data are deleted.");
   });
 }
+
+// ---- Delete account by email: Settings asks the server for a link (POST /api/auth/delete-account,
+// nothing deleted yet); opening it shows the Delete your account? screen, whose button posts the
+// link's token to /api/auth/confirm-delete. Without email sending, the password form above stays.
+
+/** Seconds until the delete panel's Resend works again: a minute after each send, or what a 429 said. */
+const deleteWait = () => Math.max(0, Math.ceil((state.deleteUntil - Date.now()) / 1000));
+let deleteTimer = null;
+
+/** Counts the delete panel's Resend down in place, like the confirm-email banner's. */
+function startDeleteCooldown(seconds) {
+  state.deleteUntil = Date.now() + seconds * 1000;
+  clearInterval(deleteTimer);
+  const tick = () => {
+    const wait = deleteWait();
+    for (const button of $$('[data-action="delete-resend"]')) {
+      $(".resend__label", button).textContent = resendLabel(wait);
+      if (wait) button.setAttribute("aria-disabled", "true");
+      else button.removeAttribute("aria-disabled");
+    }
+    if (!wait) {
+      clearInterval(deleteTimer);
+      deleteTimer = null;
+    }
+  };
+  tick();
+  deleteTimer = setInterval(tick, 1000);
+}
+
+/** The Delete account panel once the link is out. */
+function deleteSentHtml(email) {
+  const wait = deleteWait();
+  return `
+    <p class="delete__ask data-ask__sent" tabindex="-1">Check your email: we sent a link to <strong>${esc(email)}</strong>. Opening it deletes the account. It works for 1 hour.</p>
+    <div class="delete__row">
+      <button class="btn btn--soft" type="button" data-action="delete-resend"${wait ? ' aria-disabled="true"' : ""}>${icon("mail")}<span class="resend__label">${resendLabel(wait)}</span></button>
+      ${state.deleteDemoUrl ? `<button class="btn btn--primary" type="button" data-action="demo-delete">${icon("trash")}Open the link (demo)</button>` : ""}
+      <button class="btn btn--secondary" type="button" data-action="cancel-data">Close</button>
+    </div>
+    <p class="banner__status" role="status"></p>`;
+}
+
+/** Open the panel in its sent state. Focus goes to its text (read first) or stays on Resend. */
+function showDeletePanel(panel, email, { resend = false } = {}) {
+  for (const other of $$(".data-ask", els.account)) if (other !== panel) closeDataAsk(other);
+  panel.innerHTML = deleteSentHtml(email);
+  panel.hidden = false;
+  $('[data-ask="data-delete-account"]', els.account)?.setAttribute("aria-expanded", "true");
+  setStatus("", { target: dataStatus() });
+  if (resend) return $('[data-action="delete-resend"]', panel)?.focus({ preventScroll: true });
+  $(".data-ask__sent", panel)?.focus({ preventScroll: true });
+  panel.scrollIntoView({ block: "nearest", behavior: reducedMotion.matches ? "auto" : "smooth" });
+}
+
+/** Delete account (the row button) or Resend (in the panel): asks the server to email the link. */
+async function requestDeleteLink(button) {
+  const panel = document.getElementById("data-delete-account");
+  const user = state.user;
+  if (!panel || !user) return;
+  const resend = button.dataset.action === "delete-resend";
+  if (resend && deleteWait()) return; // aria-disabled: still focusable, so send nothing
+  if (!resend && (deleteWait() || !panel.hidden)) {
+    // A link went out this minute: the panel says so, instead of sending another.
+    if (panel.hidden) return showDeletePanel(panel, user.email);
+    return $('[data-action="delete-resend"]', panel)?.focus();
+  }
+  await withBusy(button, async () => {
+    let reply;
+    try {
+      reply = await api("/api/auth/delete-account", { method: "POST", session: true });
+    } catch (err) {
+      if (err.signedOut) return;
+      if (resend) {
+        if (err.status === 429 && err.retryAfter) startDeleteCooldown(err.retryAfter);
+        deleteStatus(panel, err.message, { error: true });
+      } else {
+        setStatus(err.message, { error: true, target: dataStatus() });
+      }
+      return;
+    }
+    state.deleteDemoUrl = reply?.demo_delete_url ?? null;
+    startDeleteCooldown(RESEND_COOLDOWN);
+    showDeletePanel(panel, user.email, { resend });
+    if (resend) deleteStatus(panel, "New link sent. It works for 1 hour.");
+  });
+}
+
+/** The panel's status line sits under its buttons, at the foot of the sheet: bring it into view. */
+function deleteStatus(panel, message, options = {}) {
+  confirmStatus(panel, message, options);
+  $(".banner__status", panel)?.scrollIntoView({ block: "nearest", behavior: reducedMotion.matches ? "auto" : "smooth" });
+}
+
+/** Demo only: the server put the delete link in its reply, so show the screen it opens right here. */
+function demoDelete() {
+  let token = null;
+  try {
+    token = new URL(state.deleteDemoUrl, location.origin).searchParams.get("delete");
+  } catch {
+    token = null;
+  }
+  if (!token) return;
+  state.deleteToken = token;
+  showAuth("delete");
+  syncHistory();
+}
+
+/** Delete my account on the ?delete= screen: the token says whose account goes. */
+async function confirmDelete(button) {
+  const screen = button.closest(".auth-screen");
+  const token = state.deleteToken ?? "";
+  await withBusy(button, async () => {
+    try {
+      await api("/api/auth/confirm-delete", { method: "POST", ...jsonBody({ token }) });
+    } catch (err) {
+      if (err.field === "token") {
+        state.deleteToken = null; // a dead link doesn't come back
+        showAuth("delete", { phase: "failed", message: err.message });
+      } else if (screen?.isConnected) {
+        setFormAlert(screen, err.message);
+      }
+      return;
+    }
+    state.deleteToken = null;
+    if (state.user) {
+      // Signed in as someone else? That link took another account, and this sign-in goes on.
+      try {
+        const { user } = await api("/api/auth/me");
+        state.user = user;
+        enterApp({ focus: true });
+        toast(`That link deleted another account. You're still signed in as ${user.email}.`);
+        return;
+      } catch {
+        // 401: it was this account
+      }
+    }
+    startOver("Your account and its data are deleted.");
+  });
+}
+
+els.auth.addEventListener("click", (event) => {
+  const button = event.target.closest('[data-action="confirm-delete"]');
+  if (button) confirmDelete(button);
+});
 
 /** Reload from the top, so nothing from before stays in memory; the message shows after. */
 function startOver(message) {
@@ -5854,13 +6044,13 @@ function appearanceSectionHtml() {
 /** Settings → Your data: clear history, and delete everything (no account) or the account itself.
     Each asks once more, in place, before anything is deleted. */
 function dataSectionHtml(user) {
-  const row = (id, title, note, label, danger) => `
+  const row = (id, title, note, label, danger, action = "ask-data") => `
     <div class="data-row">
       <div class="data-row__text">
         <p class="data-row__title">${title}</p>
         <p class="data-row__note">${note}</p>
       </div>
-      <button class="btn ${danger ? "btn--danger" : "btn--secondary"} data-row__btn" type="button" data-action="ask-data" data-ask="${id}" aria-expanded="false" aria-controls="${id}">${label}</button>
+      <button class="btn ${danger ? "btn--danger" : "btn--secondary"} data-row__btn" type="button" data-action="${action}" data-ask="${id}" aria-expanded="false" aria-controls="${id}">${label}</button>
     </div>`;
   const buttons = (action, label) => `
     <div class="delete__row">
@@ -5872,8 +6062,14 @@ function dataSectionHtml(user) {
       <p class="delete__ask">${text}</p>
       ${buttons(action, label)}
     </div>`;
+  // With emails going out, the account is deleted by a link we email (requestDeleteLink); the panel
+  // fills in once it is sent. Otherwise the password deletes at once, with a check in place.
+  const byEmail = `${row("data-delete-account", "Delete account", "Deletes your account and everything in it: meals and their photos, goal, dining halls, favorites and settings. A link we email you confirms it.", "Delete account", true, "delete-email")}
+      <div class="data-ask" id="data-delete-account" hidden></div>`;
   const last = user
-    ? `${row("data-delete-account", "Delete account", "Deletes your account and everything in it: meals and their photos, goal, dining halls, favorites and settings.", "Delete account", true)}
+    ? emailSending()
+      ? byEmail
+      : `${row("data-delete-account", "Delete account", "Deletes your account and everything in it: meals and their photos, goal, dining halls, favorites and settings.", "Delete account", true)}
       <form class="data-ask form form--plain" id="data-delete-account" data-form="delete-account" novalidate hidden>
         <p class="delete__ask">This can't be undone. Enter your password to delete your account.</p>
         <input class="visually-hidden" type="email" name="username" autocomplete="username" value="${esc(user.email)}" tabindex="-1" aria-hidden="true" readonly>
@@ -6324,14 +6520,16 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden && document.body.dataset.screen === "app" && ensureToday()) loadDashboard();
 });
 
-/** ?verify= and ?reset= carry one-time tokens: take them, then drop them from the address bar. */
+/** ?verify=, ?reset= and ?delete= carry one-time tokens: take them, then drop them from the address bar. */
 function takeLinkTokens() {
   const url = new URL(location.href);
-  const tokens = { verify: url.searchParams.get("verify"), reset: url.searchParams.get("reset") };
-  url.searchParams.delete("verify");
-  url.searchParams.delete("reset");
+  const tokens = {};
+  for (const param of ["verify", "reset", "delete"]) {
+    tokens[param] = url.searchParams.get(param);
+    url.searchParams.delete(param);
+  }
   baseUrl = url.pathname + url.search;
-  if (tokens.verify !== null || tokens.reset !== null) history.replaceState(null, "", baseUrl + url.hash);
+  if (Object.values(tokens).some((token) => token !== null)) history.replaceState(null, "", baseUrl + url.hash);
   return tokens;
 }
 
@@ -6398,10 +6596,15 @@ async function init() {
     state.user = null;
   }
   if (state.user) await setupPrefs();
-  const resetToken = links.reset ?? (links.verify ? null : tabStore.get(RESET_KEY));
+  const resetToken = links.reset ?? (links.verify || links.delete ? null : tabStore.get(RESET_KEY));
   if (resetToken) {
     state.resetToken = resetToken;
     showAuth("reset");
+    return syncHistory();
+  }
+  if (links.delete) {
+    state.deleteToken = links.delete;
+    showAuth("delete"); // asks first, signed in or not; the token stays in memory only
     return syncHistory();
   }
   if (links.verify) {
