@@ -670,6 +670,15 @@ async function analyze(file) {
   state.analyzing = true;
   setViewfinder("analyzing");
   setStatus("Analyzing your photo. This usually takes a few seconds.");
+  // Phones: the frame sits under the photo options, its working line under the tab bar. Bring its foot
+  // clear of the tab bar (the root's scroll-padding), as far as the title above it stays on screen.
+  if (media("(max-width: 39.99em)").matches) {
+    const root = getComputedStyle(document.documentElement);
+    const below = els.viewfinder.getBoundingClientRect().bottom - (window.innerHeight - (parseFloat(root.scrollPaddingBottom) || 0));
+    const room = els.captureTitle.getBoundingClientRect().top - (parseFloat(root.scrollPaddingTop) || 0);
+    const by = Math.min(below, room);
+    if (by > 0) window.scrollBy({ top: by, behavior: leaving || reducedMotion.matches ? "auto" : "smooth" });
+  }
 
   const params = new URLSearchParams();
   params.set("taken_at", localIso(photoTime(file)));
