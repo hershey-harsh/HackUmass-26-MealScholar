@@ -6741,7 +6741,7 @@ const STEP_TITLES = {
 
 // A lede is a sentence, or a function of the choices so far (the goal step comes before Ranges).
 const STEP_LEDES = {
-  name: "This is how the dashboard greets you.",
+  name: "Shown in Settings. Optional.",
   goal: () =>
     `Optional. With a goal, the dashboard shows what's left for the day. Without one, it shows ${rangesOn() ? "the ranges of" : "just"} what you ate.`,
   ranges: "Every amount is an estimate. Show the range it falls in next to the likely number?",
