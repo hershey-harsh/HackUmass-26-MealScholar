@@ -2146,6 +2146,7 @@ function ensureDashboard() {
   if (ensureToday() || !rendered.day.startsWith(`${state.day}|`)) return loadDashboard();
   const keys = [state.day, ...pastKeys(weekKeys())];
   if (keys.some((key) => !dayCache.get(key)?.value || dayCache.get(key).stale)) loadDashboard();
+  else refreshDining(); // the upcoming meal may have moved on
 }
 
 async function loadDashboard() {
@@ -4465,21 +4466,36 @@ async function setupPrefs() {
   return true;
 }
 
+/** The halls with a menu. A failure that may pass (a restart, a blip) is tried once more; if that fails
+    too, or the server has no menus at all, the dining parts stay off. */
 async function loadDining() {
   const epoch = state.epoch;
-  try {
-    const locations = await api("/api/dining/locations");
-    if (epoch !== state.epoch) return;
-    const usable = Array.isArray(locations) ? locations.filter((l) => l && Number.isInteger(l.id) && typeof l.name === "string") : [];
-    state.dining = { locations: usable };
-  } catch {
-    if (epoch !== state.epoch) return;
-    state.dining = false; // 503: the menus aren't connected; any other failure reads the same for now
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const locations = await api("/api/dining/locations");
+      if (epoch !== state.epoch) return;
+      const usable = Array.isArray(locations) ? locations.filter((l) => l && Number.isInteger(l.id) && typeof l.name === "string") : [];
+      state.dining = { locations: usable };
+    } catch (err) {
+      if (epoch !== state.epoch) return;
+      if (attempt === 0 && !diningGone(err)) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        if (epoch !== state.epoch) return;
+        continue;
+      }
+      state.dining = false;
+    }
+    break;
   }
   updatePrefsUi();
 }
 
-/** The menus went away mid-session (a 503): the dining parts fold away. */
+/** dining.py's 503 when the server has no menus at all. Its other 503 ("aren't available right now. Try
+    again in a minute.") passes, so it reads like any other failure: shown where it happened, tried again. */
+const DINING_NOT_CONNECTED = "Dining menus aren't connected.";
+const diningGone = (err) => err?.status === 503 && err.message === DINING_NOT_CONNECTED;
+
+/** The menus went away mid-session (a 503 that says so): the dining parts fold away. */
 function diningLost() {
   if (!state.dining) return;
   state.dining = false;
@@ -4544,7 +4560,7 @@ async function loadAlerts() {
     state.alerts = Array.isArray(alerts) ? alerts.filter((a) => a && typeof a.name === "string") : [];
   } catch (err) {
     if (epoch !== state.epoch) return;
-    if (err.status === 503) return diningLost();
+    if (diningGone(err)) return diningLost();
   }
   updateBell();
   if (els.panel.open && els.panel.dataset.kind === "alerts") renderAlertsPanel({ refocus: false });
@@ -4555,7 +4571,8 @@ function updateBell() {
   els.bell.hidden = !show;
   const n = state.alerts.length;
   els.bellDot.hidden = !n;
-  const label = n ? `Alerts: ${n} of your favorites ${n === 1 ? "is" : "are"} on the menu this week` : "Alerts";
+  const dishes = new Set(state.alerts.map((a) => dishKey(a.name))).size; // an alert is one dish at one hall for one meal
+  const label = dishes ? `Alerts: ${dishes} of your favorites ${dishes === 1 ? "is" : "are"} on the menu this week` : "Alerts";
   els.bell.setAttribute("aria-label", label);
   els.railAlerts.hidden = !show;
   els.railDot.hidden = !n;
@@ -4574,7 +4591,7 @@ async function fetchNearest(lat, lon) {
     state.nearest = near;
     return near;
   } catch (err) {
-    if (err.status === 503) diningLost();
+    if (diningGone(err)) diningLost();
     return null;
   }
 }
@@ -4617,23 +4634,68 @@ function nearestNoteHtml(note, where) {
 // ---- the upcoming meal (the right column on laptops, a card on phones)
 
 let upcomingSeq = 0;
+let upcomingLoading = 0; // the upcomingSeq of the fetch still on its way, else 0
+const DINING_TTL = 15 * 60_000; // the next meal moves on with the clock: fetch it again after this
 
-/** Draw the side column from what's known; fetch it when nothing is. */
+/** A next-meal answer still worth showing: under 15 minutes old and not for a day gone by. */
+const freshMeal = (entry) => Boolean(entry) && (entry.pending || (Date.now() - entry.at < DINING_TTL && !(entry.meal?.date < localDate())));
+
+/** Fetch again the next meals on show that have gone stale (see freshMeal): the upcoming meal, and the
+    Menu tab's halls while it's open. On coming back to the page, and once a minute while it's on screen. */
+function refreshDining() {
+  if (!diningOn()) return;
+  if (state.upcoming && !freshMeal(state.upcoming) && !upcomingLoading) loadUpcoming();
+  if (state.view === "menu" && menuHallIds().some((id) => !freshMeal(menus.data.get(id)))) ensureMenus({ refresh: true });
+}
+
+let upcomingShown = null; // what the side card was last drawn from: { entry, sig }
+const upcomingSig = () => `${busyNow.sig}|${state.prefsVersion}|${state.todayKey}`;
+
+/** Draw the side column from what's known, unless it shows that already (a day pick leaves the card,
+    its scroll and its focus alone); fetch it when nothing is, unless that's on its way. */
 function ensureUpcoming() {
   if (!diningOn()) {
     els.dashSide.innerHTML = "";
     return;
   }
-  if (state.upcoming) renderUpcoming();
-  else loadUpcoming();
+  if (!freshMeal(state.upcoming)) {
+    if (!upcomingLoading) loadUpcoming();
+  } else if (upcomingShown?.entry !== state.upcoming) renderUpcoming();
+  else if (upcomingShown.sig !== upcomingSig()) redrawUpcoming();
 }
 
+/** Draw the same meal again in place: the list keeps its scroll, and keyboard focus stays on the same dish
+    (or on the list, or the cam line). For a busy reading or a change of settings that keeps the meal. */
+function redrawUpcoming() {
+  const list = $(".dishes", els.dashSide);
+  const top = list?.scrollTop ?? 0;
+  const active = els.dashSide.contains(document.activeElement) ? document.activeElement : null;
+  const dish = active?.closest("[data-dish]")?.dataset.dish;
+  renderUpcoming();
+  const next = $(".dishes", els.dashSide);
+  if (next && top) next.scrollTop = top;
+  if (!active) return;
+  const target = dish != null ? $(`[data-dish="${CSS.escape(dish)}"]`, els.dashSide) : active.matches("[data-cam]") ? $("[data-cam]", els.dashSide) : active === list ? next : null;
+  target?.focus({ preventScroll: true });
+}
+
+/** Fetch the upcoming meal and draw it; a call while one is on its way starts it over. */
 async function loadUpcoming() {
   if (!diningOn() || document.body.dataset.screen !== "app") return;
   ensureBusy();
   const seq = ++upcomingSeq;
+  upcomingLoading = seq;
+  try {
+    await fetchUpcoming(seq);
+  } finally {
+    if (upcomingLoading === seq) upcomingLoading = 0;
+  }
+}
+
+async function fetchUpcoming(seq) {
   const epoch = state.epoch;
-  els.dashSide.innerHTML = upcomingSkeletonHtml();
+  const held = els.dashSide.contains(document.activeElement); // the card had keyboard focus (its Try again)
+  if (!state.upcoming) els.dashSide.innerHTML = upcomingSkeletonHtml(); // a refresh keeps the card until the answer
   let locationId = null;
   let note = null;
   if (els.location.checked) {
@@ -4647,19 +4709,29 @@ async function loadUpcoming() {
   try {
     const meal = await api(`/api/me/dining/next${locationId ? `?location_id=${encodeURIComponent(locationId)}` : ""}`);
     if (seq !== upcomingSeq || epoch !== state.epoch) return;
-    state.upcoming = { meal, note, locationId };
+    // The same answer again (most refreshes): keep it, so the card isn't drawn again.
+    const old = state.upcoming;
+    if (old?.meal && old.locationId === locationId && old.note === note && JSON.stringify(old.meal) === JSON.stringify(meal)) {
+      old.at = Date.now();
+      return;
+    }
+    state.upcoming = { meal, note, locationId, at: Date.now() };
   } catch (err) {
     if (seq !== upcomingSeq || epoch !== state.epoch || err.signedOut) return;
-    if (err.status === 503) return diningLost();
-    state.upcoming = { error: err, note, locationId };
+    if (diningGone(err)) return diningLost();
+    state.upcoming = { error: err, note, locationId, at: Date.now() };
   }
+  const refocus = els.dashSide.contains(document.activeElement) || (held && document.activeElement === document.body);
   renderUpcoming();
+  // Focus that was in the card goes to the new one: its Try again, or its list.
+  if (refocus) $('[data-action="retry-upcoming"], .dishes', els.dashSide)?.focus({ preventScroll: true });
 }
 
 const upcomingSkeletonHtml = () =>
   `<div class="card upcoming is-skeleton" aria-hidden="true"><span class="sk sk--eyebrow"></span><span class="sk sk--num"></span><span class="sk sk--line"></span>${'<span class="sk-row"><span class="sk sk--line"></span><span class="sk sk--short"></span></span>'.repeat(4)}</div>`;
 
 function renderUpcoming() {
+  upcomingShown = { entry: state.upcoming, sig: upcomingSig() };
   if (!diningOn() || !state.upcoming) {
     els.dashSide.innerHTML = "";
     return;
@@ -4777,7 +4849,7 @@ function dishLegendHtml(fav, avoid, off, kinds = []) {
     ...Object.keys(KINDS)
       .filter((k) => shown.has(k))
       .map((k) => `<span class="legend__item">${kindIconHtml(k)}${KINDS[k][0].toLowerCase()}</span>`),
-    fav ? `<span class="legend__item">${icon("star")}favorite</span>` : "",
+    fav ? `<span class="legend__item legend__item--fav">${icon("star")}favorite</span>` : "",
     avoid ? `<span class="legend__item">${icon("avoid")}has an allergen you avoid</span>` : "",
     off ? `<span class="legend__item"><span class="legend__off" aria-hidden="true"></span>not in your diet</span>` : "",
   ].filter(Boolean);
@@ -4808,8 +4880,9 @@ function dishRowHtml({ name, calories, fav, avoid, off, avoided, kinds = [], ref
 const MENU_HALL_KEY = "mealscholar:menu-hall";
 const DEFAULT_HALL = 0; // no hall chosen: the server's default hall (no location_id)
 const menus = {
-  data: new Map(), // hall id -> { meal } | { error } | { pending: true }
+  data: new Map(), // hall id -> { meal } | { error } | { pending: true }, with `at`: when it came
   seq: 0,
+  loading: new Set(), // hall ids whose next meal is on its way
   day: null, // null: today, the next meal; else another day's YYYY-MM-DD, every meal it lists
   days: new Map(), // `${hall id}|${day}` -> { menu } | { error } | { pending: true }
   meal: null, // the meal key on show on another day (breakfast, lunch...), kept from day to day
@@ -4823,6 +4896,7 @@ const favoriteKeys = () => new Set((state.prefs?.favorites ?? []).map((f) => dis
 function resetMenus(keepDay = false) {
   menus.seq += 1;
   menus.data.clear();
+  menus.loading = new Set(); // answers still on their way are for the old settings: dropped (see menus.seq)
   menus.days.clear();
   menus.note = "";
   if (!keepDay) {
@@ -4878,11 +4952,12 @@ function ensureBusy() {
       busyNow.sig = sig;
       if (document.body.dataset.screen !== "app") return;
       if (state.view === "menu") renderMenu();
-      if (state.upcoming && !state.upcoming.error) renderUpcoming();
+      if (state.upcoming && !state.upcoming.error) redrawUpcoming();
     })
     .catch((err) => {
       busyNow.at = Date.now();
-      if (err.status === 503 || err.status === 404) busyNow.off = true; // no hall cams on this server
+      // No hall cams on this server; any other failure (a passing 503 too) is tried again in a minute.
+      if (err.status === 404 || (err.status === 503 && err.message === "Hall cams aren't connected on this server.")) busyNow.off = true;
     })
     .finally(() => {
       busyNow.pending = null;
@@ -4890,7 +4965,9 @@ function ensureBusy() {
 }
 
 setInterval(() => {
-  if (!document.hidden && document.body.dataset.screen === "app") ensureBusy();
+  if (document.hidden || document.body.dataset.screen !== "app") return;
+  ensureBusy();
+  refreshDining(); // a page left open moves on to the next meal by itself
 }, BUSY_TTL);
 
 const busyHall = (id) => {
@@ -4972,22 +5049,30 @@ document.addEventListener("click", (event) => {
   if (button && !button.closest("dialog")) openCam(button);
 });
 
-/** Draw the tab from what's known and fetch what isn't: every hall's next meal, side by side. */
-async function ensureMenus() {
+/** Draw the tab from what's known and fetch what isn't, or what has gone stale (see freshMeal): every
+    hall's next meal, side by side. A stale menu stays on screen until its new answer replaces it.
+    `refresh`: a refresh in the background, so the tab is drawn again only for an answer that changed. */
+async function ensureMenus({ refresh = false } = {}) {
   if (document.body.dataset.screen !== "app" || !diningOn()) return;
   ensureBusy();
   const epoch = state.epoch;
-  // With location on, find the nearest hall first (once), so it leads the chips.
-  if (els.location.checked && !state.nearest) {
-    renderMenu();
-    await nearestHall();
+  // With location on, find the nearest hall first (once), so it leads the chips. The device's position can
+  // take seconds, or never come: past 1.5 s the menus load without it, and it joins the chips when it lands.
+  if (els.location.checked && !state.nearest && !refresh) {
+    renderMenu({ reveal: true });
+    const lookup = nearestHall();
+    const late = await Promise.race([lookup.then(() => false), new Promise((resolve) => setTimeout(resolve, 1500, true))]);
     if (epoch !== state.epoch) return;
+    if (late) lookup.then((near) => near && epoch === state.epoch && state.view === "menu" && ensureMenus());
   }
   const seq = menus.seq;
+  const loading = menus.loading;
   const ids = menuHallIds();
-  const wanted = ids.filter((id) => !menus.data.has(id));
-  for (const id of wanted) menus.data.set(id, { pending: true });
-  renderMenu();
+  const wanted = ids.filter((id) => !loading.has(id) && !freshMeal(menus.data.get(id)));
+  const missing = wanted.filter((id) => !menus.data.has(id));
+  for (const id of wanted) loading.add(id);
+  for (const id of missing) menus.data.set(id, { pending: true });
+  if (!refresh || missing.length) renderMenu({ reveal: !refresh });
   ensureMenuDay();
   await Promise.all(
     wanted.map(async (id) => {
@@ -4997,18 +5082,29 @@ async function ensureMenus() {
         entry = meal && Array.isArray(meal.items) ? { meal } : { error: new Error("That menu came back in a shape this app can't read.") };
       } catch (err) {
         if (err.signedOut) return;
-        if (err.status === 503) return diningLost();
+        if (diningGone(err)) return diningLost();
         entry = { error: err };
+      } finally {
+        loading.delete(id);
       }
       if (epoch !== state.epoch || seq !== menus.seq) return;
-      menus.data.set(id, entry);
+      // The same answer again (most refreshes): keep it, so nothing is drawn again.
+      const old = menus.data.get(id);
+      if (old?.meal && entry.meal && JSON.stringify(old.meal) === JSON.stringify(entry.meal)) {
+        old.at = Date.now();
+        return;
+      }
+      menus.data.set(id, { ...entry, at: Date.now() });
       renderMenu();
     })
   );
   ensureMenuDay(); // with no hall chosen, the server's default hall is known only now
 }
 
-function renderMenu() {
+const menuSaid = { hall: undefined, due: false }; // the hall on show, and whether a switch to it is yet to be said
+
+/** `reveal`: the tab just opened, so the picked hall's chip comes into the chip row's view. */
+function renderMenu({ reveal = false } = {}) {
   if (!diningOn()) {
     els.menuHalls.innerHTML = "";
     els.menuActions.innerHTML = "";
@@ -5022,6 +5118,12 @@ function renderMenu() {
   const focusedHall = document.activeElement?.closest?.("[data-hall]")?.dataset.hall ?? null;
   const focusedDish = document.activeElement?.closest?.("[data-dish]")?.dataset.dish ?? null;
   const focusedMeal = document.activeElement?.matches?.("[data-meal-pick]") ? document.activeElement.value : null;
+  const inBody = els.menuBody.contains(document.activeElement) ? document.activeElement : null;
+  const focusedCam = inBody?.closest("[data-cam]")?.dataset.cam ?? null; // the busy line
+  const focusedLink = inBody?.closest(".nearest-note [data-action]")?.dataset.action ?? null; // "Change dining hall"
+  // The chip row keeps its scroll. Not read as the tab opens: hidden, the row lost it, and reading it then
+  // would lay the old menu out once more for nothing.
+  const chipScroll = reveal ? 0 : $(".halls-bar__track", els.menuHalls)?.scrollLeft ?? 0;
   renderMenuDays(pick);
   const noHalls = !(state.prefs?.dining_halls ?? []).length;
   els.menuHalls.innerHTML = `
@@ -5056,9 +5158,37 @@ function renderMenu() {
   els.menuBody.innerHTML = `${menus.note ? `<p class="menu-note" role="status">${esc(menus.note)}</p>` : ""}${body}`;
   const tabs = $(".menu-meals", els.menuBody);
   if (tabs) fitMealTabs(tabs);
+  // A switch to another hall says which hall and meal are on show, once its menu is in. The menu itself isn't
+  // a live region: every redraw (a new busy reading) would read it all out again.
+  if (pick !== menuSaid.hall) {
+    menuSaid.due = menuSaid.hall !== undefined;
+    menuSaid.hall = pick;
+  }
+  const status = $("#menu-status");
+  if (menuSaid.due && entry && !entry.pending && status) {
+    menuSaid.due = false;
+    const meal = $("#menu-meal-title strong", els.menuBody)?.textContent;
+    const n = $$("[data-dish]", els.menuBody).length;
+    if (meal) status.textContent = `${$(".menu-card .eyebrow", els.menuBody)?.textContent ?? hallLabel(pick)}: ${meal}, ${n} item${n === 1 ? "" : "s"}.`;
+  }
+  const track = $(".halls-bar__track", els.menuHalls);
+  if (chipScroll) track.scrollLeft = chipScroll;
+  const chip = reveal && track.scrollWidth > track.clientWidth ? $('[aria-pressed="true"]', track) : null;
+  if (chip) {
+    // Scroll the chip row only (the page stays put) until the picked chip clears the row's padding.
+    const row = track.getBoundingClientRect();
+    const box = chip.getBoundingClientRect();
+    const { paddingLeft, paddingRight } = getComputedStyle(track);
+    const under = box.left - (row.left + parseFloat(paddingLeft));
+    const over = box.right - (row.right - parseFloat(paddingRight));
+    if (under < 0) track.scrollLeft += under;
+    else if (over > 0) track.scrollLeft += Math.min(over, under);
+  }
   if (focusedHall != null) $(`[data-hall="${CSS.escape(focusedHall)}"]`, els.menuHalls)?.focus({ preventScroll: true });
   else if (focusedDish != null) $(`[data-dish="${CSS.escape(focusedDish)}"]`, els.menuBody)?.focus({ preventScroll: true });
   else if (focusedMeal != null) $(`[data-meal-pick][value="${CSS.escape(focusedMeal)}"]`, els.menuBody)?.focus({ preventScroll: true });
+  else if (focusedCam != null) $(`[data-cam="${CSS.escape(focusedCam)}"]`, els.menuBody)?.focus({ preventScroll: true });
+  else if (focusedLink != null) $(`.nearest-note [data-action="${CSS.escape(focusedLink)}"]`, els.menuBody)?.focus({ preventScroll: true });
 }
 
 // ---- the Menu tab's day arrows: another day's whole menu at the picked hall
@@ -5153,7 +5283,7 @@ async function ensureMenuDay() {
     entry = menu && Array.isArray(menu.meals) ? { menu } : { error: new Error("That menu came back in a shape this app can't read.") };
   } catch (err) {
     if (err.signedOut) return menus.days.delete(key);
-    if (err.status === 503) return diningLost();
+    if (diningGone(err)) return diningLost();
     entry = err.status === 404 ? { menu: { date: day, meals: [] } } : { error: err };
   }
   if (epoch !== state.epoch || seq !== menus.seq) return;
@@ -5296,7 +5426,7 @@ function menuCardHtml(id, meal, near, { day = false } = {}) {
       <header class="menu-card__head">
         <p class="eyebrow">${esc(hall)}</p>
         ${day ? "" : busyBadgeHtml(meal.location?.id ?? id)}
-        <h2 id="menu-meal-title" class="menu-card__meal"><strong>${esc(label)}</strong>${whenText ? `<span class="menu-card__when">${SEP}${esc(whenText)}</span>` : ""}</h2>
+        <h2 id="menu-meal-title" class="menu-card__meal" tabindex="-1"><strong>${esc(label)}</strong>${whenText ? `<span class="menu-card__when">${SEP}${esc(whenText)}</span>` : ""}</h2>
         ${hint ? `<p class="menu-card__hint">${esc(hint)}</p>` : ""}
         ${nearNote}
         ${legend}
@@ -5342,7 +5472,11 @@ els.menuView.addEventListener("click", (event) => {
       return openSettings(action.dataset.section, action);
     case "retry-menu":
       menus.data.delete(Number(action.dataset.hallRetry));
-      ensureMenus().then(() => $('[data-action="retry-menu"]', els.menuBody)?.focus({ preventScroll: true }));
+      // Focus goes to the new card's heading, or to Try again if it failed again (unless it moved on meanwhile).
+      ensureMenus().then(() => {
+        if (document.activeElement !== document.body && !els.menuBody.contains(document.activeElement)) return;
+        $('[data-action="retry-menu"], #menu-meal-title', els.menuBody)?.focus({ preventScroll: true });
+      });
       return;
     case "retry-menu-day":
       menus.days.delete(`${menuDayHall()}|${menus.day}`);
@@ -5883,7 +6017,7 @@ async function openMenu({ location, date, mealKey }) {
     renderMenuPanel(menu, mealKey);
   } catch (err) {
     if (!els.panel.open || err.signedOut) return;
-    if (err.status === 503) diningLost();
+    if (diningGone(err)) diningLost();
     setPanelContent({
       kicker: "Menu",
       title: "Couldn't load the menu",
@@ -5899,18 +6033,19 @@ function renderMenuPanel(menu, mealKey) {
   const avoid = new Set(state.prefs.avoid_allergens);
   const diets = state.prefs.diets;
   const meals = Array.isArray(menu.meals) ? menu.meals.filter((m) => m && Array.isArray(m.categories)) : [];
+  const shown = []; // each listed dish's marks, so the legend names what the rows show
   const row = (item) => {
     const allergens = Array.isArray(item.allergens) ? item.allergens : [];
     const itemDiets = Array.isArray(item.diets) ? item.diets : [];
-    return dishRowHtml({
-      name: item.name,
-      calories: item.calories,
+    const marks = {
       fav: favorites.has(dishKey(item.name)),
       avoid: allergens.some((a) => avoid.has(a)),
       off: diets.length > 0 && !diets.every((d) => itemDiets.includes(d)),
       avoided: allergens.filter((a) => avoid.has(a)),
       kinds: dietKinds(item),
-    });
+    };
+    shown.push(marks);
+    return dishRowHtml({ name: item.name, calories: item.calories, ...marks });
   };
   const sections = meals
     .map((meal, i) => {
@@ -5935,7 +6070,7 @@ function renderMenuPanel(menu, mealKey) {
     })
     .join("");
   const date = typeof menu.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(menu.date) ? parseDay(menu.date) : null;
-  const legend = dishLegendHtml(favorites.size > 0, avoid.size > 0, diets.length > 0);
+  const legend = dishLegendHtml(shown.some((m) => m.fav), shown.some((m) => m.avoid), shown.some((m) => m.off), shown.map((m) => m.kinds));
   setPanelContent({
     kicker: date ? dayFormat.format(date) : "Menu",
     title: menu.location?.name ?? "Menu",
@@ -6241,7 +6376,7 @@ async function searchDishes(input) {
     count.textContent = dishes.length ? `${dishes.length} dish${dishes.length === 1 ? "" : "es"} found.` : "Nothing on the campus menus matches that.";
   } catch (err) {
     if (seq !== dishSeq || !list.isConnected || err.signedOut) return;
-    if (err.status === 503) diningLost();
+    if (diningGone(err)) diningLost();
     list.innerHTML = `<li class="options__empty is-error">${esc(err.message)}</li>`;
     count.textContent = err.message;
   }
@@ -7155,9 +7290,11 @@ els.skip.addEventListener("click", (event) => {
   els.main.focus();
 });
 
-// Back to the page after a while (or past midnight): today may be a new day.
+// Back to the page after a while (or past midnight): today may be a new day, and the next meal may have moved on.
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && document.body.dataset.screen === "app" && ensureToday()) loadDashboard();
+  if (document.hidden || document.body.dataset.screen !== "app") return;
+  if (ensureToday()) loadDashboard();
+  refreshDining();
 });
 
 /** ?verify=, ?reset= and ?delete= carry one-time tokens: take them, then drop them from the address bar. */
