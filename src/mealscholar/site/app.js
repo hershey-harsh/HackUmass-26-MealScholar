@@ -6856,6 +6856,7 @@ async function onboardNav(action, button) {
   clearFormErrors(form);
   const changes = step === "done" ? { onboarded: true } : readSection(step === "halls" ? "dining" : step === "goal" ? "goals" : step, form);
   if (!changes) return; // an error is showing at a field
+  const at = ob.at; // a Back pressed while this saves wins: move on only from the step that was saved
   await withBusy(button, async () => {
     let saved = true;
     try {
@@ -6864,7 +6865,7 @@ async function onboardNav(action, button) {
       saved = false;
       showPrefsError(form, err);
     }
-    if (!saved || !state.onboard) return;
+    if (!saved || state.onboard !== ob || ob.at !== at) return;
     if (action === "finish") return finishOnboarding("You're all set.");
     ob.at += 1;
     renderOnboarding();
@@ -6880,7 +6881,8 @@ els.onboard.addEventListener("click", (event) => {
 els.onboard.addEventListener("submit", (event) => {
   event.preventDefault();
   const next = $('[data-onboard="next"], [data-onboard="finish"]', els.onboard);
-  if (next) onboardNav(next.dataset.onboard, next);
+  // Enter again while the step saves: that save moves on, once.
+  if (next && !next.disabled && next.getAttribute("aria-busy") !== "true") onboardNav(next.dataset.onboard, next);
 });
 
 els.onboard.addEventListener("input", (event) => {
