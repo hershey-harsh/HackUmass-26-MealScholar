@@ -636,7 +636,10 @@ async function analyze(file) {
   if (!state.ready) return;
   if (state.analyzing) return toast("Still analyzing the last photo.");
   if (file.type && !file.type.startsWith("image/")) {
-    setStatus("That file isn't an image. Choose a JPEG, PNG or HEIC photo.", { error: true });
+    const message = "That file isn't an image. Choose a JPEG, PNG or HEIC photo.";
+    setStatus(message, { error: true });
+    // Dropped on another tab or over a result, the capture screen's line is out of sight.
+    if (state.view !== "analyze" || state.shown) toast(message);
     return;
   }
   // A new photo replaces the last analysis (or the logged meal on show) and opens the capture screen.
