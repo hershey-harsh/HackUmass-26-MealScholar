@@ -351,14 +351,15 @@ def create_app(
         prefs.delete(owner or LOCAL_USER)
         return meals
 
-    # POST /api/auth/delete-account runs this before it deletes the account itself.
+    # Deleting an account (POST /api/auth/confirm-delete, or /delete-account with a password on a
+    # server whose emails don't go out) runs this before the account itself is deleted.
     app.state.erase_user_data = erase
 
     @app.delete("/api/me")
     def erase_me(owner: DiaryOwner) -> Erased:
         """Delete everything kept for whoever asks: meals and their photos, learned portions, goals and
         settings, so the app starts over. A signed-in account stays; POST /api/auth/delete-account
-        removes it too."""
+        starts removing it too."""
         return Erased(meals=erase(owner))
 
     @app.post("/api/meals/{meal_id}/answer")

@@ -44,6 +44,7 @@ from mealscholar.diary import Diary
 from mealscholar.mailer import (
     Email,
     SmtpSender,
+    account_deletion_email,
     html_email,
     make_sender,
     password_changed_email,
@@ -716,10 +717,16 @@ def test_access_log_hides_email_link_tokens(make_app, caplog):
     make_app()
     access = logging.getLogger("uvicorn.access")
     with caplog.at_level(logging.INFO, logger="uvicorn.access"):
-        for path in ("/?verify=SECRET-1", "/?reset=SECRET_2&next=1", "/index.html?a=1&verify=SECRET3"):
+        for path in (
+            "/?verify=SECRET-1",
+            "/?reset=SECRET_2&next=1",
+            "/index.html?a=1&verify=SECRET3",
+            "/?delete=SECRET4",
+        ):
             access.info('%s - "%s %s HTTP/%s" %d', "203.0.113.9:50000", "GET", path, "1.1", 200)
     assert "SECRET" not in caplog.text
     assert '"GET /?reset=[hidden]&next=1 HTTP/1.1" 200' in caplog.text
+    assert '"GET /?delete=[hidden] HTTP/1.1" 200' in caplog.text
 
 
 def test_access_log_hides_coordinates(make_app, caplog):
@@ -902,6 +909,7 @@ def test_account_emails_have_an_escaped_html_part_with_the_link():
     for email in (
         verification_email("sam@example.com", link),
         password_reset_email("sam@example.com", link),
+        account_deletion_email("sam@example.com", link),
     ):
         assert link in email.text
         assert email.html is not None and link not in email.html  # only in escaped form
@@ -1229,6 +1237,148 @@ def test_delete_account_needs_the_password_and_then_removes_everything(make_app,
     assert login(sam).json() == BAD_LOGIN
     assert alex.get(f"/api/meals/{kept['id']}").json() == kept
     assert register(sam).status_code == 201  # the email can sign up again
+
+
+DELETE_SUBJECT = "Confirm deleting your MealScholar account"
+
+
+def test_delete_account_is_confirmed_by_email(make_app, fake_smtp, home):
+    app = make_app(**SMTP_ENV, MEALSCHOLAR_PUBLIC_URL="https://meals.example")
+    sam, phone, alex = browser(app), browser(app), browser(app)
+    sam_id = register(sam).json()["user"]["id"]
+    login(phone)
+    register(alex, email="alex@example.com")
+    meal = sam.post("/api/meals", content=photo(), headers=JPEG).json()
+    kept = alex.post("/api/meals", content=photo(), headers=JPEG).json()
+    assert sam.patch("/api/me/prefs", json={"onboarded": True}).status_code == 200
+    app.state.auth.sender.drain(5)
+    fake_smtp.messages.clear()
+
+    # With emails going out, no password is needed, and one doesn't delete anything at once.
+    for body in ({}, {"password": PASSWORD}, {"password": "not my password"}):
+        res = sam.post("/api/auth/delete-account", json=body)
+        assert (res.status_code, res.json()) == (202, {})
+    res = sam.post("/api/auth/delete-account")  # no body at all
+    assert (res.status_code, res.json()) == (202, {})
+    assert sam.get("/api/auth/me").status_code == 200
+    app.state.auth.sender.drain(5)
+    assert len(fake_smtp.messages) == 4
+    msg = fake_smtp.messages[-1]
+    assert (msg["To"], msg["Subject"]) == ("sam@example.com", DELETE_SUBJECT)
+    assert msg.get_content_type() == "multipart/alternative"
+    plain, html = msg.get_body(("plain",)).get_content(), msg.get_body(("html",)).get_content()
+    link = re.search(r"https://meals\.example/\?delete=([\w-]+)", plain)
+    token = link.group(1)
+    assert f'href="{link.group(0)}"' in html and "Delete my account" in html
+    for text in (plain, html):
+        assert "meal you logged and its photo" in text and "favorite foods and settings" in text
+        assert "do nothing" in text and "1 hour" in text
+    assert app.state.auth.store.recent_emails(20) == []  # the raw link lives only in the email
+    assert app.state.auth.store.email_token(sha256(token), "delete_account", app.state.auth._clock()) is not None
+
+    bad = sam.post("/api/auth/confirm-delete", json={"token": "nope"})
+    assert (bad.status_code, bad.json()) == (400, {"detail": BAD_LINK, "field": "token"})
+    assert sam.get("/api/auth/me").status_code == 200
+
+    stranger = browser(app)  # the link works on a device that isn't signed in
+    res = stranger.post("/api/auth/confirm-delete", json={"token": token})
+    assert (res.status_code, res.content) == (204, b"")
+    assert session_cookie(res).value == ""
+    assert sam.get("/api/auth/me").status_code == 401
+    assert phone.get("/api/auth/me").status_code == 401  # signed out everywhere
+    assert app.state.auth.store.user_by_id(sam_id) is None
+    assert app.state.auth.store.user_by_email("sam@example.com") is None
+    assert app.state.prefs.store.get(sam_id) is None
+    with closing(Diary(home / "diary.sqlite", sam_id)) as diary:
+        assert diary.get(meal["id"]) is None
+    again = stranger.post("/api/auth/confirm-delete", json={"token": token})
+    assert (again.status_code, again.json()) == (400, {"detail": BAD_LINK, "field": "token"})
+    assert login(sam).json() == BAD_LOGIN
+    assert alex.get(f"/api/meals/{kept['id']}").json() == kept
+    assert register(sam).status_code == 201  # the email can sign up again
+
+
+def test_delete_links_expire_work_once_and_name_the_account(make_app, clock):
+    app = make_app()  # outbox: asked without a password, the link is queued like a reset link
+    sam, alex = browser(app), browser(app)
+    register(sam)
+    alex_id = register(alex, email="alex@example.com").json()["user"]["id"]
+    store = app.state.auth.store
+
+    assert sam.post("/api/auth/delete-account", json={}).status_code == 202
+    expired = emailed_token(app, "delete")
+    assert store.recent_emails(1)[0].subject == DELETE_SUBJECT
+    clock.advance(hours=1, seconds=1)
+    res = sam.post("/api/auth/confirm-delete", json={"token": expired})
+    assert (res.status_code, res.json()) == (400, {"detail": BAD_LINK, "field": "token"})
+    assert sam.get("/api/auth/me").status_code == 200
+
+    # A verify or reset link isn't a delete link, however fresh; nor is junk.
+    sam.post("/api/auth/resend-verification")
+    verify = emailed_token(app, "verify")
+    sam.post("/api/auth/forgot-password", json={"email": "sam@example.com"})
+    reset = emailed_token(app, "reset")
+    for token in (verify, reset, "", "x" * 500, "é" * 43):
+        assert sam.post("/api/auth/confirm-delete", json={"token": token}).json()["detail"] == BAD_LINK
+    assert sam.get("/api/auth/me").status_code == 200
+    assert sam.post("/api/auth/verify-email", json={"token": verify}).status_code == 200  # untouched
+
+    # Alex's link opened on Sam's signed-in device: Alex's account goes, Sam stays signed in.
+    assert alex.post("/api/auth/delete-account", json={}).status_code == 202
+    token = emailed_token(app, "delete")
+    res = sam.post("/api/auth/confirm-delete", json={"token": token})
+    assert (res.status_code, res.content) == (204, b"")
+    assert "set-cookie" not in res.headers
+    assert sam.get("/api/auth/me").status_code == 200
+    assert alex.get("/api/auth/me").status_code == 401
+    assert store.user_by_id(alex_id) is None
+    assert sam.post("/api/auth/confirm-delete", json={"token": token}).status_code == 400
+
+
+def test_delete_links_are_limited_per_account(make_app, fake_smtp):
+    app = make_app(**SMTP_ENV)
+    client = browser(app)
+    register(client)
+    for _ in range(5):
+        assert client.post("/api/auth/delete-account").status_code == 202
+    res = client.post("/api/auth/delete-account")
+    assert res.status_code == 429 and int(res.headers["Retry-After"]) > 0
+    app.state.auth.sender.drain(5)
+    assert [m["Subject"] for m in fake_smtp.messages].count(DELETE_SUBJECT) == 5
+    assert client.get("/api/auth/me").status_code == 200
+    assert browser(app).post("/api/auth/delete-account").json() == SIGN_IN
+
+
+def test_without_email_sending_the_password_deletes_at_once(make_app):
+    """The fallback for a server that only queues emails, where a delete link could never arrive.
+    Asked without a password, such a server still makes the link, which demo links hand back."""
+    app = make_app(MEALSCHOLAR_DEMO_VERIFY_LINK="1", MEALSCHOLAR_PUBLIC_URL="https://meals.example")
+    client = browser(app)
+    register(client)
+    store = app.state.auth.store
+
+    res = client.post("/api/auth/delete-account", json={})
+    assert res.status_code == 202
+    url = res.json()["demo_delete_url"]
+    assert url.startswith("https://meals.example/?delete=")
+    token = url.split("delete=")[1]
+    assert token == emailed_token(app, "delete")
+    assert store.recent_emails(1)[0].purpose == "delete_account"
+    assert client.get("/api/auth/me").status_code == 200
+
+    wrong = client.post("/api/auth/delete-account", json={"password": "not my password"})
+    assert (wrong.status_code, wrong.json()) == (401, {"detail": "That password is incorrect.", "field": "password"})
+    assert client.get("/api/auth/me").status_code == 200
+    res = client.post("/api/auth/delete-account", json={"password": PASSWORD})
+    assert (res.status_code, res.content) == (204, b"")
+    assert session_cookie(res).value == ""
+    assert client.get("/api/auth/me").status_code == 401
+    assert store.user_by_email("sam@example.com") is None
+    assert client.post("/api/auth/confirm-delete", json={"token": token}).status_code == 400  # went with the account
+
+    plain = browser(make_app())  # demo links off: the reply says nothing
+    register(plain)
+    assert plain.post("/api/auth/delete-account", json={}).json() == {}
 
 
 def test_usual_portions_are_per_user(make_app, home):
