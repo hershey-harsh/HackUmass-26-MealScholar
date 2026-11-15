@@ -8374,6 +8374,11 @@ body[data-prefs="on"] .today .dash-col .stat {
     overflow: visible;
   }
 
+  /* The page ends with the card clear of the fixed +. */
+  body[data-prefs="on"] .dash-col--side {
+    padding-bottom: 88px;
+  }
+
   body[data-prefs="on"] .dash-col--side .upcoming {
     max-height: 36rem;
   }
