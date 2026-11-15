@@ -2599,16 +2599,22 @@ function renderWeekSub() {
   const start = weekStartKey();
   const [first, last] = [parseDay(start), parseDay(shiftDay(start, 6))];
   const sameMonth = first.getMonth() === last.getMonth();
-  els.weekSub.textContent = `${monthDay.format(first)} to ${sameMonth ? last.getDate() : monthDay.format(last)}`;
+  // A week in another year says which year.
+  const thisYear = parseDay(state.todayKey).getFullYear();
+  const dated = (date) => (date.getFullYear() === thisYear ? monthDay : monthDayYear).format(date);
+  const sameYear = first.getFullYear() === last.getFullYear();
+  const range = `${sameYear ? monthDay.format(first) : monthDayYear.format(first)} to ${sameMonth ? last.getDate() : monthDay.format(last)}`;
+  els.weekSub.textContent = sameYear && last.getFullYear() === thisYear ? range : `${range}, ${last.getFullYear()}`;
   const thisWeek = sundayOf(state.todayKey);
   els.weekPageTitle.textContent =
-    start === thisWeek ? "This week" : start === shiftDay(thisWeek, -7) ? "Last week" : `Week of ${monthDay.format(first)}`;
+    start === thisWeek ? "This week" : start === shiftDay(thisWeek, -7) ? "Last week" : `Week of ${dated(first)}`;
   const active = document.activeElement;
   els.weekNext.disabled = start >= thisWeek;
   els.weekPrev.disabled = start <= shiftDay(thisWeek, -7 * WEEKS_BACK);
   if (active === els.weekNext && els.weekNext.disabled) els.weekPrev.focus({ preventScroll: true });
-  els.weekPrev.setAttribute("aria-label", `Previous week, from ${monthDay.format(parseDay(shiftDay(start, -7)))}`);
-  els.weekNext.setAttribute("aria-label", els.weekNext.disabled ? "Next week" : `Next week, from ${monthDay.format(parseDay(shiftDay(start, 7)))}`);
+  if (active === els.weekPrev && els.weekPrev.disabled) els.weekNext.focus({ preventScroll: true });
+  els.weekPrev.setAttribute("aria-label", els.weekPrev.disabled ? "Previous week" : `Previous week, from ${dated(parseDay(shiftDay(start, -7)))}`);
+  els.weekNext.setAttribute("aria-label", els.weekNext.disabled ? "Next week" : `Next week, from ${dated(parseDay(shiftDay(start, 7)))}`);
 }
 
 function weekErrorHtml(days) {
