@@ -61,6 +61,11 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.6 18.4h2.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4.5" y="5" width="15" height="10.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2.5 19h19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4.5 7.5h3l1.6-2.5h5.8l1.6 2.5h3A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5V9a1.5 1.5 0 0 1 1.5-1.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="13.5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M4 8.5v-3A1.5 1.5 0 0 1 5.5 4h3M15.5 4h3A1.5 1.5 0 0 1 20 5.5v3M20 15.5v3a1.5 1.5 0 0 1-1.5 1.5h-3M8.5 20h-3A1.5 1.5 0 0 1 4 18.5v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="8" y="8" width="8" height="8" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-question" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9.7 9.6a2.4 2.4 0 0 1 4.7.6c0 1.6-2.4 2.1-2.4 3.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.9" r="1.1" fill="currentColor"/></symbol>
+  <symbol id="i-split" viewBox="0 0 24 24"><path d="M4 12h5.5c2 0 2.6-1.3 3.4-3S15 6 17 6h3M9.5 12c2 0 2.6 1.3 3.4 3s2.1 3 4.1 3h3M17.5 3.5 20 6l-2.5 2.5M17.5 15.5 20 18l-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5.5 19.5V12M10 19.5v-12M14.5 19.5V10M19 19.5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="mark" viewBox="0 0 512 512"><rect width="512" height="512" rx="128" fill="currentColor"/><circle cx="256" cy="292" r="140" fill="#FAFAFF"/><circle cx="256" cy="292" r="124" fill="none" stroke="currentColor" stroke-width="8" stroke-opacity=".18"/><g fill="currentColor" stroke="currentColor" stroke-linejoin="round" stroke-linecap="round"><path d="M176 174v52q80 44 160 0v-52Z" stroke-width="20"/><path d="M256 80 420 146 256 212 92 146Z" stroke-width="20"/><path d="M197 272v18c0 9 8 16 17 16s17-7 17-16v-18m-17 0v58" fill="none" stroke-width="12"/><path d="M287 266c16 8 26 24 26 40 0 3-3 6-6 6h-11v18a6 6 0 0 1-12 0V270q0-6 3-4Z" stroke="none"/><path d="M204 360C216 398 296 398 308 360" fill="none" stroke-width="14"/><path d="M412 148v100" fill="none" stroke-width="28"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" stroke-width="12"/></g><path d="M176 174v52q80 44 160 0v-52Z" fill="#FAFAFF"/><path d="M256 80 420 146 256 212 92 146Z" fill="currentColor" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><path d="M256 80 420 146 256 212 92 146Z" fill="#FAFAFF" stroke="#FAFAFF" stroke-width="6" stroke-linejoin="round"/><path d="M412 148v100" fill="none" stroke="#E9B44C" stroke-width="11" stroke-linecap="round"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" fill="#E9B44C" stroke="#E9B44C" stroke-width="2" stroke-linejoin="round"/></symbol>
   <symbol id="plate" viewBox="0 0 320 200">
     <rect width="320" height="200" fill="url(#g-table)"/>
@@ -357,94 +362,58 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
     </div>
   </section>
 
-  <!-- How it works -->
+  <!-- How it works: the pipeline as a small flowchart. The AI only reads the plate; the numbers
+       come from the hall's own label or USDA, by plain arithmetic. -->
   <section class="section" id="how" aria-labelledby="how-title">
     <div class="section-head section-head--split">
       <div>
         <p class="eyebrow">How it works</p>
-        <h2 id="how-title" class="h2">From photo to nutrients</h2>
+        <h2 id="how-title" class="h2 h2--sm">From photo to nutrients</h2>
       </div>
-      <p class="section-sub">Five steps, shown with a real brunch photo.</p>
+      <p class="section-sub">The AI only says what’s on the plate and how much. The numbers come from the dining hall’s own label, or from USDA when the menu doesn’t have it.</p>
     </div>
-    <ol class="steps">
-      <li class="step">
-        <div class="step__text">
-          <span class="step__num">01</span>
-          <h3>Snap your meal</h3>
-          <p>Take a photo of your plate. That’s all you do.</p>
-        </div>
-        <div class="mock" role="img" aria-label="Camera screen with a real photo: an omelet with home fries and guacamole on a white plate, and a button to take or choose a photo.">
-          <div class="vf">
-            <img src="img/meal-omelette-640.jpg" srcset="img/meal-omelette-640.jpg 640w, img/meal-omelette-1280.jpg 1280w" sizes="(max-width: 899px) 92vw, 640px" width="640" height="400" alt="" loading="lazy" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
-            <i class="vf__c vf__c--tl"></i><i class="vf__c vf__c--tr"></i><i class="vf__c vf__c--bl"></i><i class="vf__c vf__c--br"></i>
-          </div>
-          <div class="mini mini--bar">
-            <span class="shutter"></span>
-            <span class="mini__stack"><b>Take or choose a photo</b><small>No weighing</small></span>
-          </div>
+    <ol class="flow">
+      <li class="flow__step">
+        <span class="flow__icon" aria-hidden="true"><svg><use href="#i-camera"/></svg></span>
+        <div class="flow__body">
+          <p class="flow__n">01</p>
+          <h3 class="flow__t">Snap your plate</h3>
+          <p class="flow__d">One photo. No weighing, no typing.</p>
         </div>
       </li>
-      <li class="step">
-        <div class="step__text">
-          <span class="step__num">02</span>
-          <h3>Foods and how much</h3>
-          <p>The AI names each food and works out how much is there, sized against the plate. No weighing.</p>
-        </div>
-        <div class="mock" role="img" aria-label="3 foods found: Omelet Station, about 210 grams, from Worcester's menu; Red Potato Home Fries, about 100 grams, from USDA because the menu's label didn't fit the amount; Homemade Guacamole, about 80 grams, from Worcester's menu. Sized against the dinner plate.">
-          <div class="mini mini--foods">
-            <div class="ml-head"><span>3 foods found</span><span>grams, from the photo</span></div>
-            <div class="ml-row"><span class="pin">1</span><span class="ml-n">Omelet Station<span class="src">Worcester menu</span></span><span class="ml-g">about <b>210</b> g</span><span class="band band--f1"></span></div>
-            <div class="ml-row"><span class="pin">2</span><span class="ml-n">Red Potato Home Fries<span class="src src--usda">USDA</span></span><span class="ml-g">about <b>100</b> g</span><span class="band band--f2"></span></div>
-            <div class="ml-row"><span class="pin">3</span><span class="ml-n">Homemade Guacamole<span class="src">Worcester menu</span></span><span class="ml-g">about <b>80</b> g</span><span class="band band--f3"></span></div>
-            <p class="ml-note">Sized against the dinner plate. The home fries are on the menu, but their label didn’t fit the amount, so USDA.</p>
-          </div>
+      <li class="flow__step">
+        <span class="flow__icon" aria-hidden="true"><svg><use href="#i-scan"/></svg></span>
+        <div class="flow__body">
+          <p class="flow__n">02</p>
+          <h3 class="flow__t">The AI reads it</h3>
+          <p class="flow__d">It boxes each food and estimates the grams. It never outputs nutrients.</p>
         </div>
       </li>
-      <li class="step">
-        <div class="step__text">
-          <span class="step__num">03</span>
-          <h3>One question, if needed</h3>
-          <p>Only when the answer changes the numbers and you can tell at a glance: usually a drink, like diet or regular, sometimes which of two dishes it is. Never how it was cooked. This plate needed none.</p>
-        </div>
-        <div class="mock" role="img" aria-label="The question step for this photo: none was needed, because nothing that changes the numbers was unclear.">
-          <div class="mini mini--q">
-            <span class="mini__label">One question</span>
-            <span class="mini__q">None needed for this plate.</span>
-            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>Everything was clear</span></span>
-          </div>
-          <div class="toast"><svg><use href="#i-check"/></svg>Ready to log</div>
+      <li class="flow__step">
+        <span class="flow__icon" aria-hidden="true"><svg><use href="#i-question"/></svg></span>
+        <div class="flow__body">
+          <p class="flow__n">03</p>
+          <h3 class="flow__t">One question, if needed</h3>
+          <p class="flow__d">Only when the answer changes the numbers, like diet or regular.</p>
         </div>
       </li>
-      <li class="step step--wide">
-        <div class="step__text">
-          <span class="step__num">04</span>
-          <h3>Nutrients from the menu’s own facts</h3>
-          <p>If the food is on today’s campus menu, the nutrients come from the dining hall’s own nutrition facts. If it isn’t, or its label doesn’t fit what’s on the plate, they come from USDA FoodData Central. The AI never outputs nutrient numbers.</p>
-          <span class="dot-chip">Campus menu first&nbsp;· USDA as a backup</span>
-        </div>
-        <div class="mock mock--side" role="img" aria-label="Nutrients for this brunch: calories 795 kcal. Protein 35.4 grams, 71 percent of the Daily Value. Carbohydrate 42.8 grams, 16 percent. Worked example from Worcester's own label: the Omelet Station is 303 kcal per 5 ounce serving, and 210 grams is about 1.48 servings, so 449 kcal.">
-          <div class="mini mini--nutr">
-            <div class="mini__head"><span class="mini__label">Nutrients</span><span class="mini__label">Brunch</span></div>
-            <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>795</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">menu + USDA</small></div>
-            <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>35.4</b> g</span><span class="band band--prot"></span><small class="nrow__r">71% DV</small></div>
-            <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>42.8</b> g</span><span class="band band--carb"></span><small class="nrow__r">16% DV</small></div>
-          </div>
-          <div class="formula"><span class="formula__k">Omelet Station, Worcester’s label</span>210 g ÷ 5 oz serving × 303 kcal<b>= 449 kcal</b></div>
+      <li class="flow__step flow__step--split">
+        <span class="flow__icon" aria-hidden="true"><svg><use href="#i-split"/></svg></span>
+        <div class="flow__body">
+          <p class="flow__n">04</p>
+          <h3 class="flow__t">Where the numbers come from</h3>
+          <ul class="flow__paths">
+            <li><span class="src">Hall label</span><span>On today’s menu at your hall: its own nutrition facts, times your servings.</span></li>
+            <li><span class="src src--usda">USDA</span><span>Not on the menu, or the label doesn’t fit: USDA FoodData Central.</span></li>
+          </ul>
         </div>
       </li>
-      <li class="step step--fix">
-        <div class="step__text">
-          <span class="step__num">05</span>
-          <h3>Check it, log it</h3>
-          <p>If it got a food wrong, swap it with one tap. Then log it to your day.</p>
-        </div>
-        <div class="mock" role="img" aria-label="Check and log: Omelet Station, about 210 grams, estimated from the photo. It's on Worcester's menu, 303 kcal per 5 ounce serving, with a Swap button. Then Log to Today.">
-          <div class="mini mini--fix">
-            <div class="fx-head"><span class="pin">1</span><b>Omelet Station</b><span class="fx-chg"><span class="fx-new">~210 g</span></span></div>
-            <div class="fx-row"><span class="fx-k">Amount</span><span class="fx-food">About 210 g, estimated from the photo</span></div>
-            <div class="fx-row"><span class="fx-k">Match</span><span class="fx-food">On Worcester’s menu: Omelet Station, 303 kcal per 5 oz</span><span class="fx-swap">Swap</span></div>
-            <div class="fx-foot"><span class="fx-log">Log to Today</span><span class="fx-ok"><svg><use href="#i-check"/></svg>Added to today</span></div>
-          </div>
+      <li class="flow__step flow__step--out">
+        <span class="flow__icon" aria-hidden="true"><svg><use href="#i-bars"/></svg></span>
+        <div class="flow__body">
+          <p class="flow__n">05</p>
+          <h3 class="flow__t">Your numbers</h3>
+          <p class="flow__d">Calories and nutrients, each a likely value with a range. Log it to your day.</p>
         </div>
       </li>
     </ol>
@@ -898,6 +867,99 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
       <span class="band band--kcal"></span>
     </div>
   </section>
+  <!-- How it works -->
+  <section class="section" id="how" aria-labelledby="how-title">
+    <div class="section-head section-head--split">
+      <div>
+        <p class="eyebrow">How it works</p>
+        <h2 id="how-title" class="h2">From photo to nutrients</h2>
+      </div>
+      <p class="section-sub">Five steps, shown with a real brunch photo.</p>
+    </div>
+    <ol class="steps">
+      <li class="step">
+        <div class="step__text">
+          <span class="step__num">01</span>
+          <h3>Snap your meal</h3>
+          <p>Take a photo of your plate. That’s all you do.</p>
+        </div>
+        <div class="mock" role="img" aria-label="Camera screen with a real photo: an omelet with home fries and guacamole on a white plate, and a button to take or choose a photo.">
+          <div class="vf">
+            <img src="img/meal-omelette-640.jpg" srcset="img/meal-omelette-640.jpg 640w, img/meal-omelette-1280.jpg 1280w" sizes="(max-width: 899px) 92vw, 640px" width="640" height="400" alt="" loading="lazy" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+            <i class="vf__c vf__c--tl"></i><i class="vf__c vf__c--tr"></i><i class="vf__c vf__c--bl"></i><i class="vf__c vf__c--br"></i>
+          </div>
+          <div class="mini mini--bar">
+            <span class="shutter"></span>
+            <span class="mini__stack"><b>Take or choose a photo</b><small>No weighing</small></span>
+          </div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step__text">
+          <span class="step__num">02</span>
+          <h3>Foods and how much</h3>
+          <p>The AI names each food and works out how much is there, sized against the plate. No weighing.</p>
+        </div>
+        <div class="mock" role="img" aria-label="3 foods found: Omelet Station, about 210 grams, from Worcester's menu; Red Potato Home Fries, about 100 grams, from USDA because the menu's label didn't fit the amount; Homemade Guacamole, about 80 grams, from Worcester's menu. Sized against the dinner plate.">
+          <div class="mini mini--foods">
+            <div class="ml-head"><span>3 foods found</span><span>grams, from the photo</span></div>
+            <div class="ml-row"><span class="pin">1</span><span class="ml-n">Omelet Station<span class="src">Worcester menu</span></span><span class="ml-g">about <b>210</b> g</span><span class="band band--f1"></span></div>
+            <div class="ml-row"><span class="pin">2</span><span class="ml-n">Red Potato Home Fries<span class="src src--usda">USDA</span></span><span class="ml-g">about <b>100</b> g</span><span class="band band--f2"></span></div>
+            <div class="ml-row"><span class="pin">3</span><span class="ml-n">Homemade Guacamole<span class="src">Worcester menu</span></span><span class="ml-g">about <b>80</b> g</span><span class="band band--f3"></span></div>
+            <p class="ml-note">Sized against the dinner plate. The home fries are on the menu, but their label didn’t fit the amount, so USDA.</p>
+          </div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step__text">
+          <span class="step__num">03</span>
+          <h3>One question, if needed</h3>
+          <p>Only when the answer changes the numbers and you can tell at a glance: usually a drink, like diet or regular, sometimes which of two dishes it is. Never how it was cooked. This plate needed none.</p>
+        </div>
+        <div class="mock" role="img" aria-label="The question step for this photo: none was needed, because nothing that changes the numbers was unclear.">
+          <div class="mini mini--q">
+            <span class="mini__label">One question</span>
+            <span class="mini__q">None needed for this plate.</span>
+            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>Everything was clear</span></span>
+          </div>
+          <div class="toast"><svg><use href="#i-check"/></svg>Ready to log</div>
+        </div>
+      </li>
+      <li class="step step--wide">
+        <div class="step__text">
+          <span class="step__num">04</span>
+          <h3>Nutrients from the menu’s own facts</h3>
+          <p>If the food is on today’s campus menu, the nutrients come from the dining hall’s own nutrition facts. If it isn’t, or its label doesn’t fit what’s on the plate, they come from USDA FoodData Central. The AI never outputs nutrient numbers.</p>
+          <span class="dot-chip">Campus menu first&nbsp;· USDA as a backup</span>
+        </div>
+        <div class="mock mock--side" role="img" aria-label="Nutrients for this brunch: calories 795 kcal. Protein 35.4 grams, 71 percent of the Daily Value. Carbohydrate 42.8 grams, 16 percent. Worked example from Worcester's own label: the Omelet Station is 303 kcal per 5 ounce serving, and 210 grams is about 1.48 servings, so 449 kcal.">
+          <div class="mini mini--nutr">
+            <div class="mini__head"><span class="mini__label">Nutrients</span><span class="mini__label">Brunch</span></div>
+            <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>795</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">menu + USDA</small></div>
+            <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>35.4</b> g</span><span class="band band--prot"></span><small class="nrow__r">71% DV</small></div>
+            <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>42.8</b> g</span><span class="band band--carb"></span><small class="nrow__r">16% DV</small></div>
+          </div>
+          <div class="formula"><span class="formula__k">Omelet Station, Worcester’s label</span>210 g ÷ 5 oz serving × 303 kcal<b>= 449 kcal</b></div>
+        </div>
+      </li>
+      <li class="step step--fix">
+        <div class="step__text">
+          <span class="step__num">05</span>
+          <h3>Check it, log it</h3>
+          <p>If it got a food wrong, swap it with one tap. Then log it to your day.</p>
+        </div>
+        <div class="mock" role="img" aria-label="Check and log: Omelet Station, about 210 grams, estimated from the photo. It's on Worcester's menu, 303 kcal per 5 ounce serving, with a Swap button. Then Log to Today.">
+          <div class="mini mini--fix">
+            <div class="fx-head"><span class="pin">1</span><b>Omelet Station</b><span class="fx-chg"><span class="fx-new">~210 g</span></span></div>
+            <div class="fx-row"><span class="fx-k">Amount</span><span class="fx-food">About 210 g, estimated from the photo</span></div>
+            <div class="fx-row"><span class="fx-k">Match</span><span class="fx-food">On Worcester’s menu: Omelet Station, 303 kcal per 5 oz</span><span class="fx-swap">Swap</span></div>
+            <div class="fx-foot"><span class="fx-log">Log to Today</span><span class="fx-ok"><svg><use href="#i-check"/></svg>Added to today</span></div>
+          </div>
+        </div>
+      </li>
+    </ol>
+  </section>
+
   </template>
 
   </div>
