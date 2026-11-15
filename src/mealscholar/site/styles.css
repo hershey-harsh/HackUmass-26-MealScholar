@@ -9395,3 +9395,108 @@ body .week-view .micro-card {
 .menu-cat .dishes__cat {
   padding-top: 10px;
 }
+
+/* ---- Nov 15, Menu: other days. Day arrows beside the title with the day between them (Today,
+   Tomorrow, Mon, Nov 16), stepping through the days the hall has a menu; another day's meals as
+   underlined tabs over the one on show, quieter than the hall chips above them. */
+.menunav {
+  gap: 4px;
+}
+
+.menunav__day {
+  min-width: 6.5em; /* "Wed, Nov 18" fits, so the arrows stay put as the day changes */
+  padding-inline: 4px;
+  color: var(--ink);
+  font: 500 0.9375rem / 1 var(--font-sans);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Laptops hide the Today arrows (the week strip picks the day there); the Menu has no strip. */
+body[data-prefs="on"] .menunav .datenav__btn {
+  display: grid;
+}
+
+.menu-meals {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  margin: 0 -4px 18px; /* the first meal's name lines up with the hall's name under it */
+  overflow-x: auto;
+  background: linear-gradient(var(--hair), var(--hair)) left 8px bottom / calc(100% - 16px) 1px no-repeat;
+  scrollbar-width: none;
+}
+
+.menu-meals::-webkit-scrollbar {
+  display: none;
+}
+
+.menu-meals__opt {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 8px;
+  color: var(--ink-2);
+  font: 500 0.9375rem / 1 var(--font-sans);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: color var(--dur-1) linear;
+}
+
+/* The underline runs the width of the meal's name. */
+.menu-meals__opt::after {
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: 0;
+  left: 8px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--ink);
+  opacity: 0;
+}
+
+.menu-meals__input:checked + .menu-meals__opt {
+  color: var(--ink);
+}
+
+.menu-meals__input:checked + .menu-meals__opt::after {
+  opacity: 1;
+}
+
+.menu-meals__input:focus-visible + .menu-meals__opt {
+  border-radius: 8px;
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) {
+  .menu-meals__input:not(:checked) + .menu-meals__opt:hover {
+    color: var(--ink);
+  }
+}
+
+.menu-meals__input:not(:checked) + .menu-meals__opt:active {
+  color: var(--ink);
+}
+
+/* Another meal of the day comes in the way a hall's menu does. */
+#menu-body > .menu-card.is-entering {
+  animation: view-in var(--dur-2) var(--ease-out);
+}
+
+.menu-note {
+  margin-bottom: 14px;
+  padding-inline: 4px;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 22.4375em) {
+  .menunav__day {
+    min-width: 0;
+  }
+}

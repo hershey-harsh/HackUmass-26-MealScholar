@@ -24,6 +24,10 @@ const els = {
   menuSub: $("#menu-sub"),
   menuHalls: $("#menu-halls"),
   menuBody: $("#menu-body"),
+  menuDays: $("#menu-days"),
+  menuPrev: $("#menu-prev"),
+  menuNext: $("#menu-next"),
+  menuDay: $("#menu-day"),
   weekView: $("#week"),
   weekPageTitle: $("#week-page-title"),
   weekSub: $("#week-sub"),
@@ -4455,7 +4459,7 @@ async function savePrefs(changes) {
       loadUpcoming();
     }
     // The Menu tab marks favorites itself; halls, diet and allergens need its menus again.
-    if (touched("dining_halls", "diets", "avoid_allergens")) resetMenus();
+    if (touched("dining_halls", "diets", "avoid_allergens")) resetMenus(true);
     if (state.view === "menu") ensureMenus();
   }
   if (touched("favorites", "dining_halls", "notify")) loadAlerts();
@@ -4741,14 +4745,28 @@ function dishRowHtml({ name, calories, fav, avoid, off, avoided, kinds = [], ref
 
 const MENU_HALL_KEY = "mealscholar:menu-hall";
 const DEFAULT_HALL = 0; // no hall chosen: the server's default hall (no location_id)
-const menus = { data: new Map(), seq: 0 }; // hall id -> { meal } | { error } | { pending: true }
+const menus = {
+  data: new Map(), // hall id -> { meal } | { error } | { pending: true }
+  seq: 0,
+  day: null, // null: today, the next meal; else another day's YYYY-MM-DD, every meal it lists
+  days: new Map(), // `${hall id}|${day}` -> { menu } | { error } | { pending: true }
+  meal: null, // the meal key on show on another day (breakfast, lunch...), kept from day to day
+  note: "", // why the day changed by itself on a hall switch
+};
 const dishRefs = new Map(); // a dish button's data-dish -> { item, meal, hall }
 
 const favoriteKeys = () => new Set((state.prefs?.favorites ?? []).map((f) => dishKey(f.name)));
 
-function resetMenus() {
+/** `keepDay`: the settings changed, so stay on the day on show. */
+function resetMenus(keepDay = false) {
   menus.seq += 1;
   menus.data.clear();
+  menus.days.clear();
+  menus.note = "";
+  if (!keepDay) {
+    menus.day = null;
+    menus.meal = null;
+  }
 }
 
 /** The halls on the Menu tab, in chip order. */
@@ -4908,6 +4926,7 @@ async function ensureMenus() {
   const wanted = ids.filter((id) => !menus.data.has(id));
   for (const id of wanted) menus.data.set(id, { pending: true });
   renderMenu();
+  ensureMenuDay();
   await Promise.all(
     wanted.map(async (id) => {
       let entry;
@@ -4924,6 +4943,7 @@ async function ensureMenus() {
       renderMenu();
     })
   );
+  ensureMenuDay(); // with no hall chosen, the server's default hall is known only now
 }
 
 function renderMenu() {
@@ -4931,6 +4951,7 @@ function renderMenu() {
     els.menuHalls.innerHTML = "";
     els.menuActions.innerHTML = "";
     els.menuBody.innerHTML = "";
+    els.menuDays.hidden = true;
     return;
   }
   const ids = menuHallIds();
@@ -4938,6 +4959,8 @@ function renderMenu() {
   const near = els.location.checked ? state.nearest?.location?.id : null;
   const focusedHall = document.activeElement?.closest?.("[data-hall]")?.dataset.hall ?? null;
   const focusedDish = document.activeElement?.closest?.("[data-dish]")?.dataset.dish ?? null;
+  const focusedMeal = document.activeElement?.matches?.("[data-meal-pick]") ? document.activeElement.value : null;
+  renderMenuDays(pick);
   const noHalls = !(state.prefs?.dining_halls ?? []).length;
   els.menuHalls.innerHTML = `
     <div class="halls-bar__track">
@@ -4954,12 +4977,172 @@ function renderMenu() {
   if (els.menuActions.textContent.trim() !== actionLabel) {
     els.menuActions.innerHTML = `<button class="btn btn--secondary intro-btn" type="button" data-action="settings" data-section="dining" aria-haspopup="dialog">${icon(noHalls ? "plus" : "gear")}<span>${actionLabel}</span></button>`;
   }
-  const entry = menus.data.get(pick);
+  let entry;
+  let body;
+  if (menus.day) {
+    const hall = menuDayHall(pick);
+    entry = hall == null ? null : menus.days.get(`${hall}|${menus.day}`);
+    body = !entry || entry.pending ? menuSkeletonHtml() : entry.error ? menuErrorHtml(pick, entry.error, "retry-menu-day") : menuDayHtml(hall, entry.menu);
+    const label = menuDayLabel(menus.day);
+    els.menuSub.textContent = `${/^(Tomorrow|Yesterday)$/.test(label) ? label : weekdayLong.format(parseDay(menus.day))}’s meals, dish by dish.`;
+  } else {
+    entry = menus.data.get(pick);
+    body = !entry || entry.pending ? menuSkeletonHtml() : entry.error ? menuErrorHtml(pick, entry.error) : menuCardHtml(pick, entry.meal, near);
+    els.menuSub.textContent = ids.length > 1 ? `The next meal at your ${ids.length} dining halls, dish by dish.` : "The next meal at your dining hall, dish by dish.";
+  }
   els.menuBody.setAttribute("aria-busy", String(!entry || Boolean(entry.pending)));
-  els.menuBody.innerHTML = !entry || entry.pending ? menuSkeletonHtml() : entry.error ? menuErrorHtml(pick, entry.error) : menuCardHtml(pick, entry.meal, near);
-  els.menuSub.textContent = ids.length > 1 ? `The next meal at your ${ids.length} dining halls, dish by dish.` : "The next meal at your dining hall, dish by dish.";
+  els.menuBody.innerHTML = `${menus.note ? `<p class="menu-note" role="status">${esc(menus.note)}</p>` : ""}${body}`;
   if (focusedHall != null) $(`[data-hall="${CSS.escape(focusedHall)}"]`, els.menuHalls)?.focus({ preventScroll: true });
   else if (focusedDish != null) $(`[data-dish="${CSS.escape(focusedDish)}"]`, els.menuBody)?.focus({ preventScroll: true });
+  else if (focusedMeal != null) $(`[data-meal-pick][value="${CSS.escape(focusedMeal)}"]`, els.menuBody)?.focus({ preventScroll: true });
+}
+
+// ---- the Menu tab's day arrows: another day's whole menu at the picked hall
+// Today is the next meal, as above. Another day is GET /api/dining/menu for the picked hall: every meal it
+// lists, one at a time, flagged here the way the server flags the next meal (dining.flag_items). The arrows
+// step through the hall's dates with a menu (GET /api/dining/locations lists them from a week back), and
+// each day fetched is kept until the settings change.
+
+const todayKeyNow = () => state.todayKey ?? localDate();
+
+/** The hall whose days the arrows step through: the picked one, or the server's default once it's known. */
+function menuDayHall(pick = pickedHall()) {
+  if (pick !== DEFAULT_HALL) return pick;
+  const id = menus.data.get(DEFAULT_HALL)?.meal?.location?.id;
+  return Number.isInteger(id) ? id : null;
+}
+
+/** The days the arrows can reach at `hall`, in order: its dates with a menu, and today (the next meal). */
+function menuDaysAt(hall) {
+  const today = todayKeyNow();
+  const loc = hall == null ? null : state.dining?.locations?.find((l) => l.id === hall);
+  const dates = Array.isArray(loc?.dates) ? loc.dates.filter((d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) : [];
+  return [...new Set([...dates, today])].sort();
+}
+
+function menuDayLabel(key) {
+  const today = todayKeyNow();
+  if (key === today) return "Today";
+  if (key === shiftDay(today, 1)) return "Tomorrow";
+  if (key === shiftDay(today, -1)) return "Yesterday";
+  return dayFormat.format(parseDay(key));
+}
+
+/** The day reachable at `days` closest to `key`; on a tie, the later one. */
+function nearestMenuDay(days, key) {
+  const at = parseDay(key).getTime();
+  let best = null;
+  for (const day of days) {
+    const gap = Math.abs(Math.round((parseDay(day).getTime() - at) / 864e5));
+    if (best == null || gap <= best.gap) best = { day, gap };
+  }
+  return best?.day ?? todayKeyNow();
+}
+
+function renderMenuDays(pick) {
+  const today = todayKeyNow();
+  if (menus.day && menus.day === today) menus.day = null; // past midnight, the day on show became today
+  const key = menus.day ?? today;
+  const days = menuDaysAt(menuDayHall(pick));
+  const prev = days.filter((d) => d < key).at(-1) ?? "";
+  const next = days.find((d) => d > key) ?? "";
+  const active = document.activeElement;
+  els.menuDays.hidden = false;
+  const label = menuDayLabel(key);
+  if (els.menuDay.textContent !== label) els.menuDay.textContent = label; // it's live: say it only when it changes
+  els.menuPrev.disabled = !prev;
+  els.menuNext.disabled = !next;
+  els.menuPrev.dataset.target = prev;
+  els.menuNext.dataset.target = next;
+  els.menuPrev.setAttribute("aria-label", prev ? `Previous day, ${longDay.format(parseDay(prev))}` : "Previous day");
+  els.menuNext.setAttribute("aria-label", next ? `Next day, ${longDay.format(parseDay(next))}` : "Next day");
+  // An arrow that just went disabled hands its focus on, as the week arrows do.
+  if (active === els.menuPrev && !prev) (next ? els.menuNext : els.menuTitle).focus({ preventScroll: true });
+  if (active === els.menuNext && !next) (prev ? els.menuPrev : els.menuTitle).focus({ preventScroll: true });
+}
+
+/** Show `key`'s menu; today is the next meal. */
+function goMenuDay(key) {
+  const today = todayKeyNow();
+  if (!menus.day && !menus.meal) menus.meal = menus.data.get(pickedHall())?.meal?.meal ?? null; // the meal on show today
+  menus.day = !key || key === today ? null : key;
+  menus.note = "";
+  renderMenu();
+  replayEntrance(els.menuBody);
+  ensureMenuDay();
+}
+
+/** Fetch the day on show at the picked hall, unless it's kept. */
+async function ensureMenuDay() {
+  const day = menus.day;
+  const hall = menuDayHall();
+  if (!day || hall == null || document.body.dataset.screen !== "app" || !diningOn()) return;
+  const key = `${hall}|${day}`;
+  if (menus.days.has(key)) return;
+  const epoch = state.epoch;
+  const seq = menus.seq;
+  menus.days.set(key, { pending: true });
+  renderMenu();
+  let entry;
+  try {
+    const menu = await api(`/api/dining/menu?location_id=${encodeURIComponent(hall)}&date=${day}`);
+    entry = menu && Array.isArray(menu.meals) ? { menu } : { error: new Error("That menu came back in a shape this app can't read.") };
+  } catch (err) {
+    if (err.signedOut) return menus.days.delete(key);
+    if (err.status === 503) return diningLost();
+    entry = err.status === 404 ? { menu: { date: day, meals: [] } } : { error: err };
+  }
+  if (epoch !== state.epoch || seq !== menus.seq) return;
+  menus.days.set(key, entry);
+  renderMenu();
+}
+
+/** A dish on another day's menu with the flags the server puts on the next meal's (dining.flag_items). */
+function flagDish(item, category) {
+  const allergens = Array.isArray(item.allergens) ? item.allergens : [];
+  const diets = Array.isArray(item.diets) ? item.diets : [];
+  const avoid = state.prefs?.avoid_allergens ?? [];
+  return {
+    ...item,
+    category,
+    avoid: allergens.some((a) => avoid.includes(a)),
+    fits_diet: (state.prefs?.diets ?? []).every((d) => diets.includes(d)),
+  };
+}
+
+/** Another day at `hall`: its meals in serving order as tabs, and the one on show. */
+function menuDayHtml(hall, menu) {
+  const meals = (Array.isArray(menu.meals) ? menu.meals : []).filter((m) => m && typeof m.meal === "string" && Array.isArray(m.categories));
+  const day = typeof menu.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(menu.date) ? menu.date : menus.day;
+  const name = menu.location?.name ?? hallLabel(hall);
+  if (!meals.length) {
+    return `
+      <div class="card menu-card menu-card--empty">
+        <header class="menu-card__head">
+          <p class="eyebrow">${esc(name)}</p>
+          <h2 class="menu-card__meal"><strong>No menu</strong><span class="menu-card__when">${SEP}${esc(longDay.format(parseDay(day)))}</span></h2>
+          <p class="menu-card__hint">${day < todayKeyNow() ? "Nothing was posted for that day." : "Nothing is posted for that day yet."}</p>
+        </header>
+      </div>`;
+  }
+  const shown = meals.find((m) => m.meal === menus.meal) ?? meals[0];
+  const label = (m) => (typeof m.label === "string" && m.label ? m.label : capitalize(m.meal.replace(/_/g, " ")));
+  const items = shown.categories.flatMap((c) =>
+    (Array.isArray(c?.items) ? c.items : []).filter((item) => item && typeof item.name === "string").map((item) => flagDish(item, c.category))
+  );
+  const tabs =
+    meals.length > 1
+      ? `
+    <div class="menu-meals" role="radiogroup" aria-label="Meals">${meals
+      .map(
+        (m) => `
+      <input id="menu-meal-${esc(m.meal)}" class="menu-meals__input visually-hidden" type="radio" name="menu-meal" value="${esc(m.meal)}" data-meal-pick${m === shown ? " checked" : ""}>
+      <label class="menu-meals__opt" for="menu-meal-${esc(m.meal)}">${esc(label(m))}</label>`
+      )
+      .join("")}
+    </div>`
+      : "";
+  return `${tabs}${menuCardHtml(hall, { location: { id: hall, name }, date: day, meal: shown.meal, label: label(shown), items }, null, { day: true })}`;
 }
 
 const menuSkeletonHtml = () => `
@@ -4969,16 +5152,17 @@ const menuSkeletonHtml = () => `
   </div>
   <p class="visually-hidden" role="status">Loading the menu</p>`;
 
-function menuErrorHtml(id, err) {
+function menuErrorHtml(id, err, action = "retry-menu") {
   return `
     <div class="card menu-card menu-card--error">
       <p class="eyebrow">${esc(hallLabel(id))}</p>
       <p class="status is-error" role="alert">${esc(err.message)}</p>
-      <button class="btn btn--secondary" type="button" data-action="retry-menu" data-hall-retry="${id}">Try again</button>
+      <button class="btn btn--secondary" type="button" data-action="${action}" data-hall-retry="${id}">Try again</button>
     </div>`;
 }
 
-function menuCardHtml(id, meal, near) {
+/** `day`: another day's meal, so no word on how busy the hall is now or how near it is. */
+function menuCardHtml(id, meal, near, { day = false } = {}) {
   const items = meal.items.filter((item) => item && typeof item.name === "string");
   const favorites = favoriteKeys();
   const avoid = new Set(state.prefs.avoid_allergens);
@@ -5020,12 +5204,12 @@ function menuCardHtml(id, meal, near) {
     )
     .join("");
   const legend = dishLegendHtml(items.some((i) => favorites.has(dishKey(i.name))), items.some((i) => i.avoid === true), items.some((i) => i.fits_diet === false), items.map(dietKinds));
-  const nearNote = id === near && state.nearest?.note ? nearestNoteHtml(state.nearest.note, "side") : "";
+  const nearNote = !day && id === near && state.nearest?.note ? nearestNoteHtml(state.nearest.note, "side") : "";
   return `
     <article class="card menu-card" aria-labelledby="menu-meal-title">
       <header class="menu-card__head">
         <p class="eyebrow">${esc(hall)}</p>
-        ${busyBadgeHtml(meal.location?.id ?? id)}
+        ${day ? "" : busyBadgeHtml(meal.location?.id ?? id)}
         <h2 id="menu-meal-title" class="menu-card__meal"><strong>${esc(label)}</strong>${whenText ? `<span class="menu-card__when">${SEP}${esc(whenText)}</span>` : ""}</h2>
         ${hint ? `<p class="menu-card__hint">${esc(hint)}</p>` : ""}
         ${nearNote}
@@ -5042,9 +5226,26 @@ els.menuView.addEventListener("click", (event) => {
     const id = Number(chip.dataset.hall);
     if (chip.getAttribute("aria-pressed") === "true") return;
     pickHall(id);
+    menus.note = "";
+    if (menus.day) {
+      // Keep the day when the hall has a menu that day; else the nearest day it has, and say so.
+      const days = menuDaysAt(menuDayHall(id));
+      if (!days.includes(menus.day)) {
+        const day = nearestMenuDay(days, menus.day);
+        const today = todayKeyNow();
+        menus.note = `${hallLabel(id)} has no menu on ${dayFormat.format(parseDay(menus.day))}. Showing ${day === today ? "today" : dayFormat.format(parseDay(day))}.`;
+        menus.day = day === today ? null : day;
+      }
+    }
     renderMenu();
     const body = els.menuBody;
     replayEntrance(body);
+    ensureMenuDay();
+    return;
+  }
+  const step = event.target.closest("[data-menu-day]");
+  if (step) {
+    if (!step.disabled && step.dataset.target) goMenuDay(step.dataset.target);
     return;
   }
   const dish = event.target.closest("[data-dish]");
@@ -5057,7 +5258,20 @@ els.menuView.addEventListener("click", (event) => {
       menus.data.delete(Number(action.dataset.hallRetry));
       ensureMenus().then(() => $('[data-action="retry-menu"]', els.menuBody)?.focus({ preventScroll: true }));
       return;
+    case "retry-menu-day":
+      menus.days.delete(`${menuDayHall()}|${menus.day}`);
+      ensureMenuDay().then(() => $('[data-action="retry-menu-day"], [data-meal-pick]:checked, [data-dish]', els.menuBody)?.focus({ preventScroll: true }));
+      return;
   }
+});
+
+// Another day's meals: the tabs show one at a time, and the meal picked carries to other days.
+els.menuBody.addEventListener("change", (event) => {
+  const input = event.target.closest?.("[data-meal-pick]");
+  if (!input?.checked) return;
+  menus.meal = input.value;
+  renderMenu();
+  $("#menu-body > .menu-card")?.classList.add("is-entering");
 });
 
 // Left and right arrows move between the hall chips, as in a toolbar.
