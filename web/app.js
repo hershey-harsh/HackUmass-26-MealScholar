@@ -327,6 +327,57 @@
   d.querySelectorAll('main .section').forEach(function (el) { io.observe(el); });
 })();
 
+// The live hall cam card: the newest boxed clip from the hall with the most people in view, from the
+// app's GET /api/dining/busy (the app answers under /app on this domain). It refreshes with the cams,
+// every three minutes. Without an answer the card keeps its plain words and no Live tag.
+(function () {
+  var d = document, w = window;
+  var card = d.querySelector('[data-cam]');
+  if (!card || !w.fetch) return;
+  var vis = card.querySelector('.fv-cam');
+  var video = card.querySelector('[data-cam-video]');
+  var LEVEL = { quiet: 'Quiet', moderate: 'Moderate', busy: 'Busy' };
+  var APP = '/app';
+  function q(s) { return card.querySelector(s); }
+  function ago(iso) {
+    var m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
+    return m < 1 ? 'just now' : m + ' min ago';
+  }
+  function show(h) {
+    var clip = APP + h.clip_url;
+    if (video.getAttribute('src') !== clip) {
+      video.poster = APP + h.poster_url;
+      video.src = clip;
+    }
+    var level = LEVEL[h.level] || '';
+    var people = h.people + (h.people === 1 ? ' person' : ' people') + ' in view';
+    vis.classList.add('has-clip');
+    q('[data-cam-live]').hidden = false;
+    q('[data-cam-hall]').textContent = h.name;
+    q('[data-cam-dot]').setAttribute('data-level', h.level);
+    q('[data-cam-count]').textContent = people;
+    q('[data-cam-when]').textContent = (level ? level + ' · ' : '') + ago(h.updated_at);
+    q('[data-cam-sr]').textContent = ' ' + h.name + ' right now: ' + people + (level ? ', ' + level.toLowerCase() : '') + '.';
+    if (h.live_url) q('[data-cam-link]').href = h.live_url;
+    if (w.__syncVideos) w.__syncVideos();
+  }
+  function load() {
+    if (d.hidden) return;
+    w.fetch(APP + '/api/dining/busy', { credentials: 'omit', cache: 'no-store' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        var halls = ((data && data.halls) || []).filter(function (h) { return h && h.clip_url && h.poster_url && typeof h.people === 'number'; });
+        if (!halls.length) return;
+        halls.sort(function (a, b) { return b.people - a.people; }); // ties keep the hall order
+        show(halls[0]);
+      })
+      .catch(function () {});
+  }
+  load();
+  w.setInterval(load, 180000);
+  d.addEventListener('visibilitychange', load);
+})();
+
 // Recordings marked data-autoplay play (muted, looping) while at least half on screen and pause when
 // they leave; never by themselves under reduced motion. A recording inside the fan plays only while
 // its card is the front one: behind other cards it would decode frames nobody sees, and Safari paid

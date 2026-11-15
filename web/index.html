@@ -184,7 +184,23 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           </div>
         </article>
 
-        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="2 of 7: One question, at most">
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="2 of 7: How busy, right now" data-cam>
+          <div class="fan-card__vis fv-cam" aria-hidden="true">
+            <div class="fv-cam__head"><span class="fv-cam__live" data-cam-live hidden><i></i>Live</span><span class="fv-cam__hall" data-cam-hall>Dining hall cams</span></div>
+            <div class="fv-cam__frame"><video width="960" height="540" muted loop playsinline preload="none" data-autoplay data-cam-video></video><span class="fv-cam__empty">Each hall’s cam shows here, with a box on every person it counts.</span></div>
+            <div class="fv-cam__meta"><span class="fv-cam__dot" data-cam-dot></span><b data-cam-count>Counted every few minutes</b><span class="fv-cam__when" data-cam-when></span></div>
+          </div>
+          <div class="fan-card__body">
+            <p class="fan-card__title">How busy, right now</p>
+            <p class="fan-card__text">Each hall’s public cam, counted every few minutes. A green box marks each person.<span class="sr-only" data-cam-sr></span></p>
+            <div class="fan-card__btns">
+              <a class="fan-btn fan-btn--fill" href="/app/">Open the app</a>
+              <a class="fan-btn" href="https://www.youtube.com/watch?v=7wHgOpwHz8k" target="_blank" rel="noopener" data-cam-link>Watch live</a>
+            </div>
+          </div>
+        </article>
+
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="3 of 7: One question, at most">
           <div class="fan-card__vis fv-ask" aria-hidden="true">
             <span class="mini__label">One question</span>
             <span class="fv-ask__q">Is the soda diet or regular?</span>
@@ -201,7 +217,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           </div>
         </article>
 
-        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="3 of 7: Today, at a glance">
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="4 of 7: Today, at a glance">
           <div class="fan-card__vis fv-today" aria-hidden="true">
             <div class="ps-card">
               <div class="ps-row"><span class="ps-label">Calories today</span><span class="ps-label">2 meals</span></div>
@@ -222,7 +238,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           </div>
         </article>
 
-        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="4 of 7: 19 nutrients">
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="5 of 7: 19 nutrients">
           <div class="fan-card__vis fv-nutr" aria-hidden="true">
             <div class="mini mini--nutr">
               <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>795</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">menu + USDA</small></div>
@@ -240,7 +256,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           </div>
         </article>
 
-        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="5 of 7: Campus menu first">
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="6 of 7: Campus menu first">
           <div class="fan-card__vis fv-menu" aria-hidden="true">
             <span class="chip chip--white"><svg><use href="#i-clock"/></svg>Every hour</span>
             <span class="fv-menu__n">2,236</span>
@@ -256,7 +272,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           </div>
         </article>
 
-        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="6 of 7: On your Home Screen">
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="7 of 7: On your Home Screen">
           <div class="fan-card__vis fv-home fv-home--video" aria-hidden="true">
             <video src="/app/media/add-to-home-screen.mp4" poster="/app/media/add-to-home-screen.jpg" width="624" height="780" muted loop playsinline preload="none" data-autoplay></video>
             <span class="fv-home__step"><svg><use href="#i-share"/></svg>Share, then Add to Home Screen</span>
@@ -267,20 +283,6 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
             <div class="fan-card__btns">
               <a class="fan-btn fan-btn--fill" href="/app/">Open the app</a>
               <a class="fan-btn" href="#phone">Learn more</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="7 of 7: See it in action">
-          <div class="fan-card__vis fv-video" aria-hidden="true">
-            <div class="video-ph video-ph--b"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play"><svg><use href="#i-play"/></svg></span></div>
-          </div>
-          <div class="fan-card__body">
-            <p class="fan-card__title">See it in action</p>
-            <p class="fan-card__text">Short recordings of the real app, from photo to nutrients.</p>
-            <div class="fan-card__btns">
-              <a class="fan-btn fan-btn--fill" href="/app/">Open the app</a>
-              <a class="fan-btn" href="#videos">Learn more</a>
             </div>
           </div>
         </article>
