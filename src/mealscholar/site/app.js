@@ -4787,7 +4787,7 @@ function dishLegendHtml(fav, avoid, off, kinds = []) {
     ...Object.keys(KINDS)
       .filter((k) => shown.has(k))
       .map((k) => `<span class="legend__item">${kindIconHtml(k)}${KINDS[k][0].toLowerCase()}</span>`),
-    fav ? `<span class="legend__item">${icon("star")}favorite</span>` : "",
+    fav ? `<span class="legend__item legend__item--fav">${icon("star")}favorite</span>` : "",
     avoid ? `<span class="legend__item">${icon("avoid")}has an allergen you avoid</span>` : "",
     off ? `<span class="legend__item"><span class="legend__off" aria-hidden="true"></span>not in your diet</span>` : "",
   ].filter(Boolean);

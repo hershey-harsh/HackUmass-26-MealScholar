@@ -4864,7 +4864,8 @@ html.install-open {
   color: var(--ink);
 }
 
-.legend__item:first-child .icon {
+/* The star filled, as on the dishes. */
+.legend__item--fav .icon {
   fill: var(--ink);
 }
 
