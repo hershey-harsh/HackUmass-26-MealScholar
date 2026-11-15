@@ -1016,7 +1016,8 @@ function photoHtml(result, photoUrl) {
       if (!b) return "";
       const [ymin, xmin, ymax, xmax] = b.map((v) => Math.max(0, Math.min(1000, v)) / 10);
       const name = r.source === "campus" && r.dish ? r.dish.name : r.item.name;
-      return `<span class="box" data-index="${i}" style="--i:${i};z-index:${layer.get(i)};top:${ymin}%;left:${xmin}%;width:${xmax - xmin}%;height:${ymax - ymin}%"><span class="box__n">${i + 1}</span><span class="box__tag">${esc(capitalize(name))}</span></span>`;
+      const flip = xmin > 50 ? " box--flip" : ""; // in the right half, its name tag hangs to its left
+      return `<span class="box${flip}" data-index="${i}" style="--i:${i};z-index:${layer.get(i)};top:${ymin}%;left:${xmin}%;width:${xmax - xmin}%;height:${ymax - ymin}%"><span class="box__n">${i + 1}</span><span class="box__tag">${esc(capitalize(name))}</span></span>`;
     })
     .join("");
   const caption =

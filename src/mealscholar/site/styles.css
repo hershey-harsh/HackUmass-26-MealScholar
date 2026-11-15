@@ -1601,6 +1601,18 @@ body[data-screen="auth"] .footer {
   transform: none;
 }
 
+/* A box in the right half of the photo hangs its tag to its left, so the frame doesn't clip the name
+   and the number pin stays in view. */
+.box--flip .box__tag {
+  left: auto;
+  right: calc(100% + 4px);
+  transform: translateX(6px);
+}
+
+.box--flip.is-active .box__tag {
+  transform: none;
+}
+
 .boxes[data-active] .box:not(.is-active) {
   opacity: 0.3 !important;
 }
