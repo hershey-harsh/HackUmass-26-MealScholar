@@ -163,7 +163,7 @@
   var wide = { matches: true, addEventListener: function () {} }; // fanned at every width
   var reduce = w.matchMedia('(prefers-reduced-motion: reduce)');
   var active = 0, timer = 0, held = false, userPaused = false, inView = true, lastO = [];
-  var DELAY = 6000;
+  var DELAY = 8000;
 
   function title(i) { var t = cards[i].querySelector('.fan-card__title'); return t ? t.textContent : ''; }
 
@@ -200,6 +200,7 @@
       lastO[i] = o;
       if (jump) w.requestAnimationFrame(function () { w.requestAnimationFrame(function () { card.classList.remove('is-jump'); }); });
     });
+    if (w.__syncVideos) w.__syncVideos(); // only the front card's recording plays
   }
   function clearLayout() {
     cards.forEach(function (card) {
@@ -325,23 +326,37 @@
 })();
 
 // Recordings marked data-autoplay play (muted, looping) while at least half on screen and pause when
-// they leave; never by themselves under reduced motion (the rail's copy keeps its controls).
+// they leave; never by themselves under reduced motion. A recording inside the fan plays only while
+// its card is the front one: behind other cards it would decode frames nobody sees, and Safari paid
+// for that on every scroll. The rail's copy has controls and plays when tapped.
 (function () {
   var d = document, w = window;
   var vids = [].slice.call(d.querySelectorAll('video[data-autoplay]'));
   if (!vids.length || !('IntersectionObserver' in w)) return;
   var reduce = w.matchMedia('(prefers-reduced-motion: reduce)');
-  var io = new IntersectionObserver(function (entries) {
-    entries.forEach(function (e) {
-      var v = e.target;
-      if (e.isIntersecting && !reduce.matches) {
-        v.preload = 'auto';
-        var p = v.play();
-        if (p && p.catch) p.catch(function () {});
-      } else {
+  function wanted(v) {
+    if (!v.__inView || reduce.matches || d.hidden) return false;
+    var card = v.closest('.fan.is-fan .fan-card');
+    return !card || card.classList.contains('is-active');
+  }
+  function sync() {
+    vids.forEach(function (v) {
+      if (wanted(v)) {
+        if (v.paused) {
+          v.preload = 'auto';
+          var p = v.play();
+          if (p && p.catch) p.catch(function () {});
+        }
+      } else if (!v.paused) {
         v.pause();
       }
     });
+  }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { e.target.__inView = e.isIntersecting; });
+    sync();
   }, { threshold: 0.5 });
   vids.forEach(function (v) { io.observe(v); });
+  d.addEventListener('visibilitychange', sync);
+  w.__syncVideos = sync;
 })();
