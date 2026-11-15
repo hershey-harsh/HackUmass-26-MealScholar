@@ -625,7 +625,7 @@ const AT_HALL_M = 400; // within this of a dining commons, the photo is taken to
 async function uploadHall(coords) {
   if (!diningOn()) return null;
   if (coords) {
-    const near = state.nearest ?? (await fetchNearest(coords[0], coords[1]));
+    const near = await fetchNearest(coords[0], coords[1]); // where the photo was taken, not an earlier look-up
     if (near && Number.isInteger(near.location?.id) && near.distance_m <= AT_HALL_M) return near.location.id;
   }
   const halls = state.prefs?.dining_halls ?? [];
@@ -638,7 +638,10 @@ async function analyze(file) {
   if (!state.ready) return;
   if (state.analyzing) return toast("Still analyzing the last photo.");
   if (file.type && !file.type.startsWith("image/")) {
-    setStatus("That file isn't an image. Choose a JPEG, PNG or HEIC photo.", { error: true });
+    const message = "That file isn't an image. Choose a JPEG, PNG or HEIC photo.";
+    setStatus(message, { error: true });
+    // Dropped on another tab or over a result, the capture screen's line is out of sight.
+    if (state.view !== "analyze" || state.shown) toast(message);
     return;
   }
   // A new photo replaces the last analysis (or the logged meal on show) and opens the capture screen.
@@ -662,10 +665,22 @@ async function analyze(file) {
   const current = () => epoch === state.epoch;
   const controller = new AbortController();
   analysis = { controller, photoUrl };
+  // A photo this browser can't draw (HEIC outside Safari) leaves the frame plain, not a broken image.
+  els.previewImg.hidden = false;
+  els.previewImg.onerror = () => (els.previewImg.hidden = true);
   els.previewImg.src = photoUrl;
   state.analyzing = true;
   setViewfinder("analyzing");
   setStatus("Analyzing your photo. This usually takes a few seconds.");
+  // Phones: the frame sits under the photo options, its working line under the tab bar. Bring its foot
+  // clear of the tab bar (the root's scroll-padding), as far as the title above it stays on screen.
+  if (media("(max-width: 39.99em)").matches) {
+    const root = getComputedStyle(document.documentElement);
+    const below = els.viewfinder.getBoundingClientRect().bottom - (window.innerHeight - (parseFloat(root.scrollPaddingBottom) || 0));
+    const room = els.captureTitle.getBoundingClientRect().top - (parseFloat(root.scrollPaddingTop) || 0);
+    const by = Math.min(below, room);
+    if (by > 0) window.scrollBy({ top: by, behavior: leaving || reducedMotion.matches ? "auto" : "smooth" });
+  }
 
   const params = new URLSearchParams();
   params.set("taken_at", localIso(photoTime(file)));
@@ -699,7 +714,10 @@ async function analyze(file) {
       return;
     }
     setStatus("");
-    state.slots.analyze = { result, photoUrl, nearest: null };
+    // A photo this browser can't draw (HEIC outside Safari) shows as the server's stored JPEG.
+    const drawn = !(els.previewImg.complete && !els.previewImg.naturalWidth);
+    if (!drawn) URL.revokeObjectURL(photoUrl);
+    state.slots.analyze = { result, photoUrl: drawn ? photoUrl : null, nearest: null };
     state.scroll.analyze = 0;
     // With the campus menus connected, the same coordinates also name the nearest dining hall, once.
     if (coords && placeName(result.context) && diningOn()) noteNearest(coords, state.slots.analyze);
@@ -776,9 +794,17 @@ function closeSlot(key, { focus = false } = {}) {
   leaveCapture({ focus });
 }
 
-/** Off the capture screen, back to Today (an analysis still running carries on). */
+/** Off the capture screen, back to Today (an analysis still running carries on). Its buttons say
+    "Today", so that's the day they land on, whichever day was on show before. */
 function leaveCapture({ focus = false } = {}) {
-  if (state.view === "analyze") setView("today");
+  if (state.view === "analyze") {
+    ensureToday();
+    if (state.day !== state.todayKey) {
+      state.day = state.todayKey;
+      state.weekStart = null; // the Week tab follows the day
+    }
+    setView("today");
+  }
   window.scrollTo(0, state.scroll.today ?? 0);
   if (focus) els.todayTitle.focus({ preventScroll: true });
 }
@@ -1001,7 +1027,8 @@ function photoHtml(result, photoUrl) {
       if (!b) return "";
       const [ymin, xmin, ymax, xmax] = b.map((v) => Math.max(0, Math.min(1000, v)) / 10);
       const name = r.source === "campus" && r.dish ? r.dish.name : r.item.name;
-      return `<span class="box" data-index="${i}" style="--i:${i};z-index:${layer.get(i)};top:${ymin}%;left:${xmin}%;width:${xmax - xmin}%;height:${ymax - ymin}%"><span class="box__n">${i + 1}</span><span class="box__tag">${esc(capitalize(name))}</span></span>`;
+      const flip = xmin > 50 ? " box--flip" : ""; // in the right half, its name tag hangs to its left
+      return `<span class="box${flip}" data-index="${i}" style="--i:${i};z-index:${layer.get(i)};top:${ymin}%;left:${xmin}%;width:${xmax - xmin}%;height:${ymax - ymin}%"><span class="box__n">${i + 1}</span><span class="box__tag">${esc(capitalize(name))}</span></span>`;
     })
     .join("");
   const caption =
@@ -1827,8 +1854,10 @@ function weighHtml(r, i) {
 
 function foodHtml(r, i) {
   const options = [r.match, ...r.alternatives].filter(Boolean);
+  // A menu dish counts from the hall's label (its USDA match only fills in the rest), so no USDA food
+  // is current: picking any of them, its match too, switches the food to USDA.
   const list = options.length
-    ? options.map((m) => optionHtml(m, r.match?.fdc_id === m.fdc_id)).join("")
+    ? options.map((m) => optionHtml(m, r.source !== "campus" && r.match?.fdc_id === m.fdc_id)).join("")
     : '<li class="options__empty">No suggestions. Try a search above.</li>';
   return `
     <label class="field-label" for="search-${i}">Search USDA FoodData Central</label>
@@ -1889,7 +1918,8 @@ async function searchFoods(input) {
   try {
     const found = await api(`/api/foods?q=${encodeURIComponent(q)}&limit=6`);
     if (seq !== searchSeq || !list.isConnected) return;
-    const current = shownMeal()?.items[index]?.match?.fdc_id;
+    const item = shownMeal()?.items[index];
+    const current = item?.source === "campus" ? null : item?.match?.fdc_id; // a menu dish has no current USDA food
     list.innerHTML = found.foods.length
       ? (found.exact ? "" : '<li class="options__empty">No exact match. Closest results:</li>') +
         found.foods.map((f) => optionHtml(f, f.fdc_id === current)).join("")
@@ -2875,7 +2905,7 @@ async function openMealFrom(button) {
   await withBusy(button, async () => {
     try {
       const result = await api(`/api/meals/${encodeURIComponent(id)}`);
-      await photoReady(result.photo_url);
+      await photoReady(serverUrl(result.photo_url));
       if (epoch === state.epoch) openLogged(result); // never into someone else's session
     } catch (err) {
       if (err.signedOut || epoch !== state.epoch) return;
@@ -4607,12 +4637,15 @@ async function nearestHall() {
   }
 }
 
-/** After a photo with location: the nearest hall under the result, and the side column follows it. */
+/** After a photo with location: the nearest hall under the result, and the side column follows it.
+    The note goes into the card on show, where resultHtml puts it: a re-render would cut the boxes'
+    entrance short and drop keyboard focus. */
 async function noteNearest([lat, lon], slot) {
   const near = await fetchNearest(lat, lon);
   if (!near || state.slots.analyze !== slot) return;
   slot.nearest = near;
-  if (state.shown === slot) renderResult("update");
+  const body = state.shown === slot && slot.result.items.length ? $(".meal-card__body", els.result) : null;
+  if (body && !$(".nearest-note", body)) body.insertAdjacentHTML("beforeend", nearestNoteHtml(near.note, "result"));
   state.upcoming = null;
   loadUpcoming();
 }
