@@ -1,11 +1,13 @@
 """Sampler CLI: one pass over the dining-hall cams.
 
-For each hall: capture a 16 s window (a frame every 0.5 s), detect + track people,
-compute the busy level, upsert one occupancy document, write the hall's boxed clip
-and poster to the clip dir (config.clip_dir()), then write state/latest.json and
-log one line. One hall failing never stops the others, and neither does a failed
-clip encode; an offline or blocked stream is recorded as level "unknown" with a
-reason. Whole run stays under config.TOTAL_BUDGET_S (launchd starts one every 180 s).
+For each hall: capture a 16 s window (a frame every 0.5 s), count people on
+config.COUNT_FRAMES of its frames (the clip keeps them all; see detect.run_window),
+compute the busy level from the median, upsert one occupancy document, write the
+hall's boxed clip and poster to the clip dir (config.clip_dir()), then write
+state/latest.json and log one line. One hall failing never stops the others, and
+neither does a failed clip encode; an offline or blocked stream is recorded as level
+"unknown" with a reason. Whole run stays under config.TOTAL_BUDGET_S (launchd starts
+one every 180 s): a hall stops counting early rather than starve the halls after it.
 
     python -I -m umass_cams.sample [--all] [--window 16] [--dry-run] [--no-clips] [--screenshots DIR]
 """
@@ -27,6 +29,8 @@ from .streams import Stream, all_live_streams, primary_streams
 log = logging.getLogger("umass_cams.sample")
 
 SOURCE = "youtube-embed/playwright"
+MODEL_STEM = Path(config.MODEL_NAME).stem  # for documents written before a tracker exists
+CLIP_RESERVE_S = 3.0  # the clip encode and the document, after counting
 
 
 def build_doc(
@@ -73,10 +77,17 @@ def build_doc(
 
 
 def load_history(
-    coll, stream: Stream, now: datetime, days: int = busy.HISTORY_WINDOW_DAYS
+    coll, stream: Stream, now: datetime, days: int = busy.HISTORY_WINDOW_DAYS, model: str = MODEL_STEM
 ) -> list[tuple[datetime, int]]:
+    """Past readings of this camera from the same model: counts from different detectors are not on the
+    same scale (yolo11n read a tenth of the people yolo11l does), so they must not grade each other."""
     cur = coll.find(
-        {"youtube_id": stream.youtube_id, "level": {"$ne": "unknown"}, "ts": {"$gte": now - timedelta(days=days)}},
+        {
+            "youtube_id": stream.youtube_id,
+            "model": model,
+            "level": {"$ne": "unknown"},
+            "ts": {"$gte": now - timedelta(days=days)},
+        },
         {"ts": 1, "people": 1},
     ).sort("ts", 1)
     out = []
@@ -126,6 +137,14 @@ def save_clip(stream: Stream, per_frame, clip_dir: Path | None) -> bool:
     return True
 
 
+def count_deadline(deadline: float, halls_left: int, now: float | None = None) -> float:
+    """When this hall must stop counting: the pass deadline minus what the halls after it still need
+    (config.HALL_RESERVE_S each) and the clip encode. Never earlier than now: the first planned frame is
+    always counted (detect.run_window), so a late hall still gets a one-frame reading."""
+    now = time.time() if now is None else now
+    return max(now, deadline - halls_left * config.HALL_RESERVE_S - CLIP_RESERVE_S)
+
+
 def sample_one(
     grabber,
     tracker_factory,
@@ -136,9 +155,11 @@ def sample_one(
     deadline: float,
     dry_run: bool,
     clip_dir: Path | None = None,
+    halls_left: int = 0,
 ) -> dict:
+    """One hall: grab, count, assess, clip, store. `tracker_factory(stream)` builds the hall's PersonTracker
+    (per-camera conf); `halls_left` halls still follow in this pass and keep their share of the budget."""
     t0 = time.time()
-    model_name = "yolo11n"
     res = grabber.grab(
         stream, window_s=window_s, interval_s=config.FRAME_INTERVAL_S, play_timeout_s=20.0, deadline=deadline
     )
@@ -153,7 +174,7 @@ def sample_one(
             0,
             0,
             None,
-            model_name,
+            MODEL_STEM,
             engine,
             reason=reason,
             extra={"player_text": res.player_text[:160], "grab_s": round(res.seconds, 1)},
@@ -170,26 +191,36 @@ def sample_one(
 
     from .detect import run_window  # heavy import only when there are frames
 
-    tracker = tracker_factory()
-    counts, ids, per_frame = run_window(tracker, res.frames)
-    save_clip(stream, per_frame, clip_dir)
-    people, tracks = busy.summarize_window(counts, ids)
+    tracker = tracker_factory(stream)
+    # The count comes from COUNT_FRAMES of the window's frames (2.2 s each on the CPU); the clip gets
+    # every frame, with the boxes of the last counted one on the frames in between.
+    win = run_window(tracker, res.frames, config.COUNT_FRAMES, deadline=count_deadline(deadline, halls_left))
+    save_clip(stream, win.per_frame, clip_dir)
+    people, tracks = busy.summarize_window(win.counts, win.ids)
     history = load_history(coll, stream, now) if coll is not None else []
-    assessment = busy.assess(people, stream.youtube_id, history, now, frames=len(counts))
+    assessment = busy.assess(people, stream.youtube_id, history, now, frames=len(win.counts))
     doc = build_doc(
         stream,
         now,
         window_s,
-        len(counts),
+        len(win.counts),  # frames the count is based on; clip_frames is the whole window
         people,
         tracks,
         assessment,
         tracker.model_name,
         engine,
-        extra={"counts": counts, "video_size": list(res.video_size), "grab_s": round(res.seconds, 1)},
+        extra={
+            "counts": win.counts,
+            "clip_frames": len(win.per_frame),
+            "detector": tracker.setup,
+            "count_s": round(win.seconds, 1),
+            "video_size": list(res.video_size),
+            "grab_s": round(res.seconds, 1),
+        },
     )
     log.info(
-        "%s (%s): people=%d tracks=%d level=%s score=%.2f trend=%s forecast_30m=%s frames=%d %.1fs",
+        "%s (%s): people=%d tracks=%d level=%s score=%.2f trend=%s forecast_30m=%s counts=%s "
+        "frames=%d/%d count_s=%.1f [%s] %.1fs",
         stream.location_name,
         stream.youtube_id,
         people,
@@ -198,7 +229,11 @@ def sample_one(
         assessment.score,
         assessment.trend,
         assessment.forecast_30m,
-        len(counts),
+        win.counts,
+        len(win.counts),
+        len(win.per_frame),
+        win.seconds,
+        tracker.setup,
         time.time() - t0,
     )
     return _store(coll, doc, dry_run)
@@ -288,26 +323,39 @@ def main(argv: list[str] | None = None) -> int:
 
         os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH", bp)
 
-    def tracker_factory():
+    loaded: dict[str, object] = {}  # the weights, loaded and warmed up once, shared by the halls' trackers
+
+    def tracker_factory(stream: Stream):
         from .detect import PersonTracker
 
-        return PersonTracker()
+        tracker = PersonTracker(conf=config.conf_for(stream.youtube_id), model=loaded.get("model"))
+        loaded["model"] = getattr(tracker, "model", None)
+        return tracker
 
     docs: list[dict] = []
     try:
         with FrameGrabber(screenshot_dir=args.screenshots) as grabber:
-            for s in streams:
+            for i, s in enumerate(streams):
                 now = datetime.now(UTC).replace(microsecond=0)
                 remaining = deadline - time.time()
                 if remaining < 8:
-                    doc = build_doc(s, now, args.window, 0, 0, 0, None, "yolo11n", None, reason="skipped_time_budget")
+                    doc = build_doc(s, now, args.window, 0, 0, 0, None, MODEL_STEM, None, reason="skipped_time_budget")
                     log.warning("%s: skipped, %.0fs left in budget", s.location_name, remaining)
                     docs.append(_store(coll, doc, args.dry_run))
                     continue
                 try:
                     docs.append(
                         sample_one(
-                            grabber, tracker_factory, s, coll, now, args.window, deadline, args.dry_run, clip_dir
+                            grabber,
+                            tracker_factory,
+                            s,
+                            coll,
+                            now,
+                            args.window,
+                            deadline,
+                            args.dry_run,
+                            clip_dir,
+                            halls_left=len(streams) - i - 1,
                         )
                     )
                 except Exception as e:  # one hall never stops the others
@@ -320,7 +368,7 @@ def main(argv: list[str] | None = None) -> int:
                         0,
                         0,
                         None,
-                        "yolo11n",
+                        MODEL_STEM,
                         None,
                         reason=f"error:{type(e).__name__}",
                         extra={"player_text": str(e)[:160]},

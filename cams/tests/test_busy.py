@@ -130,8 +130,9 @@ def test_assess_cold_start_uses_thresholds():
     a = busy.assess(people=3, youtube_id="7wHgOpwHz8k", history=[], now=now)
     assert a.method == "thresholds" and a.level == "quiet" and a.trend == "steady"
     assert a.forecast_30m is None and 0 <= a.score <= 1 and a.confidence == 0.4
-    b = busy.assess(people=30, youtube_id="7wHgOpwHz8k", history=[], now=now)
+    b = busy.assess(people=74, youtube_id="7wHgOpwHz8k", history=[], now=now)  # the Saturday-dinner reading
     assert b.level == "busy" and b.score > a.score
+    assert busy.assess(people=30, youtube_id="7wHgOpwHz8k", history=[], now=now).level == "moderate"
 
 
 def test_assess_switches_to_history_after_three_days():
@@ -155,8 +156,8 @@ def test_assess_switches_to_history_after_three_days():
     c = busy.assess(people=30, youtube_id="RprORF_ggOA", history=two_weeks, now=now)
     assert c.method == "history" and c.reference["basis"] == "hour_of_week"
     # 30 equals every same-hour sample (flat history, p40 == p75 == 30) but is above Hampshire
-    # South's busy_min of 14: the absolute bound wins, a packed hall is busy even when it is always packed
-    assert c.level == "busy" and c.score == pytest.approx(30 / 30, abs=1e-3)
+    # South's busy_min of 24: the absolute bound wins, a packed hall is busy even when it is always packed
+    assert c.level == "busy" and c.score == pytest.approx(30 / 44, abs=1e-3)
     assert c.reference["p40"] == c.reference["p75"] == 30 and c.reference["rank"] == 0.5
     d = busy.assess(people=10, youtube_id="RprORF_ggOA", history=two_weeks, now=now)
     assert d.level == "moderate" and d.reference["rank"] == 0.0  # flat reference, between the bounds
@@ -224,6 +225,20 @@ def test_history_mode_empty_hall_at_night_is_quiet_and_packed_noon_is_busy(monke
         assert a.method == "history" and a.level == "busy", (p, a)
     assert busy.assess(20, "cam-x", h3, noon).level == "moderate"  # between 8 and 22, p40 == p75 == 40
     assert busy.assess(8, "cam-x", h3, noon).level == "quiet"
+
+
+def test_camera_thresholds_follow_the_benchmark_readings():
+    """The detector's readings on the 2026-11-14 Saturday-dinner frames (see busy.CAMERA_THRESHOLDS)."""
+    w, b, h = (busy.thresholds_for(y) for y in ("7wHgOpwHz8k", "AoceCqa6MWw", "RprORF_ggOA"))
+    assert (w.quiet_max, w.busy_min, w.full) == (20, 60, 110)
+    assert (b.quiet_max, b.busy_min, b.full) == (8, 31, 51)
+    assert (h.quiet_max, h.busy_min, h.full) == (6, 24, 44)
+    assert all(busy.level_from_thresholds(n, w) == "busy" for n in (76, 69, 75, 70, 75, 85))  # ~every table taken
+    assert all(busy.level_from_thresholds(n, b) == "busy" for n in (35, 34, 35, 33))  # a packed entrance
+    assert all(busy.level_from_thresholds(n, h) != "quiet" for n in (23, 19, 16, 25))  # half the seats taken
+    for th in (w, b, h):
+        assert busy.level_from_thresholds(0, th) == "quiet" and busy.level_from_thresholds(3, th) == "quiet"
+        assert busy.score_from_thresholds(th.full, th) == 1.0
 
 
 def test_assess_low_frame_count_lowers_confidence():

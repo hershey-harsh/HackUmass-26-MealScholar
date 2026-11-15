@@ -74,13 +74,15 @@ def test_check_against_locations_reports_mismatch():
 # --------------------------------------------------------------------------
 
 
-def _jpeg_data_url():
+def _jpeg_data_url(seed=0):
+    """A JPEG frame; a different picture per seed, the way a live stream differs from frame to frame."""
     import base64
 
     import cv2
     import numpy as np
 
     img = np.zeros((360, 640, 3), np.uint8)
+    img[:, : 8 * (seed % 80)] = 255
     return "data:image/jpeg;base64," + base64.b64encode(cv2.imencode(".jpg", img)[1].tobytes()).decode()
 
 
@@ -89,7 +91,7 @@ class _FakePage:
 
     def __init__(self, states, grab=None, state_raises_at=None):
         self.states = list(states)
-        self.grab = grab or _jpeg_data_url
+        self.grab = grab or (lambda: _jpeg_data_url(self.grab_calls))  # each frame differs, like live video
         self.state_raises_at = state_raises_at
         self.state_polls = 0
         self.grab_calls = 0
@@ -169,6 +171,34 @@ def test_grabber_captures_once_playback_advances():
     assert r.status == "ok" and len(r.frames) == 2 and r.video_size == (640, 360)
     assert page.state_polls == 3  # first poll can never count; third sees t advance with ready >= 2
     assert r.frames[0][1].shape == (360, 640, 3)
+
+
+def test_a_frozen_player_is_reported_as_stalled():
+    # the clock advanced (so playback was detected), but every captured frame is the same picture
+    same = _jpeg_data_url(7)
+    page = _FakePage([_state(t=0.0, ready=0), _state(t=0.4, ready=4), _state(t=0.9, ready=4)], grab=lambda: same)
+    r = _grabber(page)._grab_with("chromium", streams.by_youtube_id("7wHgOpwHz8k"), 0.06, 0.02, 2.0, None)
+    assert r.status == "stalled" and not r.ok and r.frames == []
+    assert page.grab_calls == 3
+    # frames that change are a live picture
+    page = _FakePage([_state(t=0.0, ready=0), _state(t=0.4, ready=4), _state(t=0.9, ready=4)])
+    r = _grabber(page)._grab_with("chromium", streams.by_youtube_id("7wHgOpwHz8k"), 0.06, 0.02, 2.0, None)
+    assert r.status == "ok" and len(r.frames) == 3
+
+
+def test_frames_stalled_needs_several_identical_frames():
+    import numpy as np
+
+    rng = np.random.default_rng(1)
+    still = np.full((720, 1280, 3), 90, np.uint8)
+    noisy = [(float(i), np.clip(still + rng.integers(-2, 3, still.shape), 0, 255).astype(np.uint8)) for i in range(4)]
+    assert streams.frames_stalled([(0.0, still), (1.0, still.copy()), (2.0, still.copy())])
+    assert not streams.frames_stalled([(0.0, still)])  # one frame says nothing
+    assert not streams.frames_stalled(noisy)  # sensor and compression noise alone is movement enough
+    # one changed frame in the window is movement
+    moved = still.copy()
+    moved[300:400, 600:700] = 200
+    assert not streams.frames_stalled([(0.0, still), (1.0, still.copy()), (2.0, moved)])
 
 
 def test_grabber_never_screenshots_the_playing_video(tmp_path):
