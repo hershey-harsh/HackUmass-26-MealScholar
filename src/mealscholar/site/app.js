@@ -2403,7 +2403,9 @@ els.dashDay.addEventListener("click", (event) => {
 
 // Crossing the laptop width swaps the swipe for the open grid, and back.
 laptop.addEventListener("change", () => {
-  if (document.body.dataset.screen === "app" && els.dashDay.childElementCount) renderDay();
+  if (document.body.dataset.screen !== "app" || !els.dashDay.childElementCount) return;
+  rendered.day = ""; // the width isn't part of what renderDay compares, so it would skip the redraw
+  renderDay();
 });
 
 function mealRowHtml(m) {
