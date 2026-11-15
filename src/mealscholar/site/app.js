@@ -3817,6 +3817,7 @@ els.account.addEventListener("close", () => {
   els.account.style.transition = "";
   els.account.style.transform = "";
   if (!els.sheet.open) document.documentElement.classList.remove("has-sheet");
+  flushSaves(); // a change made just before closing still saves
   els.accountBody.innerHTML = "";
   if (accountRestore) {
     const back = canTakeFocus(accountOpener) ? accountOpener : els.accountButton;
@@ -6286,7 +6287,7 @@ function summaryHtml(prefs) {
 
 // ---- what the widgets do, in the set-up steps and in Settings alike
 
-const saveTimers = new Map();
+const saveTimers = new Map(); // section -> { id, run }: a Settings save waiting for its moment
 const statusTimers = new WeakMap();
 
 function flashStatus(el, text) {
@@ -6300,8 +6301,21 @@ function flashStatus(el, text) {
 /** Settings saves as you go, a moment after the last change; the set-up steps save on Next. */
 function autosave(root, section) {
   if (root.dataset.mode !== "settings") return;
-  clearTimeout(saveTimers.get(section));
-  saveTimers.set(section, setTimeout(() => saveSection(root, section), 350));
+  clearTimeout(saveTimers.get(section)?.id);
+  const epoch = state.epoch;
+  const run = () => {
+    saveTimers.delete(section);
+    if (epoch === state.epoch) saveSection(root, section); // not once the account has signed out
+  };
+  saveTimers.set(section, { id: setTimeout(run, 350), run });
+}
+
+/** Settings is closing: send the saves still waiting now, while their widgets can still be read. */
+function flushSaves() {
+  for (const { id, run } of [...saveTimers.values()]) {
+    clearTimeout(id);
+    run();
+  }
 }
 
 function readSection(section, root) {
