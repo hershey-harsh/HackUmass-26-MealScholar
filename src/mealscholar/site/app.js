@@ -4509,7 +4509,8 @@ function updateBell() {
   els.bell.hidden = !show;
   const n = state.alerts.length;
   els.bellDot.hidden = !n;
-  const label = n ? `Alerts: ${n} of your favorites ${n === 1 ? "is" : "are"} on the menu this week` : "Alerts";
+  const dishes = new Set(state.alerts.map((a) => dishKey(a.name))).size; // an alert is one dish at one hall for one meal
+  const label = dishes ? `Alerts: ${dishes} of your favorites ${dishes === 1 ? "is" : "are"} on the menu this week` : "Alerts";
   els.bell.setAttribute("aria-label", label);
   els.railAlerts.hidden = !show;
   els.railDot.hidden = !n;
