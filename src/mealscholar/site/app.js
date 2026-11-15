@@ -623,7 +623,7 @@ const AT_HALL_M = 400; // within this of a dining commons, the photo is taken to
 async function uploadHall(coords) {
   if (!diningOn()) return null;
   if (coords) {
-    const near = state.nearest ?? (await fetchNearest(coords[0], coords[1]));
+    const near = await fetchNearest(coords[0], coords[1]); // where the photo was taken, not an earlier look-up
     if (near && Number.isInteger(near.location?.id) && near.distance_m <= AT_HALL_M) return near.location.id;
   }
   const halls = state.prefs?.dining_halls ?? [];
