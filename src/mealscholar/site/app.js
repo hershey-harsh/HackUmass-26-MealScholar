@@ -2189,7 +2189,7 @@ function renderDay() {
   rendered.day = sig;
   if (!view) {
     els.dashDay.innerHTML = failed ? dayErrorHtml(entry.error) : daySkeletonHtml();
-    els.dashMicro.innerHTML = "";
+    els.dashMicro.innerHTML = failed ? microErrorHtml(key, entry.error) : "";
     els.dashRecent.innerHTML = "";
     return;
   }
@@ -2489,6 +2489,15 @@ function microEmptyHtml(key, logged) {
     </section>`;
 }
 
+/** The day on show didn't load: the vitamins card says why, with Try again. */
+function microErrorHtml(key, err) {
+  return `
+    <section class="card micro-card micro-card--empty" aria-labelledby="micro-empty-title">
+      <div class="micro-card__titles"><h2 id="micro-empty-title" class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(microDay(key))}</span></div>
+      <div class="dash-alert"><p class="status is-error" role="alert">${esc(err.message)}</p><button class="btn btn--soft" type="button" data-action="retry">Try again</button></div>
+    </section>`;
+}
+
 function emptyDayHtml(key) {
   const isToday = key === state.todayKey;
   const name = dayName(key);
@@ -2604,13 +2613,10 @@ function renderWeekSub() {
 
 function weekErrorHtml(days) {
   const error = days.find((d) => d.error)?.error;
-  // The day on show failing for the same reason already says why, right above: don't repeat it.
-  const shown = dayCache.get(state.day);
-  const said = shown?.error && !shown.value && shown.error.message === error?.message;
   return `
     ${weekHead()}
     <div class="card week week--error">
-      <p class="status is-error">Couldn't load this week.${error && !said ? ` ${esc(error.message)}` : ""}</p>
+      <p class="status is-error">Couldn't load this week.${error ? ` ${esc(error.message)}` : ""}</p>
       <button class="btn btn--secondary" type="button" data-action="retry">Try again</button>
     </div>`;
 }
