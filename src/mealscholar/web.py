@@ -51,7 +51,7 @@ from .vision import GeminiVision, VisionError, VisionModel
 
 SITE = Path(__file__).parent / "site"
 MAX_PHOTO_BYTES = 25 * 1024 * 1024
-ANALYSIS_PER_USER = Rule("analysis-user", 10, 10 * 60)
+ANALYSIS_PER_USER = Rule("analysis-user", 30, 10 * 60)  # photos and answers together; a demo tries several meals
 ANALYSIS_PER_IP = Rule("analysis-ip", 100, 10 * 60)  # campus Wi-Fi can share one network
 PHOTO_CACHE = "private, max-age=86400"
 JPEG_REPLY: dict[int | str, dict] = {200: {"content": {"image/jpeg": {}}, "description": "The photo."}}
