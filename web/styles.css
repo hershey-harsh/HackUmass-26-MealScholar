@@ -2027,14 +2027,14 @@ html:not(.js) .rail-ctrl { display: none; }
 .ps-food__src--usda::before { background: transparent; box-shadow: inset 0 0 0 1px var(--ink-2); }
 
 /* ---- Real examples: six plates as cards, each with its photo, hall, calories and a ruled list of
-   its foods with their sources (a filled tag for the hall's label, an outlined one for USDA). A
-   sideways row on phones (arrows and dots from app.js), two up from 700px, three up from 1100px. */
+   its foods with their sources (a filled tag for the hall's label, an outlined one for USDA). One
+   sideways row, a carousel on every screen, with arrows and dots from app.js. */
 .plates__list { list-style: none; margin: 0; padding: 2px var(--gutter) 20px; display: grid; grid-auto-flow: column; grid-auto-columns: min(340px, 82vw); gap: 16px; width: max-content; }
 .plate { display: flex; flex-direction: column; min-width: 0; scroll-snap-align: start; }
 .plate__media { position: relative; }
-.plate__img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 16px; background: var(--surface-2); }
+.plate__img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 16px; background: var(--surface-2); }
 .plate__hall { position: absolute; top: 10px; left: 10px; display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 999px; background: rgba(14, 14, 15, .68); color: #EEF0F2; font-size: 12.5px; font-weight: 500; line-height: 1; }
-.plate__kind { display: inline-flex; align-items: center; gap: 8px; margin-top: 18px; font-size: 12px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--label); }
+.plate__kind { display: inline-flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 12px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--label); }
 .plate__kind::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
 .plate__kind--mix::before { background: linear-gradient(90deg, var(--ink) 50%, transparent 50%); box-shadow: inset 0 0 0 1.5px var(--ink); }
 .plate__kind--usda::before { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ink-2); }
@@ -2043,20 +2043,20 @@ html:not(.js) .rail-ctrl { display: none; }
 .plate__kcal { flex: none; font-family: var(--mono); font-size: 26px; font-weight: 400; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
 .plate__kcal small { margin-left: .3em; font-size: 12px; letter-spacing: 0; color: var(--ink-2); }
 .plate__foods { list-style: none; margin: 14px 0 0; padding: 0; border-bottom: 1px solid var(--line); }
-.plate__foods li { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 15px; line-height: 1.35; }
-.plate__food { display: grid; justify-items: start; gap: 6px; min-width: 0; }
+.plate__foods li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14.5px; line-height: 1.35; }
+.plate__food { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
 .plate__k { flex: none; font-family: var(--mono); font-size: 14px; line-height: 1.45; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .plate__k small { margin-left: .3em; font-size: 11px; color: var(--ink-2); }
 .plate__note { margin-top: 12px; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
 .plate__note b { font-weight: 500; color: var(--ink); }
 .rail--plates + .rail-dots { margin-top: 2px; }
 .examples__fine { margin-top: 20px; }
+#examples { padding-block: calc(var(--pad-y) * .7); }
 @media (min-width: 700px) {
-  .rail--plates { margin-inline: 0; overflow: visible; scroll-snap-type: none; border-radius: 0; }
-  .plates__list { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px 32px; width: auto; padding: 0; }
+  .plates__list { grid-auto-columns: 330px; gap: 24px; }
 }
 @media (min-width: 1100px) {
-  .plates__list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 56px 40px; }
+  .plates__list { grid-auto-columns: 360px; gap: 28px; }
 }
 
 /* The example Today on a phone shows plain amounts: % Daily Value bars come with a goal only. */
@@ -2114,8 +2114,8 @@ html:not(.js) .rail-ctrl { display: none; }
 /* ---- The hero's Home Screen card: the recording's last frame, still. */
 .fv-home--video img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
-/* ---- More features: three recordings in the same 4:5 shape, each a poster until it's played. A
-   sideways row on phones (arrows and dots from app.js), three up from 900px. */
+/* ---- More features: four recordings in the same 4:5 shape, each a poster until it's played. A
+   sideways row on phones (arrows and dots from app.js), four up from 900px. */
 .gallery { list-style: none; margin: 0; padding: 2px var(--gutter) 20px; display: grid; grid-auto-flow: column; grid-auto-columns: min(300px, 72vw); gap: 16px; width: max-content; }
 .gallery__item { display: flex; flex-direction: column; min-width: 0; scroll-snap-align: start; }
 .gallery__frame { position: relative; overflow: hidden; aspect-ratio: 4 / 5; border-radius: 18px; background: #17171a; }
@@ -2125,7 +2125,7 @@ html:not(.js) .rail-ctrl { display: none; }
 .rail--gallery + .rail-dots { margin-top: 2px; }
 @media (min-width: 900px) {
   .rail--gallery { margin-inline: 0; overflow: visible; scroll-snap-type: none; border-radius: 0; }
-  .gallery { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; width: auto; padding: 0; }
+  .gallery { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; width: auto; padding: 0; }
 }
 
 /* ---- A real scan and where it works, the first section: a big recording that loads only when
@@ -2197,7 +2197,7 @@ html:not(.js) .rail-ctrl { display: none; }
 .flow__t { margin-top: 7px; font-size: 16px; font-weight: 500; line-height: 1.3; letter-spacing: -0.01em; text-wrap: balance; }
 .flow__d { margin-top: 4px; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
 .flow__paths { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
-.flow__paths li { display: grid; grid-template-columns: 82px minmax(0, 1fr); align-items: start; gap: 10px; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
+.flow__paths li { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: start; gap: 10px; font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
 .flow__paths .src { justify-self: start; margin-top: 1px; }
 @media (min-width: 1100px) {
   .flow { max-width: none; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.5fr) minmax(0, 1fr); column-gap: 44px; }
