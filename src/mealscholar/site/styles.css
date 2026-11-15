@@ -3264,7 +3264,8 @@ body[data-screen="auth"] .footer {
 }
 
 /* Headings that take focus after Try again, like the view titles. */
-.section-title:focus {
+.section-title:focus,
+.menu-card__meal:focus {
   outline: none;
 }
 

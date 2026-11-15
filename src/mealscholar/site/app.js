@@ -5039,6 +5039,8 @@ async function ensureMenus({ refresh = false } = {}) {
   ensureMenuDay(); // with no hall chosen, the server's default hall is known only now
 }
 
+const menuSaid = { hall: undefined, due: false }; // the hall on show, and whether a switch to it is yet to be said
+
 /** `reveal`: the tab just opened, so the picked hall's chip comes into the chip row's view. */
 function renderMenu({ reveal = false } = {}) {
   if (!diningOn()) {
@@ -5054,6 +5056,9 @@ function renderMenu({ reveal = false } = {}) {
   const focusedHall = document.activeElement?.closest?.("[data-hall]")?.dataset.hall ?? null;
   const focusedDish = document.activeElement?.closest?.("[data-dish]")?.dataset.dish ?? null;
   const focusedMeal = document.activeElement?.matches?.("[data-meal-pick]") ? document.activeElement.value : null;
+  const inBody = els.menuBody.contains(document.activeElement) ? document.activeElement : null;
+  const focusedCam = inBody?.closest("[data-cam]")?.dataset.cam ?? null; // the busy line
+  const focusedLink = inBody?.closest(".nearest-note [data-action]")?.dataset.action ?? null; // "Change dining hall"
   // The chip row keeps its scroll. Not read as the tab opens: hidden, the row lost it, and reading it then
   // would lay the old menu out once more for nothing.
   const chipScroll = reveal ? 0 : $(".halls-bar__track", els.menuHalls)?.scrollLeft ?? 0;
@@ -5091,6 +5096,19 @@ function renderMenu({ reveal = false } = {}) {
   els.menuBody.innerHTML = `${menus.note ? `<p class="menu-note" role="status">${esc(menus.note)}</p>` : ""}${body}`;
   const tabs = $(".menu-meals", els.menuBody);
   if (tabs) fitMealTabs(tabs);
+  // A switch to another hall says which hall and meal are on show, once its menu is in. The menu itself isn't
+  // a live region: every redraw (a new busy reading) would read it all out again.
+  if (pick !== menuSaid.hall) {
+    menuSaid.due = menuSaid.hall !== undefined;
+    menuSaid.hall = pick;
+  }
+  const status = $("#menu-status");
+  if (menuSaid.due && entry && !entry.pending && status) {
+    menuSaid.due = false;
+    const meal = $("#menu-meal-title strong", els.menuBody)?.textContent;
+    const n = $$("[data-dish]", els.menuBody).length;
+    if (meal) status.textContent = `${$(".menu-card .eyebrow", els.menuBody)?.textContent ?? hallLabel(pick)}: ${meal}, ${n} item${n === 1 ? "" : "s"}.`;
+  }
   const track = $(".halls-bar__track", els.menuHalls);
   if (chipScroll) track.scrollLeft = chipScroll;
   const chip = reveal && track.scrollWidth > track.clientWidth ? $('[aria-pressed="true"]', track) : null;
@@ -5107,6 +5125,8 @@ function renderMenu({ reveal = false } = {}) {
   if (focusedHall != null) $(`[data-hall="${CSS.escape(focusedHall)}"]`, els.menuHalls)?.focus({ preventScroll: true });
   else if (focusedDish != null) $(`[data-dish="${CSS.escape(focusedDish)}"]`, els.menuBody)?.focus({ preventScroll: true });
   else if (focusedMeal != null) $(`[data-meal-pick][value="${CSS.escape(focusedMeal)}"]`, els.menuBody)?.focus({ preventScroll: true });
+  else if (focusedCam != null) $(`[data-cam="${CSS.escape(focusedCam)}"]`, els.menuBody)?.focus({ preventScroll: true });
+  else if (focusedLink != null) $(`.nearest-note [data-action="${CSS.escape(focusedLink)}"]`, els.menuBody)?.focus({ preventScroll: true });
 }
 
 // ---- the Menu tab's day arrows: another day's whole menu at the picked hall
@@ -5344,7 +5364,7 @@ function menuCardHtml(id, meal, near, { day = false } = {}) {
       <header class="menu-card__head">
         <p class="eyebrow">${esc(hall)}</p>
         ${day ? "" : busyBadgeHtml(meal.location?.id ?? id)}
-        <h2 id="menu-meal-title" class="menu-card__meal"><strong>${esc(label)}</strong>${whenText ? `<span class="menu-card__when">${SEP}${esc(whenText)}</span>` : ""}</h2>
+        <h2 id="menu-meal-title" class="menu-card__meal" tabindex="-1"><strong>${esc(label)}</strong>${whenText ? `<span class="menu-card__when">${SEP}${esc(whenText)}</span>` : ""}</h2>
         ${hint ? `<p class="menu-card__hint">${esc(hint)}</p>` : ""}
         ${nearNote}
         ${legend}
@@ -5390,7 +5410,11 @@ els.menuView.addEventListener("click", (event) => {
       return openSettings(action.dataset.section, action);
     case "retry-menu":
       menus.data.delete(Number(action.dataset.hallRetry));
-      ensureMenus().then(() => $('[data-action="retry-menu"]', els.menuBody)?.focus({ preventScroll: true }));
+      // Focus goes to the new card's heading, or to Try again if it failed again (unless it moved on meanwhile).
+      ensureMenus().then(() => {
+        if (document.activeElement !== document.body && !els.menuBody.contains(document.activeElement)) return;
+        $('[data-action="retry-menu"], #menu-meal-title', els.menuBody)?.focus({ preventScroll: true });
+      });
       return;
     case "retry-menu-day":
       menus.days.delete(`${menuDayHall()}|${menus.day}`);
