@@ -4,7 +4,8 @@ reads it.
 The /api/dining routes are public. The /api/me ones add the user's preferences (prefs.py): the
 next meal with their flags on each dish, and their favorites on upcoming menus, which feed the
 in-app bell and the favorites email. Dining.dishes_on reads a hall's dishes for a day with their
-own nutrition labels (the menu_items collection), for campus.py to match a photo against.
+own nutrition labels (the menu_items collection), and Dining.dishes_between those of several days,
+for campus.py to match a photo against.
 
 Reads are cached in process for 5 minutes. Queries are built only from ints, ISO dates and an
 escaped search pattern; nothing from a request body goes into one.
@@ -214,6 +215,8 @@ class DishFacts(_Frozen):
     lacks is left out, so the meal's totals report it as partial rather than count it as 0."""
     healthfulness_score: int | None
     """UMass Dining's own score, 0 to 7."""
+    date: dt.date | None = None
+    """The day it was on the menu; None for a dish from the hall's past menus (CATALOG_MEAL)."""
 
 
 # --- reading the database -----------------------------------------------------
@@ -232,6 +235,11 @@ class DiningSource(Protocol):
     def menu_items(self, location_id: int, day: str) -> Iterable[Mapping[str, Any]]:
         """The menu_items documents of one location on one day (YYYY-MM-DD), in menu order, with
         their nutrition facts."""
+        ...
+
+    def menu_items_between(self, location_ids: Sequence[int], start: str, end: str) -> Iterable[Mapping[str, Any]]:
+        """The menu_items documents of these locations from `start` to `end` (YYYY-MM-DD, both
+        included), each day's in menu order, with their nutrition facts and date."""
         ...
 
     def dishes(self, pattern: str, limit: int) -> Iterable[Mapping[str, Any]]:
@@ -257,7 +265,18 @@ _ITEM_FIELDS = (
     "allergens",
     "diets",
 )
-_FACT_FIELDS = ("name", "meal", "category", "dish_id", "serving_size", "calories", "nutrition", "healthfulness_score")
+_FACT_FIELDS = (
+    "name",
+    "meal",
+    "category",
+    "dish_id",
+    "serving_size",
+    "calories",
+    "nutrition",
+    "healthfulness_score",
+    "date",
+    "location_id",
+)
 CATALOG_MEAL = "any"
 """The meal of a dish from a location's past menus, used when no menu is posted for the day."""
 CATALOG_LIMIT = 400
@@ -287,6 +306,11 @@ class MongoDiningSource:
         # One query, on the location_id_1_date_1 index. Never the dishes collection: documents
         # with the same name differ by hall.
         query = {"location_id": int(location_id), "date": str(day)}
+        return self._db["menu_items"].find(query, dict.fromkeys(_FACT_FIELDS, True))
+
+    def menu_items_between(self, location_ids: Sequence[int], start: str, end: str) -> Iterable[Mapping[str, Any]]:
+        # One query on the same index; Dining groups the documents by day and location.
+        query = {"location_id": {"$in": [int(i) for i in location_ids]}, "date": {"$gte": str(start), "$lte": str(end)}}
         return self._db["menu_items"].find(query, dict.fromkeys(_FACT_FIELDS, True))
 
     def dishes(self, pattern: str, limit: int) -> Iterable[Mapping[str, Any]]:
@@ -403,9 +427,33 @@ class Dining:
     def _dishes_on(self, location_id: int, day: date) -> tuple[DishFacts, ...]:
         ids = (location_id, *self._grab_n_go(location_id))
         facts = _dish_facts_on(doc for i in ids for doc in self.source.menu_items(i, day.isoformat()))
-        if facts:
-            return facts
-        return _dish_facts_on({**doc, "meal": CATALOG_MEAL} for doc in self.source.catalog(ids, CATALOG_LIMIT))
+        return facts or self.served_before(location_id)
+
+    def dishes_between(self, location_id: int, start: date, end: date) -> tuple[DishFacts, ...]:
+        """The location's dishes, with its Grab N' Go's, on every day from `start` to `end` that has
+        a menu, by day, each day as dishes_on lists it, every dish carrying its date. Empty when no
+        day has one. For a photo whose date isn't known (pipeline.Workflow)."""
+        key = ("between", int(location_id), start, end)
+        return self._cached(key, lambda: self._dishes_between(int(location_id), start, end))
+
+    def _dishes_between(self, location_id: int, start: date, end: date) -> tuple[DishFacts, ...]:
+        ids = (location_id, *self._grab_n_go(location_id))
+        docs = list(self.source.menu_items_between(ids, start.isoformat(), end.isoformat()))
+        # Grouped by day, then the hall before its Grab N' Go; the sort is stable, so menu order stays.
+        rank = {i: n for n, i in enumerate(ids)}
+        docs.sort(key=lambda doc: (str(doc.get("date")), rank.get(doc.get("location_id"), len(rank))))
+        return _dish_facts_on(doc for doc in docs if _date(doc.get("date")) is not None)
+
+    def served_before(self, location_id: int) -> tuple[DishFacts, ...]:
+        """The dishes the location and its Grab N' Go have served (the dishes collection), most
+        often first, under the meal CATALOG_MEAL and without a date."""
+        key = ("served", int(location_id))
+        return self._cached(key, lambda: self._served_before(int(location_id)))
+
+    def _served_before(self, location_id: int) -> tuple[DishFacts, ...]:
+        ids = (location_id, *self._grab_n_go(location_id))
+        docs = self.source.catalog(ids, CATALOG_LIMIT)
+        return _dish_facts_on({**doc, "meal": CATALOG_MEAL, "date": None} for doc in docs)
 
     def _grab_n_go(self, location_id: int) -> tuple[int, ...]:
         """The Grab N' Go locations in a dining commons' building: "Berkshire" has "Berkshire Grab N' Go"."""
@@ -700,12 +748,12 @@ MAX_HEALTHFULNESS = 7
 
 
 def _dish_facts_on(docs: Iterable[Mapping[str, Any]]) -> tuple[DishFacts, ...]:
-    """In document order, which is menu order. A dish listed twice at one meal (two categories)
-    counts once, the first time."""
-    found: dict[tuple[str, str], DishFacts] = {}
+    """In document order, which is menu order. A dish listed twice at one meal of a day (two
+    categories) counts once, the first time."""
+    found: dict[tuple[date | None, str, str], DishFacts] = {}
     for doc in docs:
         if (dish := _dish_facts(doc)) is not None:
-            found.setdefault((dish.meal, dish_key(dish.name)), dish)
+            found.setdefault((dish.date, dish.meal, dish_key(dish.name)), dish)
     return tuple(found.values())
 
 
@@ -738,6 +786,7 @@ def _dish_facts(doc: Mapping[str, Any]) -> DishFacts | None:
         serving_grams=serving_grams(serving_size),
         per_serving=per_serving,
         healthfulness_score=score if _whole(score) and 0 <= score <= MAX_HEALTHFULNESS else None,
+        date=_date(doc.get("date")),
     )
 
 

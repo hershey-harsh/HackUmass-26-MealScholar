@@ -248,6 +248,11 @@ class FakeDining:
         self._read("menu_items")
         return copy.deepcopy([r for r in self._items if r.get("location_id") == location_id and r.get("date") == day])
 
+    def menu_items_between(self, location_ids, start, end):
+        self._read("menu_items")
+        found = [r for r in self._items if r.get("location_id") in location_ids and start <= r.get("date", "") <= end]
+        return copy.deepcopy(found)
+
     def dishes(self, pattern, limit):
         self._read("dishes")
         regex = re.compile(pattern, re.IGNORECASE)  # as {"$regex": pattern, "$options": "i"}
@@ -892,14 +897,50 @@ def test_dishes_on_reads_one_query_and_caches(source, clock):
         "serving_grams": None,
         "per_serving": {"energy_kcal": 410, "protein_g": 9, "carbs_g": 52, "fat_g": 18},  # no sodium on the label
         "healthfulness_score": 3,
+        "date": TODAY,
     }
     assert (pizza.serving_size, pizza.serving_grams) == ("1 slice", None)
     assert (tikka.serving_size, tikka.serving_grams, tikka.per_serving["sodium_mg"]) == ("6 OZ", 170.1, 620)
     assert (chili.serving_size, chili.serving_grams) == ("8 OZL", 236.56)
-    # Blue Wall has no menu today, so the dishes it has served stand in
-    assert [(d.meal, d.name) for d in dining.dishes_on(7, TODAY)] == [(CATALOG_MEAL, "Cheese Pizza")]
+    # Blue Wall has no menu today, so the dishes it has served stand in, with no date
+    assert [(d.meal, d.name, d.date) for d in dining.dishes_on(7, TODAY)] == [(CATALOG_MEAL, "Cheese Pizza", None)]
     assert dining.location_name(1) == WORCESTER
     assert dining.location_name(999) is None
+
+
+def test_dishes_between_reads_the_days_and_their_grab_n_go_in_one_query(clock):
+    """A photo without a date is matched against several days: one read, by day, the hall before
+    its Grab N' Go, every dish with the day it was served."""
+    gng = {"_id": 10667, "name": "Worcester Grab N' Go", "is_dining_commons": False, "dates_available": []}
+    rows = menu_rows(MENUS)
+    rows.insert(0, {**rows[-1], "location_id": 10667, "date": TODAY.isoformat(), "meal": "grab_n_go", "name": "Wrap"})
+    source = FakeDining(locations=[*LOCATIONS, gng], items=rows)
+    dining = Dining(source, clock=clock)
+
+    facts = dining.dishes_between(1, YESTERDAY, TOMORROW)
+    assert dining.dishes_between(1, YESTERDAY, TOMORROW) is facts  # cached
+    assert source.reads == {"menu_items": 1, "locations": 1}
+    assert [(d.date, d.meal, d.name) for d in facts] == [
+        (YESTERDAY, "lunch", "Chicken Tikka Masala"),
+        (TODAY, "dinner", "Pad Thai"),
+        (TODAY, "dinner", "Chicken Tikka Masala"),
+        (TODAY, "breakfast", "Belgian Waffle"),
+        (TODAY, "breakfast", "Scrambled Eggs"),
+        (TODAY, "lunch", "Chicken Tikka Masala"),  # the same dish on another day or meal stays
+        (TODAY, "lunch", "Vegan Chili"),
+        (TODAY, "lunch", "Cheese Pizza"),
+        (TODAY, "late_night", "Cheese Pizza"),
+        (TODAY, "daily_offerings", "Garden Salad"),
+        (TODAY, "grab_n_go", "Wrap"),  # the Grab N' Go after the hall
+        (TOMORROW, "lunch", "Cheese Pizza"),
+        (TOMORROW, "dinner", "Chicken Tikka Masala"),
+    ]
+    assert dining.dishes_between(2, YESTERDAY, TODAY) == ()  # Berkshire: nothing those days
+    assert [(d.meal, d.name, d.date) for d in dining.served_before(2)] == [
+        (CATALOG_MEAL, "Mac & Cheese (GF)", None),
+        (CATALOG_MEAL, "Pad Thai", None),
+        (CATALOG_MEAL, "cheese pizza", None),
+    ]
 
 
 # --- MongoDB queries and odd documents ----------------------------------------
@@ -955,9 +996,16 @@ def test_mongo_queries_are_built_from_checked_values(clock):
                 "calories": True,
                 "nutrition": True,
                 "healthfulness_score": True,
+                "date": True,
+                "location_id": True,
             },
         )
     ]
+    db["menu_items"].finds.clear()
+    dining.dishes_between(1, YESTERDAY, TOMORROW)
+    ((query, fields),) = db["menu_items"].finds
+    assert query == {"location_id": {"$in": [1]}, "date": {"$gte": "2026-11-13", "$lte": "2026-11-15"}}
+    assert fields["date"] is True and fields["nutrition"] is True
 
     (full, full_fields), (names, names_fields) = db["daily_menus"].finds
     assert full == {"_id": {"$in": ["1|2026-11-14"]}}
@@ -1092,6 +1140,7 @@ def test_odd_menu_items_are_read_carefully(clock):
         "serving_grams": None,
         "per_serving": {"energy_kcal": 150.0, "protein_g": 2.0, "carbs_g": 0.0, "fat_g": 0.0},  # not -5 mg sodium
         "healthfulness_score": None,  # 9 is off the scale
+        "date": TODAY,
     }
     assert coffee.per_serving == {"energy_kcal": 0, "protein_g": 0, "carbs_g": 0, "fat_g": 0}
     assert (coffee.serving_grams, coffee.healthfulness_score) == (354.84, 7)

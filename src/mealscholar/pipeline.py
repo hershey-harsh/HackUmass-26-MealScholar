@@ -1,19 +1,25 @@
 """Steps 1-7 wired together: photo -> metadata -> context -> Gemini -> USDA -> math -> result.
 
-With a dining location named by the caller, the hall's menu for that day goes into the Gemini
-prompt and every food the model says is a listed dish takes the dish's own label (campus.py),
-checked against USDA; everything else, and every micronutrient, comes from USDA as before.
+With a dining location named by the caller, the hall's dishes go into the Gemini prompt and are
+the only names the model may give as menu_item (vision.response_schema); every food it says is a
+listed dish takes the dish's own label (campus.py), checked against USDA; everything else, and
+every micronutrient, comes from USDA as before. Which dishes: with a certain date (the photo's
+EXIF time, or a day the user picked) that day's menu; without one (a screenshot, an AirDropped or
+edited photo) the menus of the days around it, the likeliest first.
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import BinaryIO, Protocol
 
-from .campus import candidates, dish_nutrients, find_dish, label_fits
+from PIL import Image
+
+from .campus import candidates, dish_nutrients, find_dish, label_fits, window_candidates
 from .compute import item_nutrients, summarize
 from .context import PlaceLookup, build_context
 from .dining import CATALOG_MEAL, DiningUnavailable, DishFacts
@@ -31,7 +37,9 @@ from .schemas import (
     MealResult,
     MenuRef,
 )
-from .vision import MENU_NAMES, VisionModel, context_prompt, prepare_image
+from .vision import MENU_NAMES, VisionModel, closed_set, context_prompt, prepare_image
+
+log = logging.getLogger(__name__)
 
 # Extra ranking words for the USDA lookup, from what the photo shows.
 _COOKING_HINTS: dict[CookingMethod, tuple[str, ...]] = {
@@ -51,6 +59,11 @@ LATE_NIGHT_ENDS = time(4)
 """Before this hour a photo may belong to the previous day's late_night menu, which UMass keys
 under that day's date (a 00:30 plate is on the 13th's menu, not the 14th's)."""
 
+WINDOW_DAYS = 14
+"""Without a certain date, the menus of this many days before the photo's day are used, and that day's.
+Never a later day's: the time sent without EXIF is the file's or the upload's, so the meal was eaten
+by then, and a menu posted for tomorrow can't be on the plate."""
+
 NOT_CONNECTED = "Campus menus aren't connected; USDA used."
 UNAVAILABLE = "Campus menu unavailable right now; USDA used."
 
@@ -64,21 +77,31 @@ class BadCorrection(ValueError):
 
 
 class Menus(Protocol):
-    """A hall's dishes with their labels for a day (dining.Dining)."""
+    """A hall's dishes with their labels (dining.Dining): for a day, for several days, and from its
+    past menus."""
 
     def dishes_on(self, location_id: int, day: date) -> Sequence[DishFacts]: ...
+
+    def dishes_between(self, location_id: int, start: date, end: date) -> Sequence[DishFacts]: ...
+
+    def served_before(self, location_id: int) -> Sequence[DishFacts]: ...
 
     def location_name(self, location_id: int) -> str | None: ...
 
 
 @dataclass(frozen=True)
 class _Menu:
-    """The menu a meal is matched against: none without an explicit hall."""
+    """The dishes a meal is matched against: none without an explicit hall."""
 
     ref: MenuRef | None = None
     facts: Sequence[DishFacts] = ()
-    """campus.candidates order: the meal on at the photo's time first."""
+    """The candidates, at most MENU_NAMES, in campus.candidates or campus.window_candidates order;
+    the only names menu_item may take."""
     notes: tuple[str, ...] = ()
+
+    @property
+    def names(self) -> list[str]:
+        return [dish.name for dish in self.facts]
 
 
 @dataclass
@@ -108,21 +131,60 @@ class Workflow:
             read_photo_gps=read_photo_gps,
         )
         context = build_context(meta, self.places)
-        menu = self._menu(context, location_id)
-        hall = menu.ref.location_name if menu.ref is not None else None
-        prompt = context_prompt(context, usual_portions or {}, menu.facts[:MENU_NAMES], hall=hall)
-        analysis = self.vision.analyze(prepare_image(img), prompt)
-        return self._result(context, analysis, menu)
+        return self._analyze(img, context, self._menu(context, location_id), usual_portions)
+
+    def rematch(
+        self,
+        result: MealResult,
+        photo: Path | BinaryIO,
+        *,
+        location_id: int,
+        day: date | None = None,
+        meal: str | None = None,
+        usual_portions: Mapping[str, int] | None = None,
+    ) -> MealResult:
+        """Analyze a logged meal's stored photo again against `location_id`'s dishes: with `day`,
+        that day's menu as a certain date (the user said when), `meal` first; without it, the way
+        the meal's own time allows. The meal keeps its id, time and photo; its answer goes. Raises
+        DiningUnavailable when the hall's dishes can't be read, so a logged meal isn't replaced by
+        a USDA-only one the user didn't ask for."""
+        img = load_image(photo)
+        menu = self._menu(result.context, location_id, day=day, meal=meal)
+        if menu.ref is None:
+            raise DiningUnavailable(menu.notes[0] if menu.notes else UNAVAILABLE)
+        fresh = self._analyze(img, result.context, menu, usual_portions)
+        return fresh.model_copy(update={"id": result.id, "photo_url": result.photo_url})
+
+    def _analyze(
+        self,
+        img: Image.Image,
+        context: MealContext,
+        menu: _Menu,
+        usual_portions: Mapping[str, int] | None = None,
+    ) -> MealResult:
+        ref = menu.ref
+        window = (ref.start, ref.end) if ref is not None and not ref.certain and ref.start and ref.end else None
+        hall = ref.location_name if ref is not None else None
+        prompt = context_prompt(context, usual_portions or {}, menu.facts, hall=hall, window=window)
+        analysis = self.vision.analyze(prepare_image(img), prompt, menu.names)
+        result = self._result(context, analysis, menu)
+        _log_match(result, menu)
+        return result
 
     def answer(self, result: MealResult, answer: str) -> MealResult:
         """Apply the user's answer to the clarifying question and recompute everything."""
         if not result.question:
             raise ValueError("This meal has no open question.")
-        analysis = self.vision.refine(result.analysis(), result.question, answer)
-        refined = self._result(result.context, analysis.model_copy(update={"question": None}), self._menu_for(result))
+        menu = self._menu_for(result)
+        analysis = self.vision.refine(result.analysis(), result.question, answer, menu.names)
+        refined = self._result(result.context, analysis.model_copy(update={"question": None}), menu)
         return refined.model_copy(update={"id": result.id, "answer": answer, "photo_url": result.photo_url})
 
-    def _menu(self, context: MealContext, location_id: int | None) -> _Menu:
+    def _menu(
+        self, context: MealContext, location_id: int | None, *, day: date | None = None, meal: str | None = None
+    ) -> _Menu:
+        """The hall's dishes for the photo: one day's when the date is certain (EXIF, or `day`
+        given), else the days around it (_window_menu)."""
         if location_id is None:
             return _Menu()
         if self.menus is None:
@@ -131,11 +193,55 @@ class Workflow:
             name = self.menus.location_name(location_id)
             if name is None:
                 return _Menu(notes=(f"No dining location {location_id}; USDA used.",))
-            day, facts = self._menu_day(location_id, context.taken_at)
+            if day is not None or context.time_source == "exif":
+                return self._day_menu(location_id, name, context.taken_at, day, meal)
+            return self._window_menu(location_id, name, context.taken_at, meal=meal)
         except DiningUnavailable:
             return _Menu(notes=(UNAVAILABLE,))
-        ref = MenuRef(location_id=location_id, location_name=name, date=day, dishes=len(facts))
-        return _Menu(ref, candidates(facts, context.taken_at.time()), (_menu_note(ref, facts),))
+        except OverflowError:  # a device time at the very ends of the calendar (year 1 or 9999)
+            return _Menu(notes=(f"No campus menu near {context.taken_at:%Y-%m-%d}; USDA used.",))
+
+    def _day_menu(self, location_id: int, name: str, taken_at: datetime, day: date | None, meal: str | None) -> _Menu:
+        """One day's menu, the meal on at `taken_at` (or `meal`) first: `day`'s, else the photo's
+        (_menu_day)."""
+        assert self.menus is not None
+        if day is None:
+            day, facts = self._menu_day(location_id, taken_at)
+        else:
+            facts = self.menus.dishes_on(location_id, day)
+        listed = candidates(facts, taken_at.time(), meal)[:MENU_NAMES]
+        first = meal or next((dish.meal for dish in listed if dish.meal != CATALOG_MEAL), None)
+        ref = MenuRef(location_id=location_id, location_name=name, date=day, dishes=len(listed), meal=first)
+        return _Menu(ref, listed, (_menu_note(ref, facts),))
+
+    def _window_menu(
+        self, location_id: int, name: str, taken_at: datetime, guess: date | None = None, meal: str | None = None
+    ) -> _Menu:
+        """The photo's date isn't known: the hall's dishes on every day with a menu up to WINDOW_DAYS
+        before it, the guessed day first (campus.window_candidates), `meal` first in each
+        day when the user named one, then its past dishes, MENU_NAMES at most."""
+        assert self.menus is not None
+        if guess is None:
+            guess = taken_at.date()
+            if taken_at.time() < LATE_NIGHT_ENDS:
+                guess -= timedelta(days=1)  # a 00:30 plate: the night before's menu first
+        facts = self.menus.dishes_between(location_id, guess - timedelta(days=WINDOW_DAYS), max(guess, taken_at.date()))
+        listed = window_candidates(facts, guess, taken_at.time(), meal)
+        if len(listed) < MENU_NAMES:
+            listed = window_candidates([*facts, *self.menus.served_before(location_id)], guess, taken_at.time(), meal)
+        listed = listed[:MENU_NAMES]
+        days = sorted({dish.date for dish in listed if dish.date is not None})  # the days the model was shown
+        ref = MenuRef(
+            location_id=location_id,
+            location_name=name,
+            date=guess,
+            dishes=len(listed),
+            meal=meal,
+            certain=False,
+            start=days[0] if days else None,
+            end=days[-1] if days else None,
+        )
+        return _Menu(ref, listed, (_window_note(ref),))
 
     def _menu_day(self, location_id: int, taken_at: datetime) -> tuple[date, Sequence[DishFacts]]:
         """The menu day for the photo: its date, except before LATE_NIGHT_ENDS the previous day
@@ -150,30 +256,38 @@ class Workflow:
         return day, self.menus.dishes_on(location_id, day)
 
     def _menu_for(self, result: MealResult) -> _Menu:
-        """The same hall and day the meal was analyzed with, read again for the answer."""
+        """The same hall and day (or days) the meal was analyzed with, read again for the answer."""
         ref = result.menu
         if ref is None:
             return _Menu()
         if self.menus is None:
             return _Menu(ref, notes=("Campus menus aren't connected; USDA used for this answer.",))
+        taken_at = result.context.taken_at
         try:
-            facts = self.menus.dishes_on(ref.location_id, ref.date)
+            if ref.certain:
+                menu = self._day_menu(ref.location_id, ref.location_name, taken_at, ref.date, ref.meal)
+            else:
+                menu = self._window_menu(ref.location_id, ref.location_name, taken_at, ref.date, ref.meal)
         except DiningUnavailable:
             return _Menu(ref, notes=(UNAVAILABLE,))
-        return _Menu(ref, candidates(facts, result.context.taken_at.time()), (_menu_note(ref, facts),))
+        return _Menu(ref, menu.facts, menu.notes)
 
     def _result(self, context: MealContext, analysis: MealAnalysis, menu: _Menu | None = None) -> MealResult:
         menu = menu or _Menu()
         notes: list[str] = list(menu.notes)
         items: list[ItemResult] = []
         for item in analysis.items if analysis.is_food else ():
+            dish = find_dish(item.menu_item, menu.facts) if menu.ref is not None else None
+            if item.menu_item is not None and (dish is not None or menu.facts or menu.ref is None):
+                # Only a listed name, spelled as listed, stays: one the model made up never reaches
+                # the result. (With the menus offline nothing is listed, so the name is kept.)
+                item = item.model_copy(update=_listed(dish))
             hints = _COOKING_HINTS[item.cooking_method] + (("oil",) if item.hidden_fat_likely else ())
             found = self.foods.search(item.fdc_query, hints=hints)
             if not found.exact:
                 by_name = self.foods.search(item.name, hints=hints)
                 if by_name.exact or not found.foods:
                     found = by_name
-            dish = find_dish(item.menu_item, menu.facts) if menu.ref is not None else None
             if dish is not None and (campus := _campus_item(item, dish, found, menu.ref, notes)) is not None:
                 items.append(campus)
                 continue
@@ -301,7 +415,7 @@ def _campus_item(item: FoodItem, dish: DishFacts, found: Matches, ref: MenuRef, 
         name=dish.name,
         location_id=ref.location_id,
         location_name=ref.location_name,
-        date=ref.date,
+        date=dish.date or (None if dish.meal == CATALOG_MEAL else ref.date),
         meal=dish.meal,
         serving_size=dish.serving_size,
         serving_grams=dish.serving_grams,
@@ -348,9 +462,48 @@ def _campus_result(
     )
 
 
+def _listed(dish: DishFacts | None) -> dict:
+    """The menu fields of an item named as `dish`: its listed name, or none and no servings."""
+    if dish is None:
+        return {"menu_item": None, "servings_low": None, "servings_likely": None, "servings_high": None}
+    return {"menu_item": dish.name}
+
+
 def _menu_note(ref: MenuRef, facts: Sequence[DishFacts] = ()) -> str:
     if ref.dishes == 0:
         return f"No campus menu for {ref.location_name} on {ref.date}; USDA used."
     if facts and all(dish.meal == CATALOG_MEAL for dish in facts):
         return f"No menu posted for {ref.location_name} on {ref.date}; matched against dishes it has served."
     return f"Campus menu: {ref.location_name}, {ref.date}."
+
+
+def _window_note(ref: MenuRef) -> str:
+    if ref.dishes == 0:
+        return f"The photo had no date and {ref.location_name} has no campus menus near {ref.date}; USDA used."
+    if ref.start is None or ref.end is None:
+        return (
+            f"The photo had no date and no menu is posted for {ref.location_name} near {ref.date}; "
+            "matched against dishes it has served."
+        )
+    return (
+        f"The photo had no date, so it was matched against {ref.location_name}'s menus from "
+        f"{ref.start} to {ref.end}, {ref.date} first."
+    )
+
+
+def _log_match(result: MealResult, menu: _Menu) -> None:
+    """One line per analysis with a hall: which menus, how many dishes, how many foods matched one.
+    Nothing about the person or the photo."""
+    ref = result.menu
+    if ref is None:
+        return
+    when = f"day={ref.date}" if ref.certain else f"window={ref.start}..{ref.end} guess={ref.date}"
+    log.info(
+        "menu match: hall=%d %s candidates=%d enum=%s matched=%d/%d",
+        ref.location_id,
+        when,
+        len(menu.facts),
+        "yes" if closed_set(menu.names) else "no",
+        sum(1 for r in result.items if r.dish is not None),
+        len(result.items),
+    )

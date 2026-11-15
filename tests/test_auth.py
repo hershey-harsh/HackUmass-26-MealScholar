@@ -82,7 +82,7 @@ class FakeVision:
         self.contexts: list[str] = []
         self.answers = 0
 
-    def analyze(self, jpeg: bytes, context: str) -> MealAnalysis:
+    def analyze(self, jpeg: bytes, context: str, menu_names=()) -> MealAnalysis:
         self.contexts.append(context)
         return MealAnalysis(
             is_food=True,
@@ -94,7 +94,7 @@ class FakeVision:
             question="Was the rice cooked with oil?",
         )
 
-    def refine(self, analysis: MealAnalysis, question: str, answer: str) -> MealAnalysis:
+    def refine(self, analysis: MealAnalysis, question: str, answer: str, menu_names=()) -> MealAnalysis:
         self.answers += 1
         return analysis
 

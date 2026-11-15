@@ -140,13 +140,15 @@ class Range(BaseModel):
 
 
 class DishMatch(BaseModel):
-    """The campus dish an item was matched to, with its own nutrition label per serving."""
+    """The campus dish an item was matched to, with its own nutrition label per serving, and where
+    its numbers come from: the hall, the day and the meal it was served."""
 
     dish_id: str | None
     name: str
     location_id: int
     location_name: str
-    date: date
+    date: date | None
+    """The day the dish was on the menu; None for a dish from the hall's past menus (meal 'any')."""
     meal: str
     serving_size: str | None
     serving_grams: float | None
@@ -157,12 +159,25 @@ class DishMatch(BaseModel):
 
 
 class MenuRef(BaseModel):
-    """The hall menu a meal was matched against: the one the client named."""
+    """The hall menus a meal was matched against: the hall the client named, and the day.
+
+    With a certain date (the photo's EXIF time, or a day the user chose) that is one day's menu,
+    the meal on at the photo's time first. Without one (a screenshot, an AirDropped or edited photo:
+    time from the device or the upload) it is the menus from `start` to `end`, days up to the
+    photo's (never a later one), `date` being the guessed day whose dishes come first."""
 
     location_id: int
     location_name: str
     date: date
     dishes: int
+    """Dishes the meal was matched against."""
+    meal: str | None = None
+    """The meal listed first: the one on at the photo's time, or the one the user chose."""
+    certain: bool = True
+    """False when the photo carried no date, so the menus of several days were used."""
+    start: date | None = None
+    """With certain=False, the first and last day whose dishes the model was shown; None when none was."""
+    end: date | None = None
 
 
 class ItemResult(BaseModel):

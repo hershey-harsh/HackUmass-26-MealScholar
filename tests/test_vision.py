@@ -5,7 +5,7 @@ import hashlib
 import importlib.util
 import json
 import sys
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -15,11 +15,15 @@ from mealscholar.campus import serving_grams
 from mealscholar.dining import DishFacts
 from mealscholar.schemas import MealAnalysis, MealContext
 from mealscholar.vision import (
+    ENUM_CHARS,
+    ENUM_NAMES,
     MENU_NAMES,
+    MENU_RULE,
     REFINE_PROMPT,
     SYSTEM_PROMPT,
     GeminiVision,
     VisionError,
+    closed_set,
     context_prompt,
     response_schema,
 )
@@ -82,12 +86,71 @@ def test_context_prompt_names_the_date_and_lists_the_menu():
         "- Pad Thai (serving: 8 OZ)",
         "- Water (serving: unknown)",
     ]
-    assert lines[6].startswith("For each food that IS one of these dishes (the same dish, not just the same kind")
-    assert "set menu_item to that exact name" in lines[6] and "Estimate grams for every item either way." in lines[6]
+    assert lines[6] == MENU_RULE
     assert "Today's menu" not in context_prompt(context, {}, [], hall="Worcester Dining Commons")
 
     many = [dish(f"Dish {n}") for n in range(MENU_NAMES + 20)]
     assert context_prompt(context, {}, many, hall="Hall").count("\n- ") == MENU_NAMES
+
+
+def test_the_menu_rule_is_strict_not_eager():
+    """The model names a listed dish only when the photo shows that dish; a similar one is not it."""
+    for text in (SYSTEM_PROMPT, MENU_RULE):
+        assert "pho is not ramen" in text and "exactly as written" in text
+        assert "settle what the food is" not in text and "same kind" in text  # "a similar dish of the same kind"
+    assert (
+        "IS that\n  dish, judged from what you can see: its broth, noodles, protein, toppings and shape"
+        in SYSTEM_PROMPT
+    )
+    assert "menu_item\n  stays null and you name the food from what the photo shows" in SYSTEM_PROMPT
+    assert "When you set menu_item, name is the menu's dish name." in SYSTEM_PROMPT
+    # Two listed dishes that both fit: the one question asks which, with those two as the options.
+    assert '("Is\n  this the Chicken Tikka Masala or the Butter Chicken?")' in SYSTEM_PROMPT
+    # The example names no dish a hall really serves next to noodle soups, so it can't prime a pick.
+    assert "Tantanmen" not in SYSTEM_PROMPT and "Pho or" not in SYSTEM_PROMPT
+    # The other rules stay: glanceable questions only, never about cooking oil, one sentence.
+    assert "at a glance" in SYSTEM_PROMPT and "Never ask about cooking oil" in SYSTEM_PROMPT
+    assert "Ask it in one sentence." in SYSTEM_PROMPT
+    assert "only when the food in the photo is that dish" in MENU_RULE
+    assert "Otherwise leave menu_item and the servings null and name the food from the photo." in MENU_RULE
+
+
+def menu_item_field(schema):
+    return schema["$defs"]["FoodItem"]["properties"]["menu_item"]
+
+
+def test_menu_item_is_an_enum_of_the_listed_names():
+    names = ["Chicken Pho Broth (Fish)", "Pho Noodles", "Tantanmen Ramen Bar", "Pho Noodles"]
+    field = response_schema(names)["$defs"]["FoodItem"]["properties"]["menu_item"]
+    assert field["anyOf"] == [
+        {"type": "string", "enum": ["Chicken Pho Broth (Fish)", "Pho Noodles", "Tantanmen Ramen Bar"]},
+        {"type": "null"},
+    ]
+    plain = response_schema()["$defs"]["FoodItem"]["properties"]["menu_item"]
+    assert plain["anyOf"] == [{"type": "string"}, {"type": "null"}]
+    # The rest of the schema is the same either way.
+    with_enum = response_schema(names)
+    with_enum["$defs"]["FoodItem"]["properties"]["menu_item"] = plain
+    assert with_enum == response_schema()
+    # Too many names, or too long a list, go as the plain string; the pipeline checks the name.
+    # Gemini refuses a 400-name enum ("too much branching"): an undated photo's list goes plain.
+    assert ENUM_NAMES < MENU_NAMES
+    assert closed_set(["x"] * ENUM_NAMES) and not closed_set(["x"] * (ENUM_NAMES + 1)) and not closed_set([])
+    assert not closed_set(["x" * (ENUM_CHARS // 2 + 1)] * 2)
+    assert menu_item_field(response_schema(["x"] * (ENUM_NAMES + 1))) == plain
+
+
+def test_context_prompt_for_a_photo_without_a_date_names_the_days():
+    context = MealContext(taken_at=datetime(2026, 11, 14, 15, 33), time_source="device", meal_slot="lunch")
+    menu = [dish("Tantanmen Ramen Bar"), dish("Chicken Pho Broth (Fish)", "dinner", "12 OZL")]
+    window = (date(2026, 11, 10), date(2026, 11, 28))
+    lines = context_prompt(context, {}, menu, hall="Worcester", window=window).splitlines()
+    assert lines[1] == (
+        "The photo has no date, so these are dishes Worcester served from Tue Nov 10 to Sat Nov 28, "
+        "the likeliest first:"
+    )
+    assert lines[2:4] == ["- Tantanmen Ramen Bar (serving: unknown)", "- Chicken Pho Broth (Fish) (serving: 12 OZL)"]
+    assert lines[4] == MENU_RULE
 
 
 def test_bench_fingerprint_hashes_the_schema_as_sent():
@@ -210,6 +273,44 @@ def test_sdk_exception_is_a_vision_error():
     with pytest.raises(VisionError, match="boom"):
         vision.analyze(b"jpeg", "ctx")
     assert len(fake.calls) == 1
+
+
+def test_the_listed_names_go_as_the_enum_and_a_refused_enum_falls_back_once():
+    names = ["Chicken Pho Broth (Fish)", "Tantanmen Ramen Bar"]
+    vision, fake = vision_with(reply(VALID))
+    vision.analyze(b"jpeg", "ctx", names)
+    menu_item = fake.calls[0]["response_format"]["schema"]["$defs"]["FoodItem"]["properties"]["menu_item"]
+    assert menu_item["anyOf"][0]["enum"] == names
+
+    refused = RuntimeError("400 INVALID_ARGUMENT: schema too complex")
+    refused.status_code = 400
+    vision, fake = vision_with(refused, reply(VALID), reply(VALID), reply(VALID))
+    assert vision.analyze(b"jpeg", "ctx", names).items[0].name == "cheese pizza"
+    first, second = (call["response_format"]["schema"] for call in fake.calls)
+    assert "enum" in menu_item_field(first)["anyOf"][0] and "enum" not in menu_item_field(second)["anyOf"][0]
+    # That size isn't sent as an enum again; a shorter list still is.
+    vision.analyze(b"jpeg", "ctx", names)
+    vision.analyze(b"jpeg", "ctx", names[:1])
+    third, fourth = (call["response_format"]["schema"] for call in fake.calls[2:])
+    assert "enum" not in menu_item_field(third)["anyOf"][0] and menu_item_field(fourth)["anyOf"][0]["enum"] == names[:1]
+
+    # A 400 the plain field fails too (a bad key, say) isn't about the enum: the limit stays.
+    bad_key = RuntimeError("400 INVALID_ARGUMENT: API key not valid")
+    bad_key.status_code = 400
+    vision, fake = vision_with(bad_key, bad_key, reply(VALID))
+    with pytest.raises(VisionError, match="API key"):
+        vision.analyze(b"jpeg", "ctx", names)
+    vision.analyze(b"jpeg", "ctx", names)
+    assert menu_item_field(fake.calls[2]["response_format"]["schema"])["anyOf"][0]["enum"] == names
+
+    vision, fake = vision_with(refused)  # without the enum a 400 is final, as before
+    with pytest.raises(VisionError, match="INVALID_ARGUMENT"):
+        vision.analyze(b"jpeg", "ctx")
+    assert len(fake.calls) == 1
+
+    vision, fake = vision_with(reply(VALID))
+    vision.refine(MealAnalysis.model_validate_json(VALID), "Pho or ramen?", "pho", names)
+    assert menu_item_field(fake.calls[0]["response_format"]["schema"])["anyOf"][0]["enum"] == names
 
 
 def test_refine_sends_text_only():

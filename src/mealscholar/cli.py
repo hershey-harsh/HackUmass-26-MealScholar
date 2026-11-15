@@ -263,8 +263,13 @@ def _format_meal(result: MealResult) -> str:
     if ctx.place:
         cuisine = f", {ctx.place.cuisine}" if ctx.place.cuisine else ""
         lines.append(f"Place: {ctx.place.name} ({ctx.place.kind.replace('_', ' ')}{cuisine})")
-    if result.menu:
-        lines.append(f"Menu: {result.menu.location_name}, {result.menu.date}")
+    if (menu := result.menu) is not None:
+        if menu.certain:
+            lines.append(f"Menu: {menu.location_name}, {menu.date}" + (f", {menu.meal} first" if menu.meal else ""))
+        else:
+            lines.append(
+                f"Menu: {menu.location_name}, photo had no date: {menu.start} to {menu.end}, {menu.date} first"
+            )
     if result.scale_reference:
         lines.append(f"Size judged against: {result.scale_reference}")
     lines.append("")
@@ -276,7 +281,8 @@ def _format_meal(result: MealResult) -> str:
         extra = ", likely hidden oil/butter" if item.hidden_fat_likely else ""
         lines.append(f"{i:>3}. {item.name}: {grams}, {item.cooking_method.replace('_', ' ')}{extra}")
         if r.source == "campus" and r.dish is not None:
-            lines.append(f"     Campus menu: {r.dish.name} ({r.dish.serving_size}) at {r.dish.location_name}")
+            served = f"{r.dish.meal} {r.dish.date}" if r.dish.date else "past menus"
+            lines.append(f"     Campus menu: {r.dish.name} ({r.dish.serving_size}) at {r.dish.location_name}, {served}")
             if (kcal := r.nutrients.get("energy_kcal")) is not None:
                 lines.append(f"     {_fmt_range(kcal, 'kcal')}")
             if r.match:
