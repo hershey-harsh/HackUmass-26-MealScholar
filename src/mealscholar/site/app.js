@@ -594,12 +594,6 @@ function devicePosition() {
   });
 }
 
-/** Focus the start of the capture screen: its heading while a photo is read, else the photo button. */
-function focusCapture() {
-  const usable = !state.analyzing && !els.choose.disabled;
-  (usable ? els.choose : els.captureTitle).focus({ preventScroll: true });
-}
-
 /** When the photo was taken, as far as the browser knows: the file's time if it's from the last
     two days, else now (a camera capture is always "now"). The server prefers the photo's own
     EXIF time when it has one. */
