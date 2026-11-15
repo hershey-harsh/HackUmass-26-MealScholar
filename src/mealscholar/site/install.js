@@ -2,7 +2,7 @@
 // Chrome (Android and desktop): the browser's own install prompt, caught from beforeinstallprompt.
 // Safari on iPhone and iPad: there is no prompt, so a sheet shows the Share > Add to Home Screen steps.
 // [data-install] buttons stay hidden until one of those can work, and never show once the app runs
-// from the Home Screen. ?install=1 (the landing page's button) opens the sheet on load.
+// from the Home Screen. ?install=1 (the landing page's button) opens the sheet on load on phones.
 // The sheet is a <dialog> opened with showModal(), like the app's other sheets: it sits above them
 // (the account sheet included), the page behind it is inert, Escape closes it, and focus goes back
 // to the button that opened it.
@@ -212,8 +212,9 @@
   });
 
   sync();
-  // From the landing page's "Add to Home Screen" button. No tap has happened on this page yet, so
-  // this shows the steps; "Install now" appears in them as soon as the browser offers a prompt.
-  if (w.__wantInstall && !standalone) w.setTimeout(show, 350);
+  // From the landing page (?install=1), on phones only: Safari on an iPhone or iPad, and Android. No
+  // tap has happened on this page yet, so this shows the steps; "Install now" appears in them as soon
+  // as the browser offers a prompt. Laptops and in-app browsers just open the app.
+  if (w.__wantInstall && !standalone && (iosSafari || /Android/.test(ua))) w.setTimeout(show, 350);
   w.MealScholarInstall = { open: open, close: hide, available: available };
 })();

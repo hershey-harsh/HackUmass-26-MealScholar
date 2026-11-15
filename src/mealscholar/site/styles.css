@@ -4,7 +4,7 @@
 
 @font-face {
   font-family: "Geist";
-  src: url("/fonts/geist.woff2") format("woff2");
+  src: url("fonts/geist.woff2") format("woff2");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -12,7 +12,7 @@
 
 @font-face {
   font-family: "Geist Mono";
-  src: url("/fonts/geist-mono.woff2") format("woff2");
+  src: url("fonts/geist-mono.woff2") format("woff2");
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
@@ -271,6 +271,10 @@ main:focus,
 .notice,
 .banner,
 .account__email,
+.account__confirm,
+.delete__ask,
+.sent,
+.lede,
 .sheet__title {
   overflow-wrap: anywhere;
 }
@@ -1601,6 +1605,18 @@ body[data-screen="auth"] .footer {
   transform: none;
 }
 
+/* A box in the right half of the photo hangs its tag to its left, so the frame doesn't clip the name
+   and the number pin stays in view. */
+.box--flip .box__tag {
+  left: auto;
+  right: calc(100% + 4px);
+  transform: translateX(6px);
+}
+
+.box--flip.is-active .box__tag {
+  transform: none;
+}
+
 .boxes[data-active] .box:not(.is-active) {
   opacity: 0.3 !important;
 }
@@ -2909,6 +2925,19 @@ body[data-screen="auth"] .footer {
   }
 }
 
+/* The Week tab's chart sits on the page, where --surface-2 doesn't show: the picked day gets a tint
+   and an edge, so a day without a bar is visibly picked too. */
+.week-view .wk__col[aria-current="date"] {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+@media (hover: hover) {
+  .week-view button.wk__col:not(:disabled):hover {
+    background: var(--surface);
+  }
+}
+
 .wk__plot {
   grid-area: plot;
   position: relative;
@@ -3175,6 +3204,18 @@ body[data-screen="auth"] .footer {
   animation-delay: calc(var(--i, 0) * 45ms);
 }
 
+/* As columns, a bar keeps its own translateX while it rises (bar-in's translateY is for rows). */
+@keyframes bar-in-col {
+  from { transform: translateX(-50%) scaleY(0); }
+  to { transform: translateX(-50%) scaleY(1); }
+}
+
+@container week (min-width: 19.5rem) {
+  .week-block.is-entering .wk__bar {
+    animation-name: bar-in-col;
+  }
+}
+
 .week-block.is-entering .wk__whisker {
   animation: fade-in var(--dur-2) linear backwards;
   animation-delay: calc(var(--i, 0) * 45ms + 320ms);
@@ -3264,7 +3305,8 @@ body[data-screen="auth"] .footer {
 }
 
 /* Headings that take focus after Try again, like the view titles. */
-.section-title:focus {
+.section-title:focus,
+.menu-card__meal:focus {
   outline: none;
 }
 
@@ -3687,17 +3729,21 @@ body[data-screen="auth"] .footer {
   color: var(--ink-2);
 }
 
-/* The account sheet. */
+/* The account sheet. Log out sits beside the email while the email fits on one line there, else it
+   drops under it; the email always stays beside the avatar (56px and its 14px gap). */
 .account__id {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 14px;
 }
 
 .account__who {
   display: grid;
+  flex: 1 1 auto;
   gap: 6px;
   min-width: 0;
+  max-width: calc(100% - 70px);
 }
 
 .account__email {
@@ -4864,7 +4910,8 @@ html.install-open {
   color: var(--ink);
 }
 
-.legend__item:first-child .icon {
+/* The star filled, as on the dishes. */
+.legend__item--fav .icon {
   fill: var(--ink);
 }
 
@@ -6091,7 +6138,7 @@ body[data-screen="onboard"] .toast {
     grid-column: auto;
   }
 
-  body[data-prefs="on"] .week-grid .micro-card {
+  .week-grid .micro-card {
     grid-area: auto;
     align-self: start;
   }
@@ -6270,6 +6317,8 @@ body[data-screen="onboard"] .toast {
   body[data-prefs="on"] .dash-col--side .upcoming {
     flex: none;
     max-height: 100%;
+    overflow-y: auto;
+    scroll-padding-block: 6px;
   }
 
   body[data-prefs="on"] .dash-col--side .dishes {
@@ -7035,7 +7084,10 @@ body:not([data-dining="on"]) .tab[data-view="menu"] {
   margin-inline: calc(-1 * var(--pad-l)) calc(-1 * var(--pad-r));
 }
 
+/* Positioned, so the screen-reader-only words in the chips (absolutely placed) stay inside the scroller
+   instead of widening the page. */
 .halls-bar__track {
+  position: relative;
   display: flex;
   gap: 8px;
   padding: 2px var(--pad-r) 4px var(--pad-l);
@@ -7163,11 +7215,19 @@ body:not([data-dining="on"]) .tab[data-view="menu"] {
   margin-top: 4px;
 }
 
+/* The stations are inline blocks, each one a line of the columns: Safari balances block stations slowly
+   (60-110 ms a hall switch) and these in a fraction of it, in the same places. Widows and orphans at 1
+   keep the browser from moving a lone station to balance the columns differently. */
 .menu-cats {
   column-gap: 32px;
+  widows: 1;
+  orphans: 1;
 }
 
 .menu-cat {
+  display: inline-block;
+  width: 100%;
+  vertical-align: top;
   break-inside: avoid;
   padding-bottom: 6px;
 }
@@ -8358,6 +8418,11 @@ body[data-prefs="on"] .today .dash-col .stat {
     margin: 0;
     padding: 0;
     overflow: visible;
+  }
+
+  /* The page ends with the card clear of the fixed +. */
+  body[data-prefs="on"] .dash-col--side {
+    padding-bottom: 88px;
   }
 
   body[data-prefs="on"] .dash-col--side .upcoming {

@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pymongo.errors import ServerSelectionTimeoutError
 
-from mealscholar.busy import Busy
+from mealscholar.busy import Busy, MongoOccupancySource
 from mealscholar.config import load_settings
 from mealscholar.web import create_app
 
@@ -75,6 +75,72 @@ def test_latest_reading_per_hall(tmp_path):
         | no_clip,
     ]
     assert source.calls == [NOW - timedelta(minutes=15)]  # only readings from the last 15 minutes
+
+
+class FakeOccupancy:
+    """umass_dining.occupancy for MongoOccupancySource: runs the $match, $sort and $group it sends."""
+
+    def __init__(self, docs):
+        self.docs = docs
+        self.pipelines = []
+
+    def aggregate(self, pipeline):
+        self.pipelines.append(pipeline)
+        docs = list(self.docs)
+        for stage in pipeline:
+            ((op, arg),) = stage.items()
+            if op == "$match":
+                docs = [d for d in docs if all(matches(d.get(key), cond) for key, cond in arg.items())]
+            elif op == "$sort":
+                ((key, order),) = arg.items()
+                docs.sort(key=lambda d: d[key], reverse=order < 0)
+            elif op == "$group":
+                first = {}
+                for d in docs:
+                    first.setdefault(d[arg["_id"].removeprefix("$")], d)
+                docs = [{"_id": key, "doc": d} for key, d in first.items()]
+            else:
+                raise NotImplementedError(op)
+        return docs
+
+
+def matches(value, cond):
+    if not isinstance(cond, dict):
+        return value == cond
+    for op, operand in cond.items():
+        if op == "$gte":  # stored times are naive UTC
+            if value is None or value.replace(tzinfo=UTC) < operand:
+                return False
+        elif op == "$in":
+            if value not in operand:
+                return False
+        else:
+            raise NotImplementedError(op)
+    return True
+
+
+def test_a_pass_that_could_not_read_a_cam_leaves_the_last_reading(tmp_path):
+    """Worcester's newest reading is unknown (that pass couldn't read its cam): the good one from 4
+    minutes ago is still shown, rather than the hall going missing until the next pass."""
+    occupancy = FakeOccupancy(
+        [
+            reading(1, "Worcester", "quiet", 8, minutes_ago=4) | {"primary": True},
+            reading(1, "Worcester", "unknown", 0, minutes_ago=1) | {"primary": True},
+            reading(2, "Franklin", "busy", 30, minutes_ago=1) | {"primary": True},
+            reading(2, "Franklin", "moderate", 12, minutes_ago=20) | {"primary": True},  # too old
+            reading(3, "Hampshire", "unknown", 0, minutes_ago=2) | {"primary": True},  # nothing readable lately
+            reading(4, "Berkshire", "quiet", 3, minutes_ago=1) | {"primary": False},  # not the hall's main cam
+        ]
+    )
+    source = MongoOccupancySource("mongodb://unused", "umass_dining")
+    source._client = {"umass_dining": {"occupancy": occupancy}}
+    halls = client_for(tmp_path, Busy(source, clock=lambda: NOW)).get("/api/dining/busy").json()["halls"]
+    assert [(h["location_id"], h["level"], h["people"], h["updated_at"]) for h in halls] == [
+        (1, "quiet", 8, "2026-11-14T21:56:00Z"),
+        (2, "busy", 30, "2026-11-14T21:59:00Z"),
+    ]
+    ((match, *_),) = occupancy.pipelines
+    assert match["$match"]["level"] == {"$in": ["quiet", "moderate", "busy"]}
 
 
 def test_readings_are_cached_for_30_seconds(tmp_path):

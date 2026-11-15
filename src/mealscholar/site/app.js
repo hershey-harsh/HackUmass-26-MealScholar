@@ -499,6 +499,8 @@ const viewTitle = (view) => ({ today: els.todayTitle, menu: els.menuTitle, week:
 for (const tab of els.tabs) {
   tab.addEventListener("click", (event) => {
     event.preventDefault();
+    // Past midnight, "today" moves on first, so a tap on Today goes to the new day.
+    if (ensureToday()) loadDashboard();
     const view = tab.dataset.view;
     if (!canShow(view)) return;
     if (view !== state.view) setView(view);
@@ -623,7 +625,7 @@ const AT_HALL_M = 400; // within this of a dining commons, the photo is taken to
 async function uploadHall(coords) {
   if (!diningOn()) return null;
   if (coords) {
-    const near = state.nearest ?? (await fetchNearest(coords[0], coords[1]));
+    const near = await fetchNearest(coords[0], coords[1]); // where the photo was taken, not an earlier look-up
     if (near && Number.isInteger(near.location?.id) && near.distance_m <= AT_HALL_M) return near.location.id;
   }
   const halls = state.prefs?.dining_halls ?? [];
@@ -636,7 +638,10 @@ async function analyze(file) {
   if (!state.ready) return;
   if (state.analyzing) return toast("Still analyzing the last photo.");
   if (file.type && !file.type.startsWith("image/")) {
-    setStatus("That file isn't an image. Choose a JPEG, PNG or HEIC photo.", { error: true });
+    const message = "That file isn't an image. Choose a JPEG, PNG or HEIC photo.";
+    setStatus(message, { error: true });
+    // Dropped on another tab or over a result, the capture screen's line is out of sight.
+    if (state.view !== "analyze" || state.shown) toast(message);
     return;
   }
   // A new photo replaces the last analysis (or the logged meal on show) and opens the capture screen.
@@ -660,10 +665,22 @@ async function analyze(file) {
   const current = () => epoch === state.epoch;
   const controller = new AbortController();
   analysis = { controller, photoUrl };
+  // A photo this browser can't draw (HEIC outside Safari) leaves the frame plain, not a broken image.
+  els.previewImg.hidden = false;
+  els.previewImg.onerror = () => (els.previewImg.hidden = true);
   els.previewImg.src = photoUrl;
   state.analyzing = true;
   setViewfinder("analyzing");
   setStatus("Analyzing your photo. This usually takes a few seconds.");
+  // Phones: the frame sits under the photo options, its working line under the tab bar. Bring its foot
+  // clear of the tab bar (the root's scroll-padding), as far as the title above it stays on screen.
+  if (media("(max-width: 39.99em)").matches) {
+    const root = getComputedStyle(document.documentElement);
+    const below = els.viewfinder.getBoundingClientRect().bottom - (window.innerHeight - (parseFloat(root.scrollPaddingBottom) || 0));
+    const room = els.captureTitle.getBoundingClientRect().top - (parseFloat(root.scrollPaddingTop) || 0);
+    const by = Math.min(below, room);
+    if (by > 0) window.scrollBy({ top: by, behavior: leaving || reducedMotion.matches ? "auto" : "smooth" });
+  }
 
   const params = new URLSearchParams();
   params.set("taken_at", localIso(photoTime(file)));
@@ -697,7 +714,10 @@ async function analyze(file) {
       return;
     }
     setStatus("");
-    state.slots.analyze = { result, photoUrl, nearest: null };
+    // A photo this browser can't draw (HEIC outside Safari) shows as the server's stored JPEG.
+    const drawn = !(els.previewImg.complete && !els.previewImg.naturalWidth);
+    if (!drawn) URL.revokeObjectURL(photoUrl);
+    state.slots.analyze = { result, photoUrl: drawn ? photoUrl : null, nearest: null };
     state.scroll.analyze = 0;
     // With the campus menus connected, the same coordinates also name the nearest dining hall, once.
     if (coords && placeName(result.context) && diningOn()) noteNearest(coords, state.slots.analyze);
@@ -774,9 +794,17 @@ function closeSlot(key, { focus = false } = {}) {
   leaveCapture({ focus });
 }
 
-/** Off the capture screen, back to Today (an analysis still running carries on). */
+/** Off the capture screen, back to Today (an analysis still running carries on). Its buttons say
+    "Today", so that's the day they land on, whichever day was on show before. */
 function leaveCapture({ focus = false } = {}) {
-  if (state.view === "analyze") setView("today");
+  if (state.view === "analyze") {
+    ensureToday();
+    if (state.day !== state.todayKey) {
+      state.day = state.todayKey;
+      state.weekStart = null; // the Week tab follows the day
+    }
+    setView("today");
+  }
   window.scrollTo(0, state.scroll.today ?? 0);
   if (focus) els.todayTitle.focus({ preventScroll: true });
 }
@@ -999,7 +1027,8 @@ function photoHtml(result, photoUrl) {
       if (!b) return "";
       const [ymin, xmin, ymax, xmax] = b.map((v) => Math.max(0, Math.min(1000, v)) / 10);
       const name = r.source === "campus" && r.dish ? r.dish.name : r.item.name;
-      return `<span class="box" data-index="${i}" style="--i:${i};z-index:${layer.get(i)};top:${ymin}%;left:${xmin}%;width:${xmax - xmin}%;height:${ymax - ymin}%"><span class="box__n">${i + 1}</span><span class="box__tag">${esc(capitalize(name))}</span></span>`;
+      const flip = xmin > 50 ? " box--flip" : ""; // in the right half, its name tag hangs to its left
+      return `<span class="box${flip}" data-index="${i}" style="--i:${i};z-index:${layer.get(i)};top:${ymin}%;left:${xmin}%;width:${xmax - xmin}%;height:${ymax - ymin}%"><span class="box__n">${i + 1}</span><span class="box__tag">${esc(capitalize(name))}</span></span>`;
     })
     .join("");
   const caption =
@@ -1441,6 +1470,8 @@ function notesHtml(result) {
 // ----------------------------------------------------------- result actions
 
 async function withBusy(button, task) {
+  // Disabling the focused button drops focus to the page: it comes back after, unless the task moved it.
+  const hadFocus = document.activeElement === button;
   button.disabled = true;
   button.setAttribute("aria-busy", "true");
   try {
@@ -1449,6 +1480,8 @@ async function withBusy(button, task) {
     if (button.isConnected) {
       button.disabled = false;
       button.removeAttribute("aria-busy");
+      const lost = !document.activeElement || document.activeElement === document.body;
+      if (hadFocus && lost) button.focus({ preventScroll: true });
     }
   }
 }
@@ -1821,8 +1854,10 @@ function weighHtml(r, i) {
 
 function foodHtml(r, i) {
   const options = [r.match, ...r.alternatives].filter(Boolean);
+  // A menu dish counts from the hall's label (its USDA match only fills in the rest), so no USDA food
+  // is current: picking any of them, its match too, switches the food to USDA.
   const list = options.length
-    ? options.map((m) => optionHtml(m, r.match?.fdc_id === m.fdc_id)).join("")
+    ? options.map((m) => optionHtml(m, r.source !== "campus" && r.match?.fdc_id === m.fdc_id)).join("")
     : '<li class="options__empty">No suggestions. Try a search above.</li>';
   return `
     <label class="field-label" for="search-${i}">Search USDA FoodData Central</label>
@@ -1883,7 +1918,8 @@ async function searchFoods(input) {
   try {
     const found = await api(`/api/foods?q=${encodeURIComponent(q)}&limit=6`);
     if (seq !== searchSeq || !list.isConnected) return;
-    const current = shownMeal()?.items[index]?.match?.fdc_id;
+    const item = shownMeal()?.items[index];
+    const current = item?.source === "campus" ? null : item?.match?.fdc_id; // a menu dish has no current USDA food
     list.innerHTML = found.foods.length
       ? (found.exact ? "" : '<li class="options__empty">No exact match. Closest results:</li>') +
         found.foods.map((f) => optionHtml(f, f.fdc_id === current)).join("")
@@ -1967,6 +2003,18 @@ function ensureToday() {
   if (followToday || state.day > today) state.day = today;
   return true;
 }
+
+/** With the page left open past midnight, the dashboard moves to the new day on its own. */
+function armMidnight() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+  setTimeout(() => {
+    if (document.body.dataset.screen === "app" && ensureToday()) loadDashboard();
+    armMidnight();
+  }, next - now);
+}
+
+armMidnight();
 
 function dayTitle(key) {
   const today = state.todayKey ?? localDate();
@@ -2128,10 +2176,11 @@ function ensureDashboard() {
   if (ensureToday() || !rendered.day.startsWith(`${state.day}|`)) return loadDashboard();
   const keys = [state.day, ...pastKeys(weekKeys())];
   if (keys.some((key) => !dayCache.get(key)?.value || dayCache.get(key).stale)) loadDashboard();
+  else refreshDining(); // the upcoming meal may have moved on
 }
 
 async function loadDashboard() {
-  if (document.body.dataset.screen !== "app") return;
+  if (document.body.dataset.screen !== "app" || state.bootFailed) return;
   ensureToday();
   const seq = ++state.dashSeq;
   const week = pastKeys(weekKeys());
@@ -2183,12 +2232,13 @@ function renderDay() {
     view && failed
       ? `<div class="dash-alert"><p class="status is-error" role="alert">Couldn't refresh this day. ${esc(entry.error.message)}</p><button class="btn btn--soft" type="button" data-action="retry">Try again</button></div>`
       : "";
-  const sig = `${key}|${entry?.version ?? 0}|${view ? "v" : failed ? "e" : "l"}|${state.nutrients.length}|${state.prefsVersion}`;
+  // The vitamins card also depends on the week the chart shows (paging weeks keeps the day).
+  const sig = `${key}|${entry?.version ?? 0}|${view ? "v" : failed ? "e" : "l"}|${state.nutrients.length}|${state.prefsVersion}|${key && otherDayInChart(key)}|${key && microDay(key)}`;
   if (sig === rendered.day) return;
   rendered.day = sig;
   if (!view) {
     els.dashDay.innerHTML = failed ? dayErrorHtml(entry.error) : daySkeletonHtml();
-    els.dashMicro.innerHTML = "";
+    els.dashMicro.innerHTML = failed ? microErrorHtml(key, entry.error) : "";
     els.dashRecent.innerHTML = "";
     return;
   }
@@ -2403,7 +2453,10 @@ els.dashDay.addEventListener("click", (event) => {
 
 // Crossing the laptop width swaps the swipe for the open grid, and back.
 laptop.addEventListener("change", () => {
-  if (document.body.dataset.screen === "app" && els.dashDay.childElementCount) renderDay();
+  // A failed start keeps its error and Try again.
+  if (document.body.dataset.screen !== "app" || state.bootFailed || !els.dashDay.childElementCount) return;
+  rendered.day = ""; // the width isn't part of what renderDay compares, so it would skip the redraw
+  renderDay();
 });
 
 function mealRowHtml(m) {
@@ -2453,15 +2506,25 @@ function dayPhrase(key) {
   return key === state.todayKey ? "today" : name === "Yesterday" ? "yesterday" : `on ${name}`;
 }
 
+/** The chart on show has another past day to pick (on a Sunday this week has none). */
+const otherDayInChart = (key) => pastKeys(weekKeys()).some((day) => day !== key);
+
+/** The vitamins card's day: "Today", "Yesterday" or the weekday, with its date while the chart shows
+    another week (paging weeks doesn't move the day on show). */
+function microDay(key) {
+  const { title, sub } = dayTitle(key);
+  return weekKeys().includes(key) || /^(Today|Yesterday)$/.test(title) ? title : `${title}, ${sub}`;
+}
+
 /** The Week tab's vitamins card is about the day picked in the chart (today unless another is). */
 function microHtml(view) {
   const rows = nutrientRowsHtml(view.totals, view.daily_value_pct, { micro: true, prefix: "dm" });
   if (!rows) return "";
   return `
     <details class="card micro-card"${state.microOpen ? " open" : ""}>
-      <summary><span class="micro-card__titles"><h2 class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(capitalize(dayName(state.day)))}</span></span><span class="chip">Estimates</span></summary>
+      <summary><span class="micro-card__titles"><h2 class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(microDay(state.day))}</span></span><span class="chip">Estimates</span></summary>
       <div class="micro-card__body">
-        <p class="note">Photos can't show vitamins and minerals well, so these are rough estimates. A weekly trend says more than one day. Pick a day in the chart to see its own.</p>
+        <p class="note">Photos can't show vitamins and minerals well, so these are rough estimates. A weekly trend says more than one day.${otherDayInChart(state.day) ? " Pick a day in the chart to see its own." : ""}</p>
         <ul class="nutrients">${rows}</ul>
       </div>
     </details>`;
@@ -2470,8 +2533,17 @@ function microHtml(view) {
 function microEmptyHtml(key, logged) {
   return `
     <section class="card micro-card micro-card--empty" aria-labelledby="micro-empty-title">
-      <div class="micro-card__titles"><h2 id="micro-empty-title" class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(capitalize(dayName(key)))}</span></div>
-      <p class="note">${logged ? `No vitamin or mineral estimates for the meals ${esc(dayPhrase(key))}.` : `Nothing logged ${esc(dayPhrase(key))}, so there's nothing to estimate.`} Pick another day in the chart.</p>
+      <div class="micro-card__titles"><h2 id="micro-empty-title" class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(microDay(key))}</span></div>
+      <p class="note">${logged ? `No vitamin or mineral estimates for the meals ${esc(dayPhrase(key))}.` : `Nothing logged ${esc(dayPhrase(key))}, so there's nothing to estimate.`}${otherDayInChart(key) ? " Pick another day in the chart." : ""}</p>
+    </section>`;
+}
+
+/** The day on show didn't load: the vitamins card says why, with Try again. */
+function microErrorHtml(key, err) {
+  return `
+    <section class="card micro-card micro-card--empty" aria-labelledby="micro-empty-title">
+      <div class="micro-card__titles"><h2 id="micro-empty-title" class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(microDay(key))}</span></div>
+      <div class="dash-alert"><p class="status is-error" role="alert">${esc(err.message)}</p><button class="btn btn--soft" type="button" data-action="retry">Try again</button></div>
     </section>`;
 }
 
@@ -2576,27 +2648,30 @@ function renderWeekSub() {
   const start = weekStartKey();
   const [first, last] = [parseDay(start), parseDay(shiftDay(start, 6))];
   const sameMonth = first.getMonth() === last.getMonth();
-  els.weekSub.textContent = `${monthDay.format(first)} to ${sameMonth ? last.getDate() : monthDay.format(last)}`;
+  // A week in another year says which year.
+  const thisYear = parseDay(state.todayKey).getFullYear();
+  const dated = (date) => (date.getFullYear() === thisYear ? monthDay : monthDayYear).format(date);
+  const sameYear = first.getFullYear() === last.getFullYear();
+  const range = `${sameYear ? monthDay.format(first) : monthDayYear.format(first)} to ${sameMonth ? last.getDate() : monthDay.format(last)}`;
+  els.weekSub.textContent = sameYear && last.getFullYear() === thisYear ? range : `${range}, ${last.getFullYear()}`;
   const thisWeek = sundayOf(state.todayKey);
   els.weekPageTitle.textContent =
-    start === thisWeek ? "This week" : start === shiftDay(thisWeek, -7) ? "Last week" : `Week of ${monthDay.format(first)}`;
+    start === thisWeek ? "This week" : start === shiftDay(thisWeek, -7) ? "Last week" : `Week of ${dated(first)}`;
   const active = document.activeElement;
   els.weekNext.disabled = start >= thisWeek;
   els.weekPrev.disabled = start <= shiftDay(thisWeek, -7 * WEEKS_BACK);
   if (active === els.weekNext && els.weekNext.disabled) els.weekPrev.focus({ preventScroll: true });
-  els.weekPrev.setAttribute("aria-label", `Previous week, from ${monthDay.format(parseDay(shiftDay(start, -7)))}`);
-  els.weekNext.setAttribute("aria-label", els.weekNext.disabled ? "Next week" : `Next week, from ${monthDay.format(parseDay(shiftDay(start, 7)))}`);
+  if (active === els.weekPrev && els.weekPrev.disabled) els.weekNext.focus({ preventScroll: true });
+  els.weekPrev.setAttribute("aria-label", els.weekPrev.disabled ? "Previous week" : `Previous week, from ${dated(parseDay(shiftDay(start, -7)))}`);
+  els.weekNext.setAttribute("aria-label", els.weekNext.disabled ? "Next week" : `Next week, from ${dated(parseDay(shiftDay(start, 7)))}`);
 }
 
 function weekErrorHtml(days) {
   const error = days.find((d) => d.error)?.error;
-  // The day on show failing for the same reason already says why, right above: don't repeat it.
-  const shown = dayCache.get(state.day);
-  const said = shown?.error && !shown.value && shown.error.message === error?.message;
   return `
     ${weekHead()}
     <div class="card week week--error">
-      <p class="status is-error">Couldn't load this week.${error && !said ? ` ${esc(error.message)}` : ""}</p>
+      <p class="status is-error">Couldn't load this week.${error ? ` ${esc(error.message)}` : ""}</p>
       <button class="btn btn--secondary" type="button" data-action="retry">Try again</button>
     </div>`;
 }
@@ -2780,6 +2855,9 @@ function dashClick(event) {
       if (!action.isConnected) (inWeek ? $("#week-title", els.dashWeek) : els.todayTitle)?.focus({ preventScroll: true });
       return;
     }
+    case "reboot":
+      // The app never started: reload once the server answers, else say why again.
+      return api("/api/status", { session: false }).then(() => location.reload(), bootFailed);
     case "locate-allow":
       return allowLocation(action);
     case "locate-later":
@@ -2827,7 +2905,7 @@ async function openMealFrom(button) {
   await withBusy(button, async () => {
     try {
       const result = await api(`/api/meals/${encodeURIComponent(id)}`);
-      await photoReady(result.photo_url);
+      await photoReady(serverUrl(result.photo_url));
       if (epoch === state.epoch) openLogged(result); // never into someone else's session
     } catch (err) {
       if (err.signedOut || epoch !== state.epoch) return;
@@ -2989,7 +3067,8 @@ function dropSheets() {
     panelRestore = false;
     els.panel.close();
   }
-  window.MealScholarInstall?.close?.(true);
+  // At boot the first screen replaces only the loading screen: the Home Screen sheet from ?install=1 stays.
+  if (document.body.dataset.screen !== "boot") window.MealScholarInstall?.close?.(true);
 }
 
 /** Leave the app for one of the account screens. */
@@ -3066,6 +3145,13 @@ function enterApp({ focus = false } = {}) {
   if (focus) viewTitle(route)?.focus({ preventScroll: true });
 }
 
+/** Signed in, leaving a link screen: the set-up steps first if they were never finished. */
+function enterHome(options) {
+  if (!needsOnboarding()) return enterApp(options);
+  forgetResetToken(); // as enterApp does, so a refresh doesn't bring back Set a new password
+  startOnboarding();
+}
+
 /** Forget everything that belongs to the account that was signed in, including work still in
     flight: an analysis is called off, and late replies are dropped (see state.epoch). */
 function resetData() {
@@ -3125,6 +3211,7 @@ function resetData() {
   els.dashRecent.innerHTML = "";
   els.strip.hidden = true;
   els.strip.innerHTML = "";
+  strip.key = "";
   els.onboard.hidden = true;
   els.onboard.innerHTML = "";
   updateBell();
@@ -3147,6 +3234,11 @@ function leaveAccount(screen, options = {}) {
   state.user = null;
   state.demoVerifyUrl = null;
   state.resendUntil = 0;
+  // A delete link this account asked for is its own: the next account starts without one.
+  state.deleteUntil = 0;
+  state.deleteDemoUrl = null;
+  clearInterval(deleteTimer);
+  deleteTimer = null;
   updateAccountUi();
   renderBanner();
   state.authPath = STACKED.has(screen) ? [screen] : [];
@@ -3545,7 +3637,7 @@ function togglePassword(button) {
 els.auth.addEventListener("click", (event) => {
   const nav = event.target.closest("[data-auth]");
   if (nav) {
-    if (nav.dataset.auth === "app") return enterApp({ focus: true });
+    if (nav.dataset.auth === "app") return enterHome({ focus: true });
     return goAuth(nav.dataset.auth); // the email typed so far comes along (authDraft)
   }
   const toggle = event.target.closest('[data-action="toggle-password"]');
@@ -3570,7 +3662,7 @@ async function confirmEmail(token) {
     const { user } = await api("/api/auth/verify-email", { method: "POST", ...jsonBody({ token }) });
     if (state.user && user?.id === state.user.id) {
       state.user = user;
-      enterApp();
+      enterHome();
       toast("Email confirmed. Thanks.");
       return;
     }
@@ -3804,6 +3896,7 @@ els.account.addEventListener("close", () => {
   els.account.style.transition = "";
   els.account.style.transform = "";
   if (!els.sheet.open) document.documentElement.classList.remove("has-sheet");
+  flushSaves(); // a change made just before closing still saves
   els.accountBody.innerHTML = "";
   if (accountRestore) {
     const back = canTakeFocus(accountOpener) ? accountOpener : els.accountButton;
@@ -4230,7 +4323,7 @@ window.addEventListener("popstate", (event) => {
   const screen = document.body.dataset.screen;
   const entry = event.state;
   if (screen === "auth") {
-    if (state.user) return enterApp({ focus: true }); // back from a link screen while signed in
+    if (state.user) return enterHome({ focus: true }); // back from a link screen while signed in
     if (isAuthEntry(entry)) return showAuthPath(entry.auth);
     return syncHistory(); // an entry from before signing out: stay on the account screens
   }
@@ -4403,21 +4496,36 @@ async function setupPrefs() {
   return true;
 }
 
+/** The halls with a menu. A failure that may pass (a restart, a blip) is tried once more; if that fails
+    too, or the server has no menus at all, the dining parts stay off. */
 async function loadDining() {
   const epoch = state.epoch;
-  try {
-    const locations = await api("/api/dining/locations");
-    if (epoch !== state.epoch) return;
-    const usable = Array.isArray(locations) ? locations.filter((l) => l && Number.isInteger(l.id) && typeof l.name === "string") : [];
-    state.dining = { locations: usable };
-  } catch {
-    if (epoch !== state.epoch) return;
-    state.dining = false; // 503: the menus aren't connected; any other failure reads the same for now
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const locations = await api("/api/dining/locations");
+      if (epoch !== state.epoch) return;
+      const usable = Array.isArray(locations) ? locations.filter((l) => l && Number.isInteger(l.id) && typeof l.name === "string") : [];
+      state.dining = { locations: usable };
+    } catch (err) {
+      if (epoch !== state.epoch) return;
+      if (attempt === 0 && !diningGone(err)) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        if (epoch !== state.epoch) return;
+        continue;
+      }
+      state.dining = false;
+    }
+    break;
   }
   updatePrefsUi();
 }
 
-/** The menus went away mid-session (a 503): the dining parts fold away. */
+/** dining.py's 503 when the server has no menus at all. Its other 503 ("aren't available right now. Try
+    again in a minute.") passes, so it reads like any other failure: shown where it happened, tried again. */
+const DINING_NOT_CONNECTED = "Dining menus aren't connected.";
+const diningGone = (err) => err?.status === 503 && err.message === DINING_NOT_CONNECTED;
+
+/** The menus went away mid-session (a 503 that says so): the dining parts fold away. */
 function diningLost() {
   if (!state.dining) return;
   state.dining = false;
@@ -4482,7 +4590,7 @@ async function loadAlerts() {
     state.alerts = Array.isArray(alerts) ? alerts.filter((a) => a && typeof a.name === "string") : [];
   } catch (err) {
     if (epoch !== state.epoch) return;
-    if (err.status === 503) return diningLost();
+    if (diningGone(err)) return diningLost();
   }
   updateBell();
   if (els.panel.open && els.panel.dataset.kind === "alerts") renderAlertsPanel({ refocus: false });
@@ -4493,7 +4601,8 @@ function updateBell() {
   els.bell.hidden = !show;
   const n = state.alerts.length;
   els.bellDot.hidden = !n;
-  const label = n ? `Alerts: ${n} of your favorites ${n === 1 ? "is" : "are"} on the menu this week` : "Alerts";
+  const dishes = new Set(state.alerts.map((a) => dishKey(a.name))).size; // an alert is one dish at one hall for one meal
+  const label = dishes ? `Alerts: ${dishes} of your favorites ${dishes === 1 ? "is" : "are"} on the menu this week` : "Alerts";
   els.bell.setAttribute("aria-label", label);
   els.railAlerts.hidden = !show;
   els.railDot.hidden = !n;
@@ -4512,7 +4621,7 @@ async function fetchNearest(lat, lon) {
     state.nearest = near;
     return near;
   } catch (err) {
-    if (err.status === 503) diningLost();
+    if (diningGone(err)) diningLost();
     return null;
   }
 }
@@ -4528,12 +4637,15 @@ async function nearestHall() {
   }
 }
 
-/** After a photo with location: the nearest hall under the result, and the side column follows it. */
+/** After a photo with location: the nearest hall under the result, and the side column follows it.
+    The note goes into the card on show, where resultHtml puts it: a re-render would cut the boxes'
+    entrance short and drop keyboard focus. */
 async function noteNearest([lat, lon], slot) {
   const near = await fetchNearest(lat, lon);
   if (!near || state.slots.analyze !== slot) return;
   slot.nearest = near;
-  if (state.shown === slot) renderResult("update");
+  const body = state.shown === slot && slot.result.items.length ? $(".meal-card__body", els.result) : null;
+  if (body && !$(".nearest-note", body)) body.insertAdjacentHTML("beforeend", nearestNoteHtml(near.note, "result"));
   state.upcoming = null;
   loadUpcoming();
 }
@@ -4555,23 +4667,68 @@ function nearestNoteHtml(note, where) {
 // ---- the upcoming meal (the right column on laptops, a card on phones)
 
 let upcomingSeq = 0;
+let upcomingLoading = 0; // the upcomingSeq of the fetch still on its way, else 0
+const DINING_TTL = 15 * 60_000; // the next meal moves on with the clock: fetch it again after this
 
-/** Draw the side column from what's known; fetch it when nothing is. */
+/** A next-meal answer still worth showing: under 15 minutes old and not for a day gone by. */
+const freshMeal = (entry) => Boolean(entry) && (entry.pending || (Date.now() - entry.at < DINING_TTL && !(entry.meal?.date < localDate())));
+
+/** Fetch again the next meals on show that have gone stale (see freshMeal): the upcoming meal, and the
+    Menu tab's halls while it's open. On coming back to the page, and once a minute while it's on screen. */
+function refreshDining() {
+  if (!diningOn()) return;
+  if (state.upcoming && !freshMeal(state.upcoming) && !upcomingLoading) loadUpcoming();
+  if (state.view === "menu" && menuHallIds().some((id) => !freshMeal(menus.data.get(id)))) ensureMenus({ refresh: true });
+}
+
+let upcomingShown = null; // what the side card was last drawn from: { entry, sig }
+const upcomingSig = () => `${busyNow.sig}|${state.prefsVersion}|${state.todayKey}`;
+
+/** Draw the side column from what's known, unless it shows that already (a day pick leaves the card,
+    its scroll and its focus alone); fetch it when nothing is, unless that's on its way. */
 function ensureUpcoming() {
   if (!diningOn()) {
     els.dashSide.innerHTML = "";
     return;
   }
-  if (state.upcoming) renderUpcoming();
-  else loadUpcoming();
+  if (!freshMeal(state.upcoming)) {
+    if (!upcomingLoading) loadUpcoming();
+  } else if (upcomingShown?.entry !== state.upcoming) renderUpcoming();
+  else if (upcomingShown.sig !== upcomingSig()) redrawUpcoming();
 }
 
+/** Draw the same meal again in place: the list keeps its scroll, and keyboard focus stays on the same dish
+    (or on the list, or the cam line). For a busy reading or a change of settings that keeps the meal. */
+function redrawUpcoming() {
+  const list = $(".dishes", els.dashSide);
+  const top = list?.scrollTop ?? 0;
+  const active = els.dashSide.contains(document.activeElement) ? document.activeElement : null;
+  const dish = active?.closest("[data-dish]")?.dataset.dish;
+  renderUpcoming();
+  const next = $(".dishes", els.dashSide);
+  if (next && top) next.scrollTop = top;
+  if (!active) return;
+  const target = dish != null ? $(`[data-dish="${CSS.escape(dish)}"]`, els.dashSide) : active.matches("[data-cam]") ? $("[data-cam]", els.dashSide) : active === list ? next : null;
+  target?.focus({ preventScroll: true });
+}
+
+/** Fetch the upcoming meal and draw it; a call while one is on its way starts it over. */
 async function loadUpcoming() {
   if (!diningOn() || document.body.dataset.screen !== "app") return;
   ensureBusy();
   const seq = ++upcomingSeq;
+  upcomingLoading = seq;
+  try {
+    await fetchUpcoming(seq);
+  } finally {
+    if (upcomingLoading === seq) upcomingLoading = 0;
+  }
+}
+
+async function fetchUpcoming(seq) {
   const epoch = state.epoch;
-  els.dashSide.innerHTML = upcomingSkeletonHtml();
+  const held = els.dashSide.contains(document.activeElement); // the card had keyboard focus (its Try again)
+  if (!state.upcoming) els.dashSide.innerHTML = upcomingSkeletonHtml(); // a refresh keeps the card until the answer
   let locationId = null;
   let note = null;
   if (els.location.checked) {
@@ -4585,19 +4742,29 @@ async function loadUpcoming() {
   try {
     const meal = await api(`/api/me/dining/next${locationId ? `?location_id=${encodeURIComponent(locationId)}` : ""}`);
     if (seq !== upcomingSeq || epoch !== state.epoch) return;
-    state.upcoming = { meal, note, locationId };
+    // The same answer again (most refreshes): keep it, so the card isn't drawn again.
+    const old = state.upcoming;
+    if (old?.meal && old.locationId === locationId && old.note === note && JSON.stringify(old.meal) === JSON.stringify(meal)) {
+      old.at = Date.now();
+      return;
+    }
+    state.upcoming = { meal, note, locationId, at: Date.now() };
   } catch (err) {
     if (seq !== upcomingSeq || epoch !== state.epoch || err.signedOut) return;
-    if (err.status === 503) return diningLost();
-    state.upcoming = { error: err, note, locationId };
+    if (diningGone(err)) return diningLost();
+    state.upcoming = { error: err, note, locationId, at: Date.now() };
   }
+  const refocus = els.dashSide.contains(document.activeElement) || (held && document.activeElement === document.body);
   renderUpcoming();
+  // Focus that was in the card goes to the new one: its Try again, or its list.
+  if (refocus) $('[data-action="retry-upcoming"], .dishes', els.dashSide)?.focus({ preventScroll: true });
 }
 
 const upcomingSkeletonHtml = () =>
   `<div class="card upcoming is-skeleton" aria-hidden="true"><span class="sk sk--eyebrow"></span><span class="sk sk--num"></span><span class="sk sk--line"></span>${'<span class="sk-row"><span class="sk sk--line"></span><span class="sk sk--short"></span></span>'.repeat(4)}</div>`;
 
 function renderUpcoming() {
+  upcomingShown = { entry: state.upcoming, sig: upcomingSig() };
   if (!diningOn() || !state.upcoming) {
     els.dashSide.innerHTML = "";
     return;
@@ -4715,7 +4882,7 @@ function dishLegendHtml(fav, avoid, off, kinds = []) {
     ...Object.keys(KINDS)
       .filter((k) => shown.has(k))
       .map((k) => `<span class="legend__item">${kindIconHtml(k)}${KINDS[k][0].toLowerCase()}</span>`),
-    fav ? `<span class="legend__item">${icon("star")}favorite</span>` : "",
+    fav ? `<span class="legend__item legend__item--fav">${icon("star")}favorite</span>` : "",
     avoid ? `<span class="legend__item">${icon("avoid")}has an allergen you avoid</span>` : "",
     off ? `<span class="legend__item"><span class="legend__off" aria-hidden="true"></span>not in your diet</span>` : "",
   ].filter(Boolean);
@@ -4746,8 +4913,9 @@ function dishRowHtml({ name, calories, fav, avoid, off, avoided, kinds = [], ref
 const MENU_HALL_KEY = "mealscholar:menu-hall";
 const DEFAULT_HALL = 0; // no hall chosen: the server's default hall (no location_id)
 const menus = {
-  data: new Map(), // hall id -> { meal } | { error } | { pending: true }
+  data: new Map(), // hall id -> { meal } | { error } | { pending: true }, with `at`: when it came
   seq: 0,
+  loading: new Set(), // hall ids whose next meal is on its way
   day: null, // null: today, the next meal; else another day's YYYY-MM-DD, every meal it lists
   days: new Map(), // `${hall id}|${day}` -> { menu } | { error } | { pending: true }
   meal: null, // the meal key on show on another day (breakfast, lunch...), kept from day to day
@@ -4761,6 +4929,7 @@ const favoriteKeys = () => new Set((state.prefs?.favorites ?? []).map((f) => dis
 function resetMenus(keepDay = false) {
   menus.seq += 1;
   menus.data.clear();
+  menus.loading = new Set(); // answers still on their way are for the old settings: dropped (see menus.seq)
   menus.days.clear();
   menus.note = "";
   if (!keepDay) {
@@ -4816,11 +4985,12 @@ function ensureBusy() {
       busyNow.sig = sig;
       if (document.body.dataset.screen !== "app") return;
       if (state.view === "menu") renderMenu();
-      if (state.upcoming && !state.upcoming.error) renderUpcoming();
+      if (state.upcoming && !state.upcoming.error) redrawUpcoming();
     })
     .catch((err) => {
       busyNow.at = Date.now();
-      if (err.status === 503 || err.status === 404) busyNow.off = true; // no hall cams on this server
+      // No hall cams on this server; any other failure (a passing 503 too) is tried again in a minute.
+      if (err.status === 404 || (err.status === 503 && err.message === "Hall cams aren't connected on this server.")) busyNow.off = true;
     })
     .finally(() => {
       busyNow.pending = null;
@@ -4828,7 +4998,9 @@ function ensureBusy() {
 }
 
 setInterval(() => {
-  if (!document.hidden && document.body.dataset.screen === "app") ensureBusy();
+  if (document.hidden || document.body.dataset.screen !== "app") return;
+  ensureBusy();
+  refreshDining(); // a page left open moves on to the next meal by itself
 }, BUSY_TTL);
 
 const busyHall = (id) => {
@@ -4910,22 +5082,30 @@ document.addEventListener("click", (event) => {
   if (button && !button.closest("dialog")) openCam(button);
 });
 
-/** Draw the tab from what's known and fetch what isn't: every hall's next meal, side by side. */
-async function ensureMenus() {
+/** Draw the tab from what's known and fetch what isn't, or what has gone stale (see freshMeal): every
+    hall's next meal, side by side. A stale menu stays on screen until its new answer replaces it.
+    `refresh`: a refresh in the background, so the tab is drawn again only for an answer that changed. */
+async function ensureMenus({ refresh = false } = {}) {
   if (document.body.dataset.screen !== "app" || !diningOn()) return;
   ensureBusy();
   const epoch = state.epoch;
-  // With location on, find the nearest hall first (once), so it leads the chips.
-  if (els.location.checked && !state.nearest) {
-    renderMenu();
-    await nearestHall();
+  // With location on, find the nearest hall first (once), so it leads the chips. The device's position can
+  // take seconds, or never come: past 1.5 s the menus load without it, and it joins the chips when it lands.
+  if (els.location.checked && !state.nearest && !refresh) {
+    renderMenu({ reveal: true });
+    const lookup = nearestHall();
+    const late = await Promise.race([lookup.then(() => false), new Promise((resolve) => setTimeout(resolve, 1500, true))]);
     if (epoch !== state.epoch) return;
+    if (late) lookup.then((near) => near && epoch === state.epoch && state.view === "menu" && ensureMenus());
   }
   const seq = menus.seq;
+  const loading = menus.loading;
   const ids = menuHallIds();
-  const wanted = ids.filter((id) => !menus.data.has(id));
-  for (const id of wanted) menus.data.set(id, { pending: true });
-  renderMenu();
+  const wanted = ids.filter((id) => !loading.has(id) && !freshMeal(menus.data.get(id)));
+  const missing = wanted.filter((id) => !menus.data.has(id));
+  for (const id of wanted) loading.add(id);
+  for (const id of missing) menus.data.set(id, { pending: true });
+  if (!refresh || missing.length) renderMenu({ reveal: !refresh });
   ensureMenuDay();
   await Promise.all(
     wanted.map(async (id) => {
@@ -4935,18 +5115,29 @@ async function ensureMenus() {
         entry = meal && Array.isArray(meal.items) ? { meal } : { error: new Error("That menu came back in a shape this app can't read.") };
       } catch (err) {
         if (err.signedOut) return;
-        if (err.status === 503) return diningLost();
+        if (diningGone(err)) return diningLost();
         entry = { error: err };
+      } finally {
+        loading.delete(id);
       }
       if (epoch !== state.epoch || seq !== menus.seq) return;
-      menus.data.set(id, entry);
+      // The same answer again (most refreshes): keep it, so nothing is drawn again.
+      const old = menus.data.get(id);
+      if (old?.meal && entry.meal && JSON.stringify(old.meal) === JSON.stringify(entry.meal)) {
+        old.at = Date.now();
+        return;
+      }
+      menus.data.set(id, { ...entry, at: Date.now() });
       renderMenu();
     })
   );
   ensureMenuDay(); // with no hall chosen, the server's default hall is known only now
 }
 
-function renderMenu() {
+const menuSaid = { hall: undefined, due: false }; // the hall on show, and whether a switch to it is yet to be said
+
+/** `reveal`: the tab just opened, so the picked hall's chip comes into the chip row's view. */
+function renderMenu({ reveal = false } = {}) {
   if (!diningOn()) {
     els.menuHalls.innerHTML = "";
     els.menuActions.innerHTML = "";
@@ -4960,6 +5151,12 @@ function renderMenu() {
   const focusedHall = document.activeElement?.closest?.("[data-hall]")?.dataset.hall ?? null;
   const focusedDish = document.activeElement?.closest?.("[data-dish]")?.dataset.dish ?? null;
   const focusedMeal = document.activeElement?.matches?.("[data-meal-pick]") ? document.activeElement.value : null;
+  const inBody = els.menuBody.contains(document.activeElement) ? document.activeElement : null;
+  const focusedCam = inBody?.closest("[data-cam]")?.dataset.cam ?? null; // the busy line
+  const focusedLink = inBody?.closest(".nearest-note [data-action]")?.dataset.action ?? null; // "Change dining hall"
+  // The chip row keeps its scroll. Not read as the tab opens: hidden, the row lost it, and reading it then
+  // would lay the old menu out once more for nothing.
+  const chipScroll = reveal ? 0 : $(".halls-bar__track", els.menuHalls)?.scrollLeft ?? 0;
   renderMenuDays(pick);
   const noHalls = !(state.prefs?.dining_halls ?? []).length;
   els.menuHalls.innerHTML = `
@@ -4994,9 +5191,37 @@ function renderMenu() {
   els.menuBody.innerHTML = `${menus.note ? `<p class="menu-note" role="status">${esc(menus.note)}</p>` : ""}${body}`;
   const tabs = $(".menu-meals", els.menuBody);
   if (tabs) fitMealTabs(tabs);
+  // A switch to another hall says which hall and meal are on show, once its menu is in. The menu itself isn't
+  // a live region: every redraw (a new busy reading) would read it all out again.
+  if (pick !== menuSaid.hall) {
+    menuSaid.due = menuSaid.hall !== undefined;
+    menuSaid.hall = pick;
+  }
+  const status = $("#menu-status");
+  if (menuSaid.due && entry && !entry.pending && status) {
+    menuSaid.due = false;
+    const meal = $("#menu-meal-title strong", els.menuBody)?.textContent;
+    const n = $$("[data-dish]", els.menuBody).length;
+    if (meal) status.textContent = `${$(".menu-card .eyebrow", els.menuBody)?.textContent ?? hallLabel(pick)}: ${meal}, ${n} item${n === 1 ? "" : "s"}.`;
+  }
+  const track = $(".halls-bar__track", els.menuHalls);
+  if (chipScroll) track.scrollLeft = chipScroll;
+  const chip = reveal && track.scrollWidth > track.clientWidth ? $('[aria-pressed="true"]', track) : null;
+  if (chip) {
+    // Scroll the chip row only (the page stays put) until the picked chip clears the row's padding.
+    const row = track.getBoundingClientRect();
+    const box = chip.getBoundingClientRect();
+    const { paddingLeft, paddingRight } = getComputedStyle(track);
+    const under = box.left - (row.left + parseFloat(paddingLeft));
+    const over = box.right - (row.right - parseFloat(paddingRight));
+    if (under < 0) track.scrollLeft += under;
+    else if (over > 0) track.scrollLeft += Math.min(over, under);
+  }
   if (focusedHall != null) $(`[data-hall="${CSS.escape(focusedHall)}"]`, els.menuHalls)?.focus({ preventScroll: true });
   else if (focusedDish != null) $(`[data-dish="${CSS.escape(focusedDish)}"]`, els.menuBody)?.focus({ preventScroll: true });
   else if (focusedMeal != null) $(`[data-meal-pick][value="${CSS.escape(focusedMeal)}"]`, els.menuBody)?.focus({ preventScroll: true });
+  else if (focusedCam != null) $(`[data-cam="${CSS.escape(focusedCam)}"]`, els.menuBody)?.focus({ preventScroll: true });
+  else if (focusedLink != null) $(`.nearest-note [data-action="${CSS.escape(focusedLink)}"]`, els.menuBody)?.focus({ preventScroll: true });
 }
 
 // ---- the Menu tab's day arrows: another day's whole menu at the picked hall
@@ -5091,7 +5316,7 @@ async function ensureMenuDay() {
     entry = menu && Array.isArray(menu.meals) ? { menu } : { error: new Error("That menu came back in a shape this app can't read.") };
   } catch (err) {
     if (err.signedOut) return menus.days.delete(key);
-    if (err.status === 503) return diningLost();
+    if (diningGone(err)) return diningLost();
     entry = err.status === 404 ? { menu: { date: day, meals: [] } } : { error: err };
   }
   if (epoch !== state.epoch || seq !== menus.seq) return;
@@ -5234,7 +5459,7 @@ function menuCardHtml(id, meal, near, { day = false } = {}) {
       <header class="menu-card__head">
         <p class="eyebrow">${esc(hall)}</p>
         ${day ? "" : busyBadgeHtml(meal.location?.id ?? id)}
-        <h2 id="menu-meal-title" class="menu-card__meal"><strong>${esc(label)}</strong>${whenText ? `<span class="menu-card__when">${SEP}${esc(whenText)}</span>` : ""}</h2>
+        <h2 id="menu-meal-title" class="menu-card__meal" tabindex="-1"><strong>${esc(label)}</strong>${whenText ? `<span class="menu-card__when">${SEP}${esc(whenText)}</span>` : ""}</h2>
         ${hint ? `<p class="menu-card__hint">${esc(hint)}</p>` : ""}
         ${nearNote}
         ${legend}
@@ -5280,7 +5505,11 @@ els.menuView.addEventListener("click", (event) => {
       return openSettings(action.dataset.section, action);
     case "retry-menu":
       menus.data.delete(Number(action.dataset.hallRetry));
-      ensureMenus().then(() => $('[data-action="retry-menu"]', els.menuBody)?.focus({ preventScroll: true }));
+      // Focus goes to the new card's heading, or to Try again if it failed again (unless it moved on meanwhile).
+      ensureMenus().then(() => {
+        if (document.activeElement !== document.body && !els.menuBody.contains(document.activeElement)) return;
+        $('[data-action="retry-menu"], #menu-meal-title', els.menuBody)?.focus({ preventScroll: true });
+      });
       return;
     case "retry-menu-day":
       menus.days.delete(`${menuDayHall()}|${menus.day}`);
@@ -5727,7 +5956,7 @@ const LEGAL = {
       ),
       legalSection(
         "On your device",
-        `<p>The app keeps a few small things in your browser: the dining hall you last opened on Menu, whether you were asked about location and your answer, and, until you finish, what you typed into an account form.</p>`
+        `<p>The app keeps a few small things in your browser: your Appearance choice, the dining hall you last opened on Menu, and whether you were asked about location. If you turn location on, that is saved with your account's email and stays after you log out. The tab you're using also keeps what you type into an account form until you finish, and the code from a password reset link until the new password is saved.</p>`
       ),
       legalSection(
         "Dining hall cams",
@@ -5752,16 +5981,24 @@ const LEGAL = {
 function openLegal(kind) {
   const page = LEGAL[kind];
   if (!page) return;
-  openPanel({ kicker: "MealScholar", title: page.title, intro: LEGAL_UPDATED, html: `<div class="legal">${page.html}</div>`, kind: "legal" });
+  // A labelled region that takes focus, so arrow keys and Page Down scroll the text (Safari doesn't
+  // make the scrolling sheet body focusable). Focus still starts on the title.
+  const html = `<div class="legal" tabindex="0" role="region" aria-label="${esc(page.title)}">${page.html}</div>`;
+  openPanel({ kicker: "MealScholar", title: page.title, intro: LEGAL_UPDATED, html, kind: "legal" });
   els.panelBody.scrollTop = 0;
 }
 
 document.addEventListener("click", (event) => {
   const link = event.target.closest?.("[data-legal]");
-  if (link) openLegal(link.dataset.legal);
+  if (!link) return;
+  link.focus({ preventScroll: true }); // so closing the sheet comes back here (Safari doesn't focus on click)
+  openLegal(link.dataset.legal);
 });
 
-function openAlerts() {
+/** From the bell or the sidebar's Alerts, with the click event. */
+function openAlerts(event) {
+  // Safari doesn't focus a clicked button: focus it, so closing the sheet comes back to it.
+  if (event?.currentTarget instanceof HTMLElement) event.currentTarget.focus({ preventScroll: true });
   renderAlertsPanel();
   loadAlerts(); // fresh, in case a menu changed
 }
@@ -5813,7 +6050,7 @@ async function openMenu({ location, date, mealKey }) {
     renderMenuPanel(menu, mealKey);
   } catch (err) {
     if (!els.panel.open || err.signedOut) return;
-    if (err.status === 503) diningLost();
+    if (diningGone(err)) diningLost();
     setPanelContent({
       kicker: "Menu",
       title: "Couldn't load the menu",
@@ -5829,18 +6066,19 @@ function renderMenuPanel(menu, mealKey) {
   const avoid = new Set(state.prefs.avoid_allergens);
   const diets = state.prefs.diets;
   const meals = Array.isArray(menu.meals) ? menu.meals.filter((m) => m && Array.isArray(m.categories)) : [];
+  const shown = []; // each listed dish's marks, so the legend names what the rows show
   const row = (item) => {
     const allergens = Array.isArray(item.allergens) ? item.allergens : [];
     const itemDiets = Array.isArray(item.diets) ? item.diets : [];
-    return dishRowHtml({
-      name: item.name,
-      calories: item.calories,
+    const marks = {
       fav: favorites.has(dishKey(item.name)),
       avoid: allergens.some((a) => avoid.has(a)),
       off: diets.length > 0 && !diets.every((d) => itemDiets.includes(d)),
       avoided: allergens.filter((a) => avoid.has(a)),
       kinds: dietKinds(item),
-    });
+    };
+    shown.push(marks);
+    return dishRowHtml({ name: item.name, calories: item.calories, ...marks });
   };
   const sections = meals
     .map((meal, i) => {
@@ -5865,7 +6103,7 @@ function renderMenuPanel(menu, mealKey) {
     })
     .join("");
   const date = typeof menu.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(menu.date) ? parseDay(menu.date) : null;
-  const legend = dishLegendHtml(favorites.size > 0, avoid.size > 0, diets.length > 0);
+  const legend = dishLegendHtml(shown.some((m) => m.fav), shown.some((m) => m.avoid), shown.some((m) => m.off), shown.map((m) => m.kinds));
   setPanelContent({
     kicker: date ? dayFormat.format(date) : "Menu",
     title: menu.location?.name ?? "Menu",
@@ -6171,7 +6409,7 @@ async function searchDishes(input) {
     count.textContent = dishes.length ? `${dishes.length} dish${dishes.length === 1 ? "" : "es"} found.` : "Nothing on the campus menus matches that.";
   } catch (err) {
     if (seq !== dishSeq || !list.isConnected || err.signedOut) return;
-    if (err.status === 503) diningLost();
+    if (diningGone(err)) diningLost();
     list.innerHTML = `<li class="options__empty is-error">${esc(err.message)}</li>`;
     count.textContent = err.message;
   }
@@ -6265,7 +6503,7 @@ function summaryHtml(prefs) {
 
 // ---- what the widgets do, in the set-up steps and in Settings alike
 
-const saveTimers = new Map();
+const saveTimers = new Map(); // section -> { id, run }: a Settings save waiting for its moment
 const statusTimers = new WeakMap();
 
 function flashStatus(el, text) {
@@ -6279,8 +6517,21 @@ function flashStatus(el, text) {
 /** Settings saves as you go, a moment after the last change; the set-up steps save on Next. */
 function autosave(root, section) {
   if (root.dataset.mode !== "settings") return;
-  clearTimeout(saveTimers.get(section));
-  saveTimers.set(section, setTimeout(() => saveSection(root, section), 350));
+  clearTimeout(saveTimers.get(section)?.id);
+  const epoch = state.epoch;
+  const run = () => {
+    saveTimers.delete(section);
+    if (epoch === state.epoch) saveSection(root, section); // not once the account has signed out
+  };
+  saveTimers.set(section, { id: setTimeout(run, 350), run });
+}
+
+/** Settings is closing: send the saves still waiting now, while their widgets can still be read. */
+function flushSaves() {
+  for (const { id, run } of [...saveTimers.values()]) {
+    clearTimeout(id);
+    run();
+  }
 }
 
 function readSection(section, root) {
@@ -6702,7 +6953,7 @@ const STEP_TITLES = {
 
 // A lede is a sentence, or a function of the choices so far (the goal step comes before Ranges).
 const STEP_LEDES = {
-  name: "This is how the dashboard greets you.",
+  name: "Shown in Settings. Optional.",
   goal: () =>
     `Optional. With a goal, the dashboard shows what's left for the day. Without one, it shows ${rangesOn() ? "the ranges of" : "just"} what you ate.`,
   ranges: "Every amount is an estimate. Show the range it falls in next to the likely number?",
@@ -6835,6 +7086,7 @@ async function onboardNav(action, button) {
   clearFormErrors(form);
   const changes = step === "done" ? { onboarded: true } : readSection(step === "halls" ? "dining" : step === "goal" ? "goals" : step, form);
   if (!changes) return; // an error is showing at a field
+  const at = ob.at; // a Back pressed while this saves wins: move on only from the step that was saved
   await withBusy(button, async () => {
     let saved = true;
     try {
@@ -6843,7 +7095,7 @@ async function onboardNav(action, button) {
       saved = false;
       showPrefsError(form, err);
     }
-    if (!saved || !state.onboard) return;
+    if (!saved || state.onboard !== ob || ob.at !== at) return;
     if (action === "finish") return finishOnboarding("You're all set.");
     ob.at += 1;
     renderOnboarding();
@@ -6859,7 +7111,8 @@ els.onboard.addEventListener("click", (event) => {
 els.onboard.addEventListener("submit", (event) => {
   event.preventDefault();
   const next = $('[data-onboard="next"], [data-onboard="finish"]', els.onboard);
-  if (next) onboardNav(next.dataset.onboard, next);
+  // Enter again while the step saves: that save moves on, once.
+  if (next && !next.disabled && next.getAttribute("aria-busy") !== "true") onboardNav(next.dataset.onboard, next);
 });
 
 els.onboard.addEventListener("input", (event) => {
@@ -7070,9 +7323,11 @@ els.skip.addEventListener("click", (event) => {
   els.main.focus();
 });
 
-// Back to the page after a while (or past midnight): today may be a new day.
+// Back to the page after a while (or past midnight): today may be a new day, and the next meal may have moved on.
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && document.body.dataset.screen === "app" && ensureToday()) loadDashboard();
+  if (document.hidden || document.body.dataset.screen !== "app") return;
+  if (ensureToday()) loadDashboard();
+  refreshDining();
 });
 
 /** ?verify=, ?reset= and ?delete= carry one-time tokens: take them, then drop them from the address bar. */
@@ -7088,12 +7343,18 @@ function takeLinkTokens() {
   return tokens;
 }
 
+/** The app couldn't start: nothing on it works until a reload, so Try again reloads once the server answers. */
 function bootFailed(err) {
+  state.bootFailed = true;
   document.body.dataset.screen = "app";
   setPickers(false);
   setStatus(err.message, { error: true });
   els.today.dataset.state = "error";
-  els.dashDay.innerHTML = `<div class="card dash-error"><p class="status is-error" role="alert">${esc(err.message)}</p></div>`;
+  els.dayPrev.disabled = true;
+  els.dayNext.disabled = true;
+  const refocus = els.dashDay.contains(document.activeElement);
+  els.dashDay.innerHTML = `<div class="card dash-error"><p class="status is-error" role="alert">${esc(err.message)}</p><button class="btn btn--secondary" type="button" data-action="reboot">Try again</button></div>`;
+  if (refocus) $('[data-action="reboot"]', els.dashDay).focus({ preventScroll: true });
 }
 
 async function init() {
