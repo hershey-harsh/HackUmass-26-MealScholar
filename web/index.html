@@ -427,7 +427,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <h2 id="videos-title" class="h2">More than a calorie counter</h2>
       </div>
       <div>
-        <p class="section-sub">Short recordings of the real app: the one question, favorite dishes with menu alerts, naming the place you ate, and any day’s menu.</p>
+        <p class="section-sub">Short recordings of the real app: the one question, favorite dishes with menu alerts, finding your nearest hall, and any day’s menu.</p>
         <div class="head-actions">
           <a class="pill-link" href="/app/">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
           <div class="rail-ctrl" data-rail-controls="video-rail">
@@ -461,12 +461,16 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           <h3>Favorite a dish</h3>
           <p>Search the campus menus and add what you love. The bell tells you when it’s on at any dining hall this week.</p>
         </li>
-        <li class="gallery__item" data-video="name-the-place">
+        <li class="gallery__item" data-video="nearest-hall">
           <div class="gallery__frame">
-            <div class="video-ph video-ph--c"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+            <button type="button" class="vplay" data-video-src="/app/media/gallery-nearest-hall.mp4" data-video-w="720" data-video-h="900" data-video-label="Screen recording: in Settings, Find my nearest hall uses the phone’s location once and picks Worcester, with a link to change it if that’s wrong">
+              <img src="/app/media/gallery-nearest-hall.jpg" width="720" height="900" alt="" loading="lazy" decoding="async">
+              <span class="vplay__btn" aria-hidden="true"><svg><use href="#i-play"/></svg></span>
+              <span class="sr-only">Play the recording: find your nearest hall</span>
+            </button>
           </div>
-          <h3>Name the place</h3>
-          <p>Turn on location and each meal is saved with the name of where you ate, not your coordinates.</p>
+          <h3>Find your nearest hall</h3>
+          <p>One tap picks the dining hall closest to you. Your location is used once, only for that, and isn’t kept or sent anywhere else.</p>
         </li>
         <li class="gallery__item" data-video="any-day-menu">
           <div class="gallery__frame">
