@@ -2183,7 +2183,8 @@ function renderDay() {
     view && failed
       ? `<div class="dash-alert"><p class="status is-error" role="alert">Couldn't refresh this day. ${esc(entry.error.message)}</p><button class="btn btn--soft" type="button" data-action="retry">Try again</button></div>`
       : "";
-  const sig = `${key}|${entry?.version ?? 0}|${view ? "v" : failed ? "e" : "l"}|${state.nutrients.length}|${state.prefsVersion}`;
+  // The vitamins card also depends on the week the chart shows (paging weeks keeps the day).
+  const sig = `${key}|${entry?.version ?? 0}|${view ? "v" : failed ? "e" : "l"}|${state.nutrients.length}|${state.prefsVersion}|${key && otherDayInChart(key)}`;
   if (sig === rendered.day) return;
   rendered.day = sig;
   if (!view) {
@@ -2456,6 +2457,9 @@ function dayPhrase(key) {
   return key === state.todayKey ? "today" : name === "Yesterday" ? "yesterday" : `on ${name}`;
 }
 
+/** The chart on show has another past day to pick (on a Sunday this week has none). */
+const otherDayInChart = (key) => pastKeys(weekKeys()).some((day) => day !== key);
+
 /** The Week tab's vitamins card is about the day picked in the chart (today unless another is). */
 function microHtml(view) {
   const rows = nutrientRowsHtml(view.totals, view.daily_value_pct, { micro: true, prefix: "dm" });
@@ -2464,7 +2468,7 @@ function microHtml(view) {
     <details class="card micro-card"${state.microOpen ? " open" : ""}>
       <summary><span class="micro-card__titles"><h2 class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(capitalize(dayName(state.day)))}</span></span><span class="chip">Estimates</span></summary>
       <div class="micro-card__body">
-        <p class="note">Photos can't show vitamins and minerals well, so these are rough estimates. A weekly trend says more than one day. Pick a day in the chart to see its own.</p>
+        <p class="note">Photos can't show vitamins and minerals well, so these are rough estimates. A weekly trend says more than one day.${otherDayInChart(state.day) ? " Pick a day in the chart to see its own." : ""}</p>
         <ul class="nutrients">${rows}</ul>
       </div>
     </details>`;
@@ -2474,7 +2478,7 @@ function microEmptyHtml(key, logged) {
   return `
     <section class="card micro-card micro-card--empty" aria-labelledby="micro-empty-title">
       <div class="micro-card__titles"><h2 id="micro-empty-title" class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(capitalize(dayName(key)))}</span></div>
-      <p class="note">${logged ? `No vitamin or mineral estimates for the meals ${esc(dayPhrase(key))}.` : `Nothing logged ${esc(dayPhrase(key))}, so there's nothing to estimate.`} Pick another day in the chart.</p>
+      <p class="note">${logged ? `No vitamin or mineral estimates for the meals ${esc(dayPhrase(key))}.` : `Nothing logged ${esc(dayPhrase(key))}, so there's nothing to estimate.`}${otherDayInChart(key) ? " Pick another day in the chart." : ""}</p>
     </section>`;
 }
 
