@@ -55,7 +55,7 @@ Every agent MUST follow these rules for all MealScholar website and frontend wor
 
 Design MUST NOT override [the rules the code enforces](README.md#rules-the-code-enforces). In particular, the UI:
 
-- shows amounts and nutrients as ranges (`low`/`likely`/`high`); the AI estimates how much is there and the user never weighs anything; NEVER collapse a range to a single number for visual simplicity;
+- shows the likely amount by default, and the full range (`low`/`likely`/`high`) once the user turns on Show ranges (asked once in onboarding, a switch in Settings); the AI estimates how much is there and the user never weighs anything; with ranges on, NEVER collapse a range to a single number for visual simplicity;
 - labels micronutrients as estimates;
 - shows a calorie goal only if the user set one during onboarding (goals are the user's own); never gives insulin or carb-dosing advice.
 
@@ -87,4 +87,4 @@ Stop only when a full pass across every dimension finds no meaningful improvemen
 | **Motion** | Every animation has a purpose (guiding attention, showing cause and effect, setting pace); custom easing curves, not browser or library defaults; quick, confident durations; animate only `transform` and `opacity` to hold 60fps; respects `prefers-reduced-motion`. |
 | **Micro-interactions** | Every interactive element has hover, `:focus-visible`, active, disabled, and loading states where they apply; feedback is immediate; affordances read clearly on both pointer and touch. |
 | **Responsiveness** | Fluid from 320px to 2560px; no horizontal scroll; touch targets of at least 44×44px; layouts recomposed for each viewport, not just shrunk. |
-| **Originality** | A distinct visual identity rooted in MealScholar's concept and content: meal photos, the foods found in them, and honest ranges instead of fake-precise numbers. It MUST NOT look like a stock template or a generic hero-plus-three-cards layout. Give it at least one memorable signature moment. |
+| **Originality** | A distinct visual identity rooted in MealScholar's concept and content: meal photos, the foods found in them, and estimates matched to the campus menu instead of fake-precise numbers. It MUST NOT look like a stock template or a generic hero-plus-three-cards layout. Give it at least one memorable signature moment. |
