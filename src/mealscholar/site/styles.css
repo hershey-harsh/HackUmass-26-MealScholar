@@ -2909,6 +2909,19 @@ body[data-screen="auth"] .footer {
   }
 }
 
+/* The Week tab's chart sits on the page, where --surface-2 doesn't show: the picked day gets a tint
+   and an edge, so a day without a bar is visibly picked too. */
+.week-view .wk__col[aria-current="date"] {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+@media (hover: hover) {
+  .week-view button.wk__col:not(:disabled):hover {
+    background: var(--surface);
+  }
+}
+
 .wk__plot {
   grid-area: plot;
   position: relative;
