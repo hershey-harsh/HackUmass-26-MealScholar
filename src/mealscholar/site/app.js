@@ -499,6 +499,8 @@ const viewTitle = (view) => ({ today: els.todayTitle, menu: els.menuTitle, week:
 for (const tab of els.tabs) {
   tab.addEventListener("click", (event) => {
     event.preventDefault();
+    // Past midnight, "today" moves on first, so a tap on Today goes to the new day.
+    if (ensureToday()) loadDashboard();
     const view = tab.dataset.view;
     if (!canShow(view)) return;
     if (view !== state.view) setView(view);
@@ -1967,6 +1969,18 @@ function ensureToday() {
   if (followToday || state.day > today) state.day = today;
   return true;
 }
+
+/** With the page left open past midnight, the dashboard moves to the new day on its own. */
+function armMidnight() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+  setTimeout(() => {
+    if (document.body.dataset.screen === "app" && ensureToday()) loadDashboard();
+    armMidnight();
+  }, next - now);
+}
+
+armMidnight();
 
 function dayTitle(key) {
   const today = state.todayKey ?? localDate();
