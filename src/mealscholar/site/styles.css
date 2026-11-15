@@ -7035,7 +7035,10 @@ body:not([data-dining="on"]) .tab[data-view="menu"] {
   margin-inline: calc(-1 * var(--pad-l)) calc(-1 * var(--pad-r));
 }
 
+/* Positioned, so the screen-reader-only words in the chips (absolutely placed) stay inside the scroller
+   instead of widening the page. */
 .halls-bar__track {
+  position: relative;
   display: flex;
   gap: 8px;
   padding: 2px var(--pad-r) 4px var(--pad-l);
