@@ -620,8 +620,13 @@ main:focus,
   padding-top: 12px;
 }
 
+/* Two names for the same entrance: app.js switches between them to play it again (replayEntrance). */
 .view.is-entering {
   animation: view-in var(--dur-2) var(--ease-out);
+}
+
+.view.is-entering-alt {
+  animation: view-in-alt var(--dur-2) var(--ease-out);
 }
 
 /* One view at a time: a tab (Today, or a logged meal over it; Menu; Week), or the capture screen
@@ -1701,7 +1706,7 @@ body[data-screen="auth"] .footer {
   border-radius: var(--radius);
   background: var(--warm);
   box-shadow: inset 0 0 0 1px rgba(28, 28, 28, 0.04);
-  animation: rise-in var(--dur-3) var(--ease-out) both;
+  animation: rise-in var(--dur-3) var(--ease-out) backwards;
 }
 
 .question__text {
@@ -1770,7 +1775,9 @@ body[data-screen="auth"] .footer {
   display: grid;
   gap: 12px;
   padding: 16px;
-  animation: rise-in var(--dur-3) var(--ease-out) both;
+  /* backwards, not both: an item whose finished entrance stays in effect is re-rasterised, shadow
+     and all, on every scrolled frame; with backwards it is plain content once it has risen. */
+  animation: rise-in var(--dur-3) var(--ease-out) backwards;
   animation-delay: calc(var(--i, 0) * 70ms + 120ms);
   transition: box-shadow var(--dur-2) linear;
 }
@@ -2928,14 +2935,16 @@ body[data-screen="auth"] .footer {
   }
 }
 
-/* Bars rise once, when the week first arrives. */
+/* Bars rise once, when the week first arrives: a transform from the bar's lower edge, which the
+   compositor animates on its own (a clip-path would be repainted on every frame). */
 .week-block.is-entering .wk__bar {
-  animation: bar-in var(--dur-3) var(--ease-out) both;
+  transform-origin: 50% 100%;
+  animation: bar-in var(--dur-3) var(--ease-out) backwards;
   animation-delay: calc(var(--i, 0) * 45ms);
 }
 
 .week-block.is-entering .wk__whisker {
-  animation: fade-in var(--dur-2) linear both;
+  animation: fade-in var(--dur-2) linear backwards;
   animation-delay: calc(var(--i, 0) * 45ms + 320ms);
 }
 
@@ -4113,6 +4122,11 @@ body[data-screen="auth"] .toast {
   to { opacity: 1; transform: none; }
 }
 
+@keyframes view-in-alt {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
 @keyframes rise-in {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: none; }
@@ -4158,8 +4172,8 @@ body[data-screen="auth"] .toast {
 }
 
 @keyframes bar-in {
-  from { clip-path: inset(100% 0 0 0); }
-  to { clip-path: inset(0); }
+  from { transform: translateY(-50%) scaleY(0); }
+  to { transform: translateY(-50%) scaleY(1); }
 }
 
 @keyframes sk-pulse {
@@ -4642,6 +4656,10 @@ html.install-open {
 }
 
 .dish {
+  /* Positioned: the screen-reader-only words in a row are absolutely placed, and without this
+     Safari put the ones in a later column of the menu's multi-column list far below the row, which
+     stretched the page by hundreds of blank pixels (the "unlimited scroll" on the Menu tab). */
+  position: relative;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
@@ -5670,10 +5688,11 @@ body[data-screen="onboard"] .toast {
   }
 }
 
-/* Laptops: the sketch. The week strip on top. The left column (calories, health score, nutrient
-   tiles) is compact enough to fit the window and stays pinned under the bar; the middle (Recently
-   uploaded, the week chart, the vitamins) and the right column (the upcoming meal) scroll with the
-   page. The top bar's Snap a meal gives way to the round + button. */
+/* Laptops: the sketch. The week strip on top. The dashboard is exactly the window's height, so the
+   page itself never scrolls: the left column (calories, health score, nutrient tiles) is compact
+   enough to fit and stays put under the bar, and the middle (Recently uploaded, then the footer)
+   and the right column (the upcoming meal) scroll inside themselves when they are taller than their
+   slot. The top bar's Snap a meal gives way to the round + button. */
 @media (min-width: 64em) {
   body[data-prefs="on"] {
     --pin-top: calc(var(--bar-h) + var(--safe-top) + 16px);
@@ -5717,6 +5736,30 @@ body[data-screen="onboard"] .toast {
     grid-template-areas: "main mid side";
   }
 
+  /* The view is the window less the top bar and the shell's 16px top and 24px bottom padding; the
+     head and the week strip take their own height and the grid the rest, so the columns have a
+     height to scroll inside of. Nothing here moves with the page, so no JavaScript sizes anything. */
+  body[data-prefs="on"] .today {
+    display: flex;
+    flex-direction: column;
+    height: calc(100svh - var(--bar-h) - var(--safe-top) - 40px);
+    min-height: 0;
+  }
+
+  body[data-prefs="on"] .today > .dash {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  body[data-prefs="on"] .dash > .dash-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch; /* the columns take the row's height, so their percentages resolve */
+  }
+
   body[data-prefs="on"] .dash-col {
     display: grid;
     gap: 24px;
@@ -5724,16 +5767,15 @@ body[data-screen="onboard"] .toast {
     min-width: 0;
   }
 
-  /* Pinned under the bar. If it's still taller than the window (a short window, larger browser
-     text, an open "How it's scored"), it scrolls inside itself rather than pushing the page. The
-     padding keeps focus rings and card shadows inside the scroll box. */
+  /* If the left column is taller than its slot (a short window, larger browser text, an open "How
+     it's scored"), it scrolls inside itself. The padding keeps focus rings and card shadows inside
+     the scroll box; the 12px allow for the negative margins. */
   body[data-prefs="on"] .dash-col--main {
     grid-area: main;
-    position: sticky;
-    top: var(--pin-top);
+    position: relative; /* the containing block for the rows' screen-reader-only words, so they stay inside the scroll box */
     align-self: start;
     gap: 10px;
-    max-height: calc(100svh - var(--pin-top) - 12px);
+    max-height: calc(100% + 12px);
     margin: -6px -10px;
     padding: 6px 10px 8px;
     overflow-y: auto;
@@ -5751,15 +5793,35 @@ body[data-screen="onboard"] .toast {
     mask-image: linear-gradient(to bottom, #000 calc(100% - 56px), transparent);
   }
 
+  /* The middle column scrolls inside itself when the scans and the footer run past its slot. */
   body[data-prefs="on"] .dash-col--mid {
     grid-area: mid;
+    position: relative;
+    min-height: 0;
+    max-height: calc(100% + 12px);
+    margin: -6px -10px;
+    padding: 6px 10px 8px;
+    overflow-y: auto;
   }
 
+  body[data-prefs="on"] .dash-grid > .dash-col--mid > .footer {
+    max-width: none;
+    margin: 0;
+    padding: 0 4px 8px;
+  }
+
+  /* The side column only ever scrolls in a window too short for the card's head and five rows;
+     otherwise the card fits the column and its list is the one part that scrolls. */
   body[data-prefs="on"] .dash-col--side {
     grid-area: side;
-    position: sticky;
-    top: var(--pin-top);
-    align-self: start;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: calc(100% + 12px);
+    margin: -6px -10px;
+    padding: 6px 10px 8px;
+    overflow-y: auto;
   }
 
   body[data-prefs="on"] .dash-col--side:empty {
@@ -5946,12 +6008,13 @@ body[data-screen="onboard"] .toast {
     padding: 22px 20px 20px;
   }
 
-  /* The side column fits the window; its list is the one part that scrolls. */
   body[data-prefs="on"] .dash-col--side .upcoming {
-    max-height: calc(100svh - var(--bar-h) - var(--safe-top) - 32px);
+    flex: none;
+    max-height: 100%;
   }
 
   body[data-prefs="on"] .dash-col--side .dishes {
+    min-height: 5rem;
     max-height: none;
   }
 
@@ -6271,13 +6334,12 @@ body[data-screen="onboard"] .toast {
 }
 
 /* Wherever the dashboard reaches the window's right edge, the fixed + button (60px, 28px up from
-   the bottom) lands on the side column's corner. The card ends above the button both at the top of
-   the page, where the column starts under the title and week strip (138px), and once the column is
-   pinned, so no menu row ever sits under it; app.js sets the exact height on scroll and resize and
-   drops it once the + sits clear of the column. This is the fallback before the script runs. */
+   the bottom) lands on the side column's corner. The column ends 24px above the window's bottom
+   edge (the shell's padding), so its bottom padding keeps the card 80px short of the column's end:
+   16px clear of the button. No menu row ever sits under it. */
 @media (min-width: 64em) and (max-width: 129.99em) {
-  body[data-prefs="on"] .dash-col--side .upcoming {
-    max-height: calc(100svh - var(--bar-h) - var(--safe-top) - 138px - 104px);
+  body[data-prefs="on"] .dash-col--side {
+    padding-bottom: 88px;
   }
 }
 /* Larger browser text on narrow phones: the pilot pill keeps only its M in every mode, the brand
@@ -6786,6 +6848,10 @@ body:not([data-dining="on"]) .tab[data-view="menu"] {
 
 .menu-body.is-entering {
   animation: view-in var(--dur-2) var(--ease-out);
+}
+
+.menu-body.is-entering-alt {
+  animation: view-in-alt var(--dur-2) var(--ease-out);
 }
 
 .menu-card {
@@ -7997,24 +8063,50 @@ body[data-prefs="on"] .today .dash-col .stat {
     align-items: start;
   }
 
+  /* Without a dining column there is nothing to stack: one row, the scans beside the day. */
+  body[data-prefs="on"]:not([data-dining="on"]) .dash-grid {
+    grid-template-areas: "main mid";
+  }
+
+  /* Two stacked blocks need more height than a 768px window has, so up to 80em the dashboard is
+     not bound to the window: the page scrolls, the left column stays pinned under the bar and
+     scrolls inside itself only when taller than the window, and the upcoming meal keeps its own
+     height under the scans. */
+  body[data-prefs="on"] .today {
+    display: grid;
+    height: auto;
+  }
+
+  body[data-prefs="on"] .today > .dash {
+    display: grid;
+  }
+
+  body[data-prefs="on"] .dash > .dash-grid {
+    grid-template-rows: none;
+  }
+
+  body[data-prefs="on"] .dash-col--main {
+    position: sticky;
+    top: var(--pin-top);
+    max-height: calc(100svh - var(--pin-top) - 12px);
+  }
+
+  body[data-prefs="on"] .dash-col--mid,
   body[data-prefs="on"] .dash-col--side {
+    display: grid;
     position: static;
-  }
-
-  body[data-prefs="on"] .dash-col--side .upcoming {
     max-height: none;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
   }
-}
 
-@media (min-width: 64em) and (max-width: 79.99em) {
-  body[data-prefs="on"] .dash-col--side .upcoming {
-    max-height: none;
-  }
-}
-
-@media (min-width: 64em) and (max-width: 79.99em) {
   body[data-prefs="on"] .dash-col--side .upcoming {
     max-height: 36rem;
+  }
+
+  body[data-prefs="on"] .dash-col--side .dishes {
+    min-height: 0;
   }
 }
 

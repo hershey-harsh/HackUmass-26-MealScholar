@@ -140,7 +140,15 @@ const state = {
 
 const TIME_SOURCE = { exif: "time from the photo", device: "time from your device", upload: "time of upload" };
 
-const icon = (name) => `<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${name}"></use></svg>`;
+// Icons are copied out of the sprite instead of referenced with <use>: every <use> is a shadow
+// tree the browser rebuilds on each style change, and a long menu has close to two hundred of them.
+const ICONS = new Map($$("svg.sprite symbol").map((s) => [s.id.replace(/^i-/, ""), { box: s.getAttribute("viewBox"), paths: s.innerHTML }]));
+const icon = (name) => {
+  const s = ICONS.get(name);
+  return s
+    ? `<svg class="icon" viewBox="${s.box}" aria-hidden="true" focusable="false">${s.paths}</svg>`
+    : `<svg class="icon" aria-hidden="true" focusable="false"><use href="#i-${name}"></use></svg>`;
+};
 
 // A pause for screen readers where only CSS spacing separates two pieces of text.
 const SEP = '<span class="visually-hidden">, </span>';
@@ -347,6 +355,9 @@ function snapshotBands(root) {
   return new Map($$(".band[data-band]", root).map((el) => [el.dataset.band, readBand(el)]));
 }
 
+/** Runs after the next frame has been styled and painted: what was written before then is on screen. */
+const afterPaint = (fn) => requestAnimationFrame(() => requestAnimationFrame(fn));
+
 function animateBands(root, previous) {
   const bands = $$(".band[data-band]", root);
   const scaleOf = (el) => Number(el.dataset.scale);
@@ -356,8 +367,9 @@ function animateBands(root, previous) {
     el.classList.add("no-transition");
     placeBand(el, from, scaleOf(el));
   }
-  root.getBoundingClientRect(); // commit the starting positions before transitioning
-  requestAnimationFrame(() => {
+  // The starting positions are committed by the next frame's own style pass, instead of by a
+  // forced layout of the whole page here; the frame after starts the transitions to the real values.
+  afterPaint(() => {
     for (const el of bands) {
       el.classList.remove("no-transition");
       placeBand(el, readBand(el), scaleOf(el));
@@ -372,8 +384,9 @@ function placeBands(root) {
     el.classList.add("no-transition");
     placeBand(el, readBand(el), Number(el.dataset.scale));
   }
-  root.getBoundingClientRect();
-  for (const el of bands) el.classList.remove("no-transition");
+  afterPaint(() => {
+    for (const el of bands) el.classList.remove("no-transition");
+  });
 }
 
 // ---------------------------------------------------------------- views
@@ -395,11 +408,18 @@ function shownKey() {
 
 const shownMeal = () => state.shown?.result ?? null;
 
+/** Play a view's entrance again. The two classes carry the same animation under two names, so
+    switching between them restarts it without a forced layout (reading offsetWidth after a class
+    change laid out the whole page, once per view, on every tab switch). A view coming back from
+    display: none restarts its entrance by itself. */
 function replayEntrance(el) {
-  el.classList.remove("is-entering");
-  void el.offsetWidth;
-  el.classList.add("is-entering");
+  const next = el.classList.contains("is-entering") ? "is-entering-alt" : "is-entering";
+  el.classList.remove("is-entering", "is-entering-alt");
+  el.classList.add(next);
 }
+
+/** The section that shows a view. */
+const viewSection = (view) => (view === "analyze" ? els.capture : $(`#${view}`));
 
 /** The photo options (pick again, open the camera, use location) sit at the top of the capture
     screen, and at the top of a new result under its back button. One set of controls, moved. */
@@ -458,10 +478,10 @@ function setView(view) {
   if (leaving === "today" && state.slots.today) discardSlot("today");
   state.view = view;
   document.body.dataset.view = view;
-  queueSideFit();
   syncTabs();
   syncResult();
-  $$(".view").forEach(replayEntrance);
+  const section = viewSection(view);
+  if (section) replayEntrance(section);
   window.scrollTo(0, isTab(view) ? state.scroll[view] ?? 0 : 0);
   if (view === "today" || view === "week") ensureDashboard();
   if (view === "menu") ensureMenus();
@@ -487,68 +507,15 @@ for (const tab of els.tabs) {
   });
 }
 
-/** Laptops: wherever the dashboard reaches the window's right edge, the fixed + button sits over the
-    side column's corner. The upcoming-meal card then keeps its bottom edge just above the button: at
-    the top of the page the column starts under the title and week strip, pinned it starts under the
-    bar, and the card takes whatever height is left either way. A stylesheet can't tell the two
-    states apart, so the height is set here on scroll and resize. Where the + sits clear of the
-    column (very wide windows), the card still fits the window, 16px above its bottom edge. */
 const laptop = matchMedia("(min-width: 64em)");
-const PLUS_LANE = 104; // the 60px button, 28px from the bottom, and a 16px gap above it
-let sideFitQueued = false;
 
-// The parts that don't change while scrolling (the + lane and the pinned line) are measured once
-// per render or resize; a scroll frame then reads one rectangle and writes only when the height
-// changes, so Safari isn't forced through a layout on every frame.
-const sideFit = { lane: 16, pinned: 0, last: "" };
-
-function measureSideFit() {
-  const card = $(".upcoming", els.dashSide);
-  if (!card) return;
-  const plus = els.plus && getComputedStyle(els.plus).display !== "none" ? els.plus.getBoundingClientRect() : null;
-  // Clear of the +, the card still ends 16px above the window's bottom edge.
-  sideFit.lane = plus && plus.left < card.getBoundingClientRect().right ? PLUS_LANE : 16;
-  // Never measure from above the pinned line: once the page end pushes the column up, the card
-  // keeps its pinned height and moves with it, instead of growing into the space it left.
-  sideFit.pinned = parseFloat(getComputedStyle(els.dashSide).top) || 0;
-  sideFit.last = "";
-}
-
-function fitSideCard() {
-  sideFitQueued = false;
-  const card = $(".upcoming", els.dashSide);
-  if (!card) return;
-  // Up to 80em the card sits under the scans instead of pinned beside them, at its own height.
-  if (!laptop.matches || document.body.dataset.view !== "today" || getComputedStyle(els.dashSide).position !== "sticky") {
-    if (sideFit.last !== "") card.style.maxHeight = "";
-    sideFit.last = "";
-    return;
-  }
-  const top = Math.max(card.getBoundingClientRect().top, sideFit.pinned);
-  const value = `${Math.max(240, Math.round(window.innerHeight - sideFit.lane - top))}px`;
-  if (value === sideFit.last) return;
-  card.style.maxHeight = value;
-  sideFit.last = value;
-}
-
-function queueSideFit() {
-  if (sideFitQueued) return;
-  sideFitQueued = true;
-  requestAnimationFrame(fitSideCard);
-}
-
-function remeasureSideFit() {
-  measureSideFit();
-  queueSideFit();
-}
-
+// Straight from the scroll event, with no animation frame in between: a frame callback queued from
+// every scroll event makes Safari render each one on the main thread instead of letting the scroll
+// stay on the compositor. The toggle writes nothing while the state is unchanged.
 const onScroll = () => {
   els.topbar.classList.toggle("is-scrolled", window.scrollY > 4);
-  queueSideFit();
 };
 window.addEventListener("scroll", onScroll, { passive: true });
-window.addEventListener("resize", remeasureSideFit);
-laptop.addEventListener("change", remeasureSideFit);
 
 /** Laptops: the pinned left column scrolls inside itself when it's taller than its slot (larger
     browser text, a short window, an open "How it's scored"). Its scrollbar is hidden, so a soft fade
@@ -571,6 +538,28 @@ watchColumn();
 new MutationObserver(watchColumn).observe(els.dashDay, { childList: true });
 els.dashDay.addEventListener("scroll", markColumnMore, { passive: true });
 laptop.addEventListener("change", markColumnMore);
+
+/** Laptops from 80em: the dashboard is exactly the window's height and its middle column scrolls
+    inside itself (styles.css), so the page itself never scrolls; the footer then sits at the end of
+    that column, under the scans. Everywhere else (phones, and the two-column layout up to 80em,
+    where the page scrolls) it goes back under <main>. */
+const bound = matchMedia("(min-width: 80em)");
+const footer = $(".footer");
+const dashMid = $("#dash-mid");
+
+function placeFooter() {
+  const { prefs, view, result, screen } = document.body.dataset;
+  const inColumn = bound.matches && prefs === "on" && view === "today" && !result && screen === "app";
+  if (inColumn) {
+    if (footer.parentElement !== dashMid) dashMid.append(footer);
+  } else if (footer.parentElement !== document.body) {
+    els.main.after(footer);
+  }
+}
+
+placeFooter();
+new MutationObserver(placeFooter).observe(document.body, { attributes: true, attributeFilter: ["data-view", "data-result", "data-prefs", "data-screen"] });
+bound.addEventListener("change", placeFooter);
 
 /** The tab that is on screen for this layout: the tab bar on phones, the top bar on wide screens. */
 const visibleTab = () => els.tabs.find((tab) => tab.matches("[aria-current]") && tab.getClientRects().length);
@@ -1541,9 +1530,15 @@ dragToDismiss(els.sheet, closeSheet);
 // Keep a bottom sheet above the on-screen keyboard: --kb is the part of the screen it covers.
 if (window.visualViewport) {
   const vv = window.visualViewport;
+  let lifted = "";
+  // Written only when it changes, and only while a sheet is open (nothing else reads it): each
+  // write restyles the whole page, and iOS fires these events on every move of its toolbars.
   const lift = () => {
-    const covered = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    document.documentElement.style.setProperty("--kb", `${Math.round(covered)}px`);
+    const open = document.documentElement.classList.contains("has-sheet");
+    const value = open ? `${Math.round(Math.max(0, window.innerHeight - vv.height - vv.offsetTop))}px` : "0px";
+    if (value === lifted) return;
+    lifted = value;
+    document.documentElement.style.setProperty("--kb", value);
   };
   vv.addEventListener("resize", lift);
   vv.addEventListener("scroll", lift);
@@ -2171,18 +2166,15 @@ function markSwipe(track, at) {
   });
 }
 
-let swipeFrame = 0;
 els.dashDay.addEventListener(
   "scroll",
   (event) => {
     const track = event.target;
     if (!(track instanceof Element) || !track.classList.contains("swipe__track")) return;
-    cancelAnimationFrame(swipeFrame);
-    swipeFrame = requestAnimationFrame(() => {
-      const at = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
-      state.swipePage = at;
-      markSwipe(track, at);
-    });
+    const at = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+    if (at === state.swipePage) return;
+    state.swipePage = at;
+    markSwipe(track, at);
   },
   { capture: true, passive: true }
 );
@@ -4462,8 +4454,6 @@ function renderUpcoming() {
       </div>
       <p class="upcoming__count"><span>${items.length} item${items.length === 1 ? "" : "s"} on the menu</span><a class="upcoming__more" href="#menu" data-to-menu>Every hall${icon("chevron-right")}</a></p>
     </section>`;
-  measureSideFit();
-  fitSideCard();
 }
 
 // ---- What a dish is. Vegetarian, plant based, halal and local are UMass Dining's own labels.
