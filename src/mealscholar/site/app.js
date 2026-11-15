@@ -4993,11 +4993,14 @@ async function ensureMenus({ refresh = false } = {}) {
   if (document.body.dataset.screen !== "app" || !diningOn()) return;
   ensureBusy();
   const epoch = state.epoch;
-  // With location on, find the nearest hall first (once), so it leads the chips.
+  // With location on, find the nearest hall first (once), so it leads the chips. The device's position can
+  // take seconds, or never come: past 1.5 s the menus load without it, and it joins the chips when it lands.
   if (els.location.checked && !state.nearest && !refresh) {
     renderMenu({ reveal: true });
-    await nearestHall();
+    const lookup = nearestHall();
+    const late = await Promise.race([lookup.then(() => false), new Promise((resolve) => setTimeout(resolve, 1500, true))]);
     if (epoch !== state.epoch) return;
+    if (late) lookup.then((near) => near && epoch === state.epoch && state.view === "menu" && ensureMenus());
   }
   const seq = menus.seq;
   const loading = menus.loading;
