@@ -499,6 +499,8 @@ const viewTitle = (view) => ({ today: els.todayTitle, menu: els.menuTitle, week:
 for (const tab of els.tabs) {
   tab.addEventListener("click", (event) => {
     event.preventDefault();
+    // Past midnight, "today" moves on first, so a tap on Today goes to the new day.
+    if (ensureToday()) loadDashboard();
     const view = tab.dataset.view;
     if (!canShow(view)) return;
     if (view !== state.view) setView(view);
@@ -1968,6 +1970,18 @@ function ensureToday() {
   return true;
 }
 
+/** With the page left open past midnight, the dashboard moves to the new day on its own. */
+function armMidnight() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+  setTimeout(() => {
+    if (document.body.dataset.screen === "app" && ensureToday()) loadDashboard();
+    armMidnight();
+  }, next - now);
+}
+
+armMidnight();
+
 function dayTitle(key) {
   const today = state.todayKey ?? localDate();
   const date = parseDay(key);
@@ -2131,7 +2145,7 @@ function ensureDashboard() {
 }
 
 async function loadDashboard() {
-  if (document.body.dataset.screen !== "app") return;
+  if (document.body.dataset.screen !== "app" || state.bootFailed) return;
   ensureToday();
   const seq = ++state.dashSeq;
   const week = pastKeys(weekKeys());
@@ -2183,12 +2197,13 @@ function renderDay() {
     view && failed
       ? `<div class="dash-alert"><p class="status is-error" role="alert">Couldn't refresh this day. ${esc(entry.error.message)}</p><button class="btn btn--soft" type="button" data-action="retry">Try again</button></div>`
       : "";
-  const sig = `${key}|${entry?.version ?? 0}|${view ? "v" : failed ? "e" : "l"}|${state.nutrients.length}|${state.prefsVersion}`;
+  // The vitamins card also depends on the week the chart shows (paging weeks keeps the day).
+  const sig = `${key}|${entry?.version ?? 0}|${view ? "v" : failed ? "e" : "l"}|${state.nutrients.length}|${state.prefsVersion}|${key && otherDayInChart(key)}|${key && microDay(key)}`;
   if (sig === rendered.day) return;
   rendered.day = sig;
   if (!view) {
     els.dashDay.innerHTML = failed ? dayErrorHtml(entry.error) : daySkeletonHtml();
-    els.dashMicro.innerHTML = "";
+    els.dashMicro.innerHTML = failed ? microErrorHtml(key, entry.error) : "";
     els.dashRecent.innerHTML = "";
     return;
   }
@@ -2403,7 +2418,10 @@ els.dashDay.addEventListener("click", (event) => {
 
 // Crossing the laptop width swaps the swipe for the open grid, and back.
 laptop.addEventListener("change", () => {
-  if (document.body.dataset.screen === "app" && els.dashDay.childElementCount) renderDay();
+  // A failed start keeps its error and Try again.
+  if (document.body.dataset.screen !== "app" || state.bootFailed || !els.dashDay.childElementCount) return;
+  rendered.day = ""; // the width isn't part of what renderDay compares, so it would skip the redraw
+  renderDay();
 });
 
 function mealRowHtml(m) {
@@ -2453,15 +2471,25 @@ function dayPhrase(key) {
   return key === state.todayKey ? "today" : name === "Yesterday" ? "yesterday" : `on ${name}`;
 }
 
+/** The chart on show has another past day to pick (on a Sunday this week has none). */
+const otherDayInChart = (key) => pastKeys(weekKeys()).some((day) => day !== key);
+
+/** The vitamins card's day: "Today", "Yesterday" or the weekday, with its date while the chart shows
+    another week (paging weeks doesn't move the day on show). */
+function microDay(key) {
+  const { title, sub } = dayTitle(key);
+  return weekKeys().includes(key) || /^(Today|Yesterday)$/.test(title) ? title : `${title}, ${sub}`;
+}
+
 /** The Week tab's vitamins card is about the day picked in the chart (today unless another is). */
 function microHtml(view) {
   const rows = nutrientRowsHtml(view.totals, view.daily_value_pct, { micro: true, prefix: "dm" });
   if (!rows) return "";
   return `
     <details class="card micro-card"${state.microOpen ? " open" : ""}>
-      <summary><span class="micro-card__titles"><h2 class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(capitalize(dayName(state.day)))}</span></span><span class="chip">Estimates</span></summary>
+      <summary><span class="micro-card__titles"><h2 class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(microDay(state.day))}</span></span><span class="chip">Estimates</span></summary>
       <div class="micro-card__body">
-        <p class="note">Photos can't show vitamins and minerals well, so these are rough estimates. A weekly trend says more than one day. Pick a day in the chart to see its own.</p>
+        <p class="note">Photos can't show vitamins and minerals well, so these are rough estimates. A weekly trend says more than one day.${otherDayInChart(state.day) ? " Pick a day in the chart to see its own." : ""}</p>
         <ul class="nutrients">${rows}</ul>
       </div>
     </details>`;
@@ -2470,8 +2498,17 @@ function microHtml(view) {
 function microEmptyHtml(key, logged) {
   return `
     <section class="card micro-card micro-card--empty" aria-labelledby="micro-empty-title">
-      <div class="micro-card__titles"><h2 id="micro-empty-title" class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(capitalize(dayName(key)))}</span></div>
-      <p class="note">${logged ? `No vitamin or mineral estimates for the meals ${esc(dayPhrase(key))}.` : `Nothing logged ${esc(dayPhrase(key))}, so there's nothing to estimate.`} Pick another day in the chart.</p>
+      <div class="micro-card__titles"><h2 id="micro-empty-title" class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(microDay(key))}</span></div>
+      <p class="note">${logged ? `No vitamin or mineral estimates for the meals ${esc(dayPhrase(key))}.` : `Nothing logged ${esc(dayPhrase(key))}, so there's nothing to estimate.`}${otherDayInChart(key) ? " Pick another day in the chart." : ""}</p>
+    </section>`;
+}
+
+/** The day on show didn't load: the vitamins card says why, with Try again. */
+function microErrorHtml(key, err) {
+  return `
+    <section class="card micro-card micro-card--empty" aria-labelledby="micro-empty-title">
+      <div class="micro-card__titles"><h2 id="micro-empty-title" class="micro-card__title">Vitamins and minerals</h2><span class="micro-card__day">${esc(microDay(key))}</span></div>
+      <div class="dash-alert"><p class="status is-error" role="alert">${esc(err.message)}</p><button class="btn btn--soft" type="button" data-action="retry">Try again</button></div>
     </section>`;
 }
 
@@ -2576,27 +2613,30 @@ function renderWeekSub() {
   const start = weekStartKey();
   const [first, last] = [parseDay(start), parseDay(shiftDay(start, 6))];
   const sameMonth = first.getMonth() === last.getMonth();
-  els.weekSub.textContent = `${monthDay.format(first)} to ${sameMonth ? last.getDate() : monthDay.format(last)}`;
+  // A week in another year says which year.
+  const thisYear = parseDay(state.todayKey).getFullYear();
+  const dated = (date) => (date.getFullYear() === thisYear ? monthDay : monthDayYear).format(date);
+  const sameYear = first.getFullYear() === last.getFullYear();
+  const range = `${sameYear ? monthDay.format(first) : monthDayYear.format(first)} to ${sameMonth ? last.getDate() : monthDay.format(last)}`;
+  els.weekSub.textContent = sameYear && last.getFullYear() === thisYear ? range : `${range}, ${last.getFullYear()}`;
   const thisWeek = sundayOf(state.todayKey);
   els.weekPageTitle.textContent =
-    start === thisWeek ? "This week" : start === shiftDay(thisWeek, -7) ? "Last week" : `Week of ${monthDay.format(first)}`;
+    start === thisWeek ? "This week" : start === shiftDay(thisWeek, -7) ? "Last week" : `Week of ${dated(first)}`;
   const active = document.activeElement;
   els.weekNext.disabled = start >= thisWeek;
   els.weekPrev.disabled = start <= shiftDay(thisWeek, -7 * WEEKS_BACK);
   if (active === els.weekNext && els.weekNext.disabled) els.weekPrev.focus({ preventScroll: true });
-  els.weekPrev.setAttribute("aria-label", `Previous week, from ${monthDay.format(parseDay(shiftDay(start, -7)))}`);
-  els.weekNext.setAttribute("aria-label", els.weekNext.disabled ? "Next week" : `Next week, from ${monthDay.format(parseDay(shiftDay(start, 7)))}`);
+  if (active === els.weekPrev && els.weekPrev.disabled) els.weekNext.focus({ preventScroll: true });
+  els.weekPrev.setAttribute("aria-label", els.weekPrev.disabled ? "Previous week" : `Previous week, from ${dated(parseDay(shiftDay(start, -7)))}`);
+  els.weekNext.setAttribute("aria-label", els.weekNext.disabled ? "Next week" : `Next week, from ${dated(parseDay(shiftDay(start, 7)))}`);
 }
 
 function weekErrorHtml(days) {
   const error = days.find((d) => d.error)?.error;
-  // The day on show failing for the same reason already says why, right above: don't repeat it.
-  const shown = dayCache.get(state.day);
-  const said = shown?.error && !shown.value && shown.error.message === error?.message;
   return `
     ${weekHead()}
     <div class="card week week--error">
-      <p class="status is-error">Couldn't load this week.${error && !said ? ` ${esc(error.message)}` : ""}</p>
+      <p class="status is-error">Couldn't load this week.${error ? ` ${esc(error.message)}` : ""}</p>
       <button class="btn btn--secondary" type="button" data-action="retry">Try again</button>
     </div>`;
 }
@@ -2780,6 +2820,9 @@ function dashClick(event) {
       if (!action.isConnected) (inWeek ? $("#week-title", els.dashWeek) : els.todayTitle)?.focus({ preventScroll: true });
       return;
     }
+    case "reboot":
+      // The app never started: reload once the server answers, else say why again.
+      return api("/api/status", { session: false }).then(() => location.reload(), bootFailed);
     case "locate-allow":
       return allowLocation(action);
     case "locate-later":
@@ -3125,6 +3168,7 @@ function resetData() {
   els.dashRecent.innerHTML = "";
   els.strip.hidden = true;
   els.strip.innerHTML = "";
+  strip.key = "";
   els.onboard.hidden = true;
   els.onboard.innerHTML = "";
   updateBell();
@@ -7088,12 +7132,18 @@ function takeLinkTokens() {
   return tokens;
 }
 
+/** The app couldn't start: nothing on it works until a reload, so Try again reloads once the server answers. */
 function bootFailed(err) {
+  state.bootFailed = true;
   document.body.dataset.screen = "app";
   setPickers(false);
   setStatus(err.message, { error: true });
   els.today.dataset.state = "error";
-  els.dashDay.innerHTML = `<div class="card dash-error"><p class="status is-error" role="alert">${esc(err.message)}</p></div>`;
+  els.dayPrev.disabled = true;
+  els.dayNext.disabled = true;
+  const refocus = els.dashDay.contains(document.activeElement);
+  els.dashDay.innerHTML = `<div class="card dash-error"><p class="status is-error" role="alert">${esc(err.message)}</p><button class="btn btn--secondary" type="button" data-action="reboot">Try again</button></div>`;
+  if (refocus) $('[data-action="reboot"]', els.dashDay).focus({ preventScroll: true });
 }
 
 async function init() {

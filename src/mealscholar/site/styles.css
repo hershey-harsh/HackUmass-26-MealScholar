@@ -2909,6 +2909,19 @@ body[data-screen="auth"] .footer {
   }
 }
 
+/* The Week tab's chart sits on the page, where --surface-2 doesn't show: the picked day gets a tint
+   and an edge, so a day without a bar is visibly picked too. */
+.week-view .wk__col[aria-current="date"] {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+@media (hover: hover) {
+  .week-view button.wk__col:not(:disabled):hover {
+    background: var(--surface);
+  }
+}
+
 .wk__plot {
   grid-area: plot;
   position: relative;
@@ -3173,6 +3186,18 @@ body[data-screen="auth"] .footer {
   transform-origin: 50% 100%;
   animation: bar-in var(--dur-3) var(--ease-out) backwards;
   animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+/* As columns, a bar keeps its own translateX while it rises (bar-in's translateY is for rows). */
+@keyframes bar-in-col {
+  from { transform: translateX(-50%) scaleY(0); }
+  to { transform: translateX(-50%) scaleY(1); }
+}
+
+@container week (min-width: 19.5rem) {
+  .week-block.is-entering .wk__bar {
+    animation-name: bar-in-col;
+  }
 }
 
 .week-block.is-entering .wk__whisker {
@@ -6091,7 +6116,7 @@ body[data-screen="onboard"] .toast {
     grid-column: auto;
   }
 
-  body[data-prefs="on"] .week-grid .micro-card {
+  .week-grid .micro-card {
     grid-area: auto;
     align-self: start;
   }
@@ -6270,6 +6295,8 @@ body[data-screen="onboard"] .toast {
   body[data-prefs="on"] .dash-col--side .upcoming {
     flex: none;
     max-height: 100%;
+    overflow-y: auto;
+    scroll-padding-block: 6px;
   }
 
   body[data-prefs="on"] .dash-col--side .dishes {
@@ -8358,6 +8385,11 @@ body[data-prefs="on"] .today .dash-col .stat {
     margin: 0;
     padding: 0;
     overflow: visible;
+  }
+
+  /* The page ends with the card clear of the fixed +. */
+  body[data-prefs="on"] .dash-col--side {
+    padding-bottom: 88px;
   }
 
   body[data-prefs="on"] .dash-col--side .upcoming {
