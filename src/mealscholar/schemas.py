@@ -118,9 +118,10 @@ class MealAnalysis(BaseModel):
     )
     question: str | None = Field(
         description=(
-            "Usually null. At most one short question, only about a drink the photo can't "
-            "settle (diet or regular, sweetened or not, which milk) when the answer changes "
-            "its calories a lot; food never gets a question."
+            "Usually null. At most one short question the eater can answer at a glance, when "
+            "the answer changes the calories a lot: most often a drink the photo can't settle "
+            "(diet or regular), sometimes which of two similar foods it is or whether a plate "
+            "is shared; never how it was cooked."
         )
     )
 
