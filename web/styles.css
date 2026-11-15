@@ -313,13 +313,22 @@ p { text-wrap: pretty; }
   inset: 0;
   z-index: -1;
   background: rgba(var(--page-rgb), .9);
-  -webkit-backdrop-filter: blur(16px) saturate(1.2);
-  backdrop-filter: blur(16px) saturate(1.2);
   box-shadow: 0 1px 0 var(--line);
   opacity: 0;
   transition: opacity .3s cubic-bezier(.3, .7, .3, 1);
 }
 .site-header.is-scrolled::before, html:not(.js) .site-header::before { opacity: 1; }
+/* The frosted look only once the header has something to frost, and never on phones: a
+   backdrop blur over moving content is the one thing iPhone Safari cannot scroll smoothly. */
+@media (min-width: 760px) {
+  .site-header.is-scrolled::before {
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    backdrop-filter: blur(16px) saturate(1.2);
+  }
+}
+@media (max-width: 759px) {
+  .site-header::before { background: rgba(var(--page-rgb), .96); }
+}
 .header-inner {
   height: var(--header-h);
   display: flex;
@@ -618,9 +627,7 @@ html:not(.js) .theme { display: none; }
   justify-content: center;
   min-height: 52px;
   padding: 0 24px;
-  background: rgba(var(--surface-rgb), .44);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: rgba(var(--surface-rgb), .78);
 }
 .hero__more:hover { background: var(--surface); }
 .hero__more:hover svg { transform: translate(1px, 1px); }
@@ -705,7 +712,7 @@ html:not(.js) .theme { display: none; }
   scroll-snap-align: center;
   border-radius: 26px;
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--edge), 0 1px 2px rgba(28, 28, 28, .06), 0 24px 50px rgba(28, 28, 28, .14);
+  box-shadow: 0 0 0 1px var(--edge), 0 1px 2px rgba(28, 28, 28, .06), 0 14px 28px rgba(28, 28, 28, .12);
   text-align: left;
 }
 /* The screen part: a warm stage with the mock on it. */
@@ -854,7 +861,7 @@ html:not(.js) .theme { display: none; }
   transition: transform .75s var(--ease-fan);
   cursor: pointer;
 }
-.fan.is-fan .fan-card.is-active { cursor: auto; box-shadow: 0 0 0 1px var(--edge), 0 2px 4px rgba(28, 28, 28, .08), 0 40px 80px rgba(28, 28, 28, .24); }
+.fan.is-fan .fan-card.is-active { cursor: auto; }
 /* The cards behind are veiled with the page color, more the further back they sit. */
 .fan.is-fan .fan-card::after {
   content: "";
@@ -865,7 +872,6 @@ html:not(.js) .theme { display: none; }
   background: var(--bg);
   opacity: calc(var(--a) * .17);
   pointer-events: none;
-  transition: opacity .6s ease;
 }
 .fan.is-fan .fan-card:not(.is-active):hover::after { opacity: calc(var(--a) * .17 - .1); }
 .fan.is-fan .fan-card.is-jump, .fan.is-fan .fan-card.is-jump::after { transition: none; }
@@ -900,7 +906,7 @@ html:not(.js) .theme { display: none; }
   box-shadow:
     0 0 0 1px var(--line),
     0 2px 4px rgba(28, 28, 28, .05),
-    0 30px 60px rgba(28, 28, 28, .14);
+    0 18px 36px rgba(28, 28, 28, .14);
 }
 .phone__screen {
   position: relative;
@@ -1963,14 +1969,22 @@ html:not(.js) .rail-ctrl { display: none; }
   .lbl-phone { display: inline; }
 }
 
-/* A band's columns rise in as it scrolls into view (app.js adds .is-in), the second a beat
-   after the first. The rest state is the plain, fully visible one, so nothing depends on it. */
+/* A band's columns rise in as it scrolls into view (app.js adds .is-in). The rest state is the
+   plain, fully visible one, so nothing depends on it; fill-mode backwards (not both) means a finished
+   entrance leaves no composited layer behind: with "both", Safari kept every risen block (some 2,700px
+   tall on a phone) as a live animation layer for the life of the page, and scrolling paid for it. */
 @keyframes rise {
   from { opacity: .4; transform: translateY(20px); }
   to { opacity: 1; transform: none; }
 }
-.js .section.is-in:not(.section--band) > * { animation: rise .7s cubic-bezier(.2, .7, .2, 1) both; }
-.js .section.is-in:not(.section--band) > * > :nth-child(2) { animation: rise .7s cubic-bezier(.2, .7, .2, 1) .08s both; }
+@media (min-width: 900px) {
+  .js .section.is-in:not(.section--band) > * { animation: rise .7s cubic-bezier(.2, .7, .2, 1) backwards; }
+}
+@media (max-width: 899px) {
+  /* A section's one column can be 2,700px tall on a phone, and painting all of it into a layer
+     mid-scroll was most of what the entrance cost there. Only the column's intro rises. */
+  .js .section.is-in:not(.section--band) > * > :first-child { animation: rise .7s cubic-bezier(.2, .7, .2, 1) backwards; }
+}
 .js .section--band.is-in { animation: rise .7s cubic-bezier(.2, .7, .2, 1); }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1981,14 +1995,14 @@ html:not(.js) .rail-ctrl { display: none; }
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
   }
-  .js .is-in, .js .is-in > *, .js .is-in > * > :nth-child(2) { animation: none; }
+  .js .is-in, .js .is-in > *, .js .is-in > * > :first-child { animation: none; }
   /* The highlighter is simply there, with no delayed pop-in. */
   .hl__mark { animation: none; }
   .fan.is-fan .fan-card { transition: none; }
 }
 @media print {
   .dock { display: none !important; }
-  .js .is-in, .js .is-in > *, .js .is-in > * > :nth-child(2) { animation: none; }
+  .js .is-in, .js .is-in > *, .js .is-in > * > :first-child { animation: none; }
 }
 
 /* Food pins placed on the photo by inline left/top: centred on that point. */
