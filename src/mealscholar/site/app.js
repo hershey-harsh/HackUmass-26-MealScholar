@@ -5765,7 +5765,10 @@ const LEGAL = {
 function openLegal(kind) {
   const page = LEGAL[kind];
   if (!page) return;
-  openPanel({ kicker: "MealScholar", title: page.title, intro: LEGAL_UPDATED, html: `<div class="legal">${page.html}</div>`, kind: "legal" });
+  // A labelled region that takes focus, so arrow keys and Page Down scroll the text (Safari doesn't
+  // make the scrolling sheet body focusable). Focus still starts on the title.
+  const html = `<div class="legal" tabindex="0" role="region" aria-label="${esc(page.title)}">${page.html}</div>`;
+  openPanel({ kicker: "MealScholar", title: page.title, intro: LEGAL_UPDATED, html, kind: "legal" });
   els.panelBody.scrollTop = 0;
 }
 
