@@ -2128,6 +2128,7 @@ function ensureDashboard() {
   if (ensureToday() || !rendered.day.startsWith(`${state.day}|`)) return loadDashboard();
   const keys = [state.day, ...pastKeys(weekKeys())];
   if (keys.some((key) => !dayCache.get(key)?.value || dayCache.get(key).stale)) loadDashboard();
+  else refreshDining(); // the upcoming meal may have moved on
 }
 
 async function loadDashboard() {
@@ -4555,6 +4556,19 @@ function nearestNoteHtml(note, where) {
 // ---- the upcoming meal (the right column on laptops, a card on phones)
 
 let upcomingSeq = 0;
+let upcomingLoading = 0; // the upcomingSeq of the fetch still on its way, else 0
+const DINING_TTL = 15 * 60_000; // the next meal moves on with the clock: fetch it again after this
+
+/** A next-meal answer still worth showing: under 15 minutes old and not for a day gone by. */
+const freshMeal = (entry) => Boolean(entry) && (entry.pending || (Date.now() - entry.at < DINING_TTL && !(entry.meal?.date < localDate())));
+
+/** Fetch again the next meals on show that have gone stale (see freshMeal): the upcoming meal, and the
+    Menu tab's halls while it's open. On coming back to the page, and once a minute while it's on screen. */
+function refreshDining() {
+  if (!diningOn()) return;
+  if (state.upcoming && !freshMeal(state.upcoming) && !upcomingLoading) loadUpcoming();
+  if (state.view === "menu" && menuHallIds().some((id) => !freshMeal(menus.data.get(id)))) ensureMenus({ refresh: true });
+}
 
 /** Draw the side column from what's known; fetch it when nothing is. */
 function ensureUpcoming() {
@@ -4562,16 +4576,26 @@ function ensureUpcoming() {
     els.dashSide.innerHTML = "";
     return;
   }
-  if (state.upcoming) renderUpcoming();
+  if (freshMeal(state.upcoming)) renderUpcoming();
   else loadUpcoming();
 }
 
+/** Fetch the upcoming meal and draw it; a call while one is on its way starts it over. */
 async function loadUpcoming() {
   if (!diningOn() || document.body.dataset.screen !== "app") return;
   ensureBusy();
   const seq = ++upcomingSeq;
+  upcomingLoading = seq;
+  try {
+    await fetchUpcoming(seq);
+  } finally {
+    if (upcomingLoading === seq) upcomingLoading = 0;
+  }
+}
+
+async function fetchUpcoming(seq) {
   const epoch = state.epoch;
-  els.dashSide.innerHTML = upcomingSkeletonHtml();
+  if (!state.upcoming) els.dashSide.innerHTML = upcomingSkeletonHtml(); // a refresh keeps the card until the answer
   let locationId = null;
   let note = null;
   if (els.location.checked) {
@@ -4585,11 +4609,17 @@ async function loadUpcoming() {
   try {
     const meal = await api(`/api/me/dining/next${locationId ? `?location_id=${encodeURIComponent(locationId)}` : ""}`);
     if (seq !== upcomingSeq || epoch !== state.epoch) return;
-    state.upcoming = { meal, note, locationId };
+    // The same answer again (most refreshes): keep it, so the card isn't drawn again.
+    const old = state.upcoming;
+    if (old?.meal && old.locationId === locationId && old.note === note && JSON.stringify(old.meal) === JSON.stringify(meal)) {
+      old.at = Date.now();
+      return;
+    }
+    state.upcoming = { meal, note, locationId, at: Date.now() };
   } catch (err) {
     if (seq !== upcomingSeq || epoch !== state.epoch || err.signedOut) return;
     if (err.status === 503) return diningLost();
-    state.upcoming = { error: err, note, locationId };
+    state.upcoming = { error: err, note, locationId, at: Date.now() };
   }
   renderUpcoming();
 }
@@ -4746,8 +4776,9 @@ function dishRowHtml({ name, calories, fav, avoid, off, avoided, kinds = [], ref
 const MENU_HALL_KEY = "mealscholar:menu-hall";
 const DEFAULT_HALL = 0; // no hall chosen: the server's default hall (no location_id)
 const menus = {
-  data: new Map(), // hall id -> { meal } | { error } | { pending: true }
+  data: new Map(), // hall id -> { meal } | { error } | { pending: true }, with `at`: when it came
   seq: 0,
+  loading: new Set(), // hall ids whose next meal is on its way
   day: null, // null: today, the next meal; else another day's YYYY-MM-DD, every meal it lists
   days: new Map(), // `${hall id}|${day}` -> { menu } | { error } | { pending: true }
   meal: null, // the meal key on show on another day (breakfast, lunch...), kept from day to day
@@ -4761,6 +4792,7 @@ const favoriteKeys = () => new Set((state.prefs?.favorites ?? []).map((f) => dis
 function resetMenus(keepDay = false) {
   menus.seq += 1;
   menus.data.clear();
+  menus.loading = new Set(); // answers still on their way are for the old settings: dropped (see menus.seq)
   menus.days.clear();
   menus.note = "";
   if (!keepDay) {
@@ -4828,7 +4860,9 @@ function ensureBusy() {
 }
 
 setInterval(() => {
-  if (!document.hidden && document.body.dataset.screen === "app") ensureBusy();
+  if (document.hidden || document.body.dataset.screen !== "app") return;
+  ensureBusy();
+  refreshDining(); // a page left open moves on to the next meal by itself
 }, BUSY_TTL);
 
 const busyHall = (id) => {
@@ -4910,22 +4944,27 @@ document.addEventListener("click", (event) => {
   if (button && !button.closest("dialog")) openCam(button);
 });
 
-/** Draw the tab from what's known and fetch what isn't: every hall's next meal, side by side. */
-async function ensureMenus() {
+/** Draw the tab from what's known and fetch what isn't, or what has gone stale (see freshMeal): every
+    hall's next meal, side by side. A stale menu stays on screen until its new answer replaces it.
+    `refresh`: a refresh in the background, so the tab is drawn again only for an answer that changed. */
+async function ensureMenus({ refresh = false } = {}) {
   if (document.body.dataset.screen !== "app" || !diningOn()) return;
   ensureBusy();
   const epoch = state.epoch;
   // With location on, find the nearest hall first (once), so it leads the chips.
-  if (els.location.checked && !state.nearest) {
+  if (els.location.checked && !state.nearest && !refresh) {
     renderMenu();
     await nearestHall();
     if (epoch !== state.epoch) return;
   }
   const seq = menus.seq;
+  const loading = menus.loading;
   const ids = menuHallIds();
-  const wanted = ids.filter((id) => !menus.data.has(id));
-  for (const id of wanted) menus.data.set(id, { pending: true });
-  renderMenu();
+  const wanted = ids.filter((id) => !loading.has(id) && !freshMeal(menus.data.get(id)));
+  const missing = wanted.filter((id) => !menus.data.has(id));
+  for (const id of wanted) loading.add(id);
+  for (const id of missing) menus.data.set(id, { pending: true });
+  if (!refresh || missing.length) renderMenu();
   ensureMenuDay();
   await Promise.all(
     wanted.map(async (id) => {
@@ -4937,9 +4976,17 @@ async function ensureMenus() {
         if (err.signedOut) return;
         if (err.status === 503) return diningLost();
         entry = { error: err };
+      } finally {
+        loading.delete(id);
       }
       if (epoch !== state.epoch || seq !== menus.seq) return;
-      menus.data.set(id, entry);
+      // The same answer again (most refreshes): keep it, so nothing is drawn again.
+      const old = menus.data.get(id);
+      if (old?.meal && entry.meal && JSON.stringify(old.meal) === JSON.stringify(entry.meal)) {
+        old.at = Date.now();
+        return;
+      }
+      menus.data.set(id, { ...entry, at: Date.now() });
       renderMenu();
     })
   );
@@ -7070,9 +7117,11 @@ els.skip.addEventListener("click", (event) => {
   els.main.focus();
 });
 
-// Back to the page after a while (or past midnight): today may be a new day.
+// Back to the page after a while (or past midnight): today may be a new day, and the next meal may have moved on.
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden && document.body.dataset.screen === "app" && ensureToday()) loadDashboard();
+  if (document.hidden || document.body.dataset.screen !== "app") return;
+  if (ensureToday()) loadDashboard();
+  refreshDining();
 });
 
 /** ?verify=, ?reset= and ?delete= carry one-time tokens: take them, then drop them from the address bar. */
