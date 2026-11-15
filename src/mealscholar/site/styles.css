@@ -8810,3 +8810,304 @@ body[data-ranges="off"] [data-ranges-only] {
   display: grid;
   gap: 10px;
 }
+
+/* ---- Nov 15 notes, Today: no sentence under the day's title and no Today button (the Today tab
+   goes back to today), so the day arrows sit beside the title; no bars until a goal is set; the
+   food leads in Recently uploaded, with a bigger photo; Terms and Privacy instead of a disclaimer. */
+.dash-head__line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dash-head__line .view-title {
+  min-width: 0;
+}
+
+.dash-head__line .datenav {
+  flex: none;
+  margin-left: auto;
+}
+
+/* Without a goal the calorie card is the number, and a quiet way to set one. */
+.hero--nogoal .hero__foot {
+  gap: 0;
+  padding-top: 2px;
+}
+
+.hero__set {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--on-panel-2);
+}
+
+/* A tile without a bar: the label and the number, nothing under them. */
+.stat--plain {
+  align-content: start;
+}
+
+/* Recently uploaded: what you ate first, then the meal and the time, beside a bigger photo. */
+body .recent .recent-card {
+  grid-template-columns: 60px minmax(0, 1fr) auto 18px;
+  min-height: 84px;
+  row-gap: 3px;
+}
+
+body .recent .recent-card__photo {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+}
+
+body .recent .recent-card__photo .icon {
+  width: 24px;
+  height: 24px;
+}
+
+body .recent .recent-card__foods {
+  grid-row: 1;
+  align-self: end;
+  color: var(--ink);
+  font: 500 0.9375rem / 1.35 var(--font-sans);
+  -webkit-line-clamp: 2;
+}
+
+body .recent .recent-card__when {
+  grid-row: 2;
+  align-self: start;
+  color: var(--ink-2);
+  font: 400 0.8125rem / 1.35 var(--font-sans);
+}
+
+body .recent .recent-card__time,
+body .recent .recent-card__place {
+  font-weight: inherit;
+}
+
+@media (max-width: 22.49em) {
+  body .recent .recent-card {
+    grid-template-columns: minmax(0, 1fr) auto 18px;
+  }
+}
+
+/* Terms of Service and Privacy Policy: the page footer on phones and the sign-in screens, the
+   sidebar's foot on laptops (where the footer steps aside). */
+.footer__legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin: 0;
+}
+
+.footer__link,
+.rail__legal-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: 400 0.8125rem / 1.3 var(--font-sans);
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.rail__legal {
+  display: none;
+}
+
+@media (hover: hover) {
+  .footer__link:hover,
+  .rail__legal-link:hover {
+    color: var(--ink);
+    text-decoration-color: currentColor;
+  }
+}
+
+@media (min-width: 64em) {
+  body[data-screen="app"] .footer {
+    display: none;
+  }
+
+  body[data-screen="app"] .rail__legal {
+    display: grid;
+    justify-items: start;
+    margin: 0 0 10px;
+    padding: 0 12px;
+  }
+
+  .rail__legal-link {
+    min-height: 32px;
+    font-size: 0.78125rem;
+    text-decoration: none;
+  }
+
+  @media (hover: hover) {
+    .rail__legal-link:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+/* The Terms and the Privacy Policy in the panel sheet. */
+.legal {
+  display: grid;
+  gap: 18px;
+  padding-bottom: 8px;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.legal__part {
+  display: grid;
+  gap: 6px;
+}
+
+.legal h3 {
+  color: var(--ink);
+  font: 500 1rem / 1.35 var(--font-sans);
+}
+
+.legal ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.legal strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ---- Nov 15 notes, Menu: the diet icons keep their colours in every legend, as they have on the
+   dishes, and station names stand on their own without a line out to the edge. */
+.legend .kind .icon {
+  color: inherit;
+  fill: none;
+}
+
+.menu-cat .dishes__cat::after {
+  content: none;
+}
+
+.legal ul {
+  list-style: disc;
+}
+
+.legal li::marker {
+  color: var(--label);
+}
+
+/* ---- Nov 15 notes, Week: Sunday to Saturday with arrows to page through the weeks (the day arrows'
+   look; the Today strip's rule that hides day arrows on laptops doesn't reach these). The chart runs
+   edge to edge under its heading, and the vitamins' heading is the same 44px row with the same rule
+   under it, so on laptops the two columns start level. No average under the chart. */
+body[data-prefs="on"] .weeknav .datenav__btn {
+  display: grid;
+}
+
+.week-view .week-block {
+  gap: 0;
+}
+
+.week-view .week-block > .section-head,
+.week-view .micro-card > summary {
+  min-height: 44px;
+  align-items: center;
+  margin: 0;
+  padding: 0 4px;
+}
+
+.week-view .week {
+  padding: 10px 0 4px;
+}
+
+body .week-view .micro-card {
+  padding: 0;
+  border-top: 0;
+}
+
+/* The rule sits under the 44px row, as the chart's top border does on the left. */
+.week-view .micro-card > summary {
+  box-sizing: content-box;
+  border-bottom: 1px solid var(--hair);
+}
+
+.week-view .micro-card__titles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+}
+
+.week-view .micro-card__day {
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+.week-view .micro-card__body {
+  padding: 12px 4px 16px;
+}
+
+.week-view .micro-card--empty {
+  display: grid;
+  gap: 12px;
+}
+
+.week-view .micro-card--empty > .micro-card__titles {
+  box-sizing: content-box;
+  min-height: 44px;
+  align-items: center;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--hair);
+}
+
+.week-view .micro-card--empty > .note {
+  padding: 0 4px;
+}
+
+/* Under the chart: a day that didn't load, the plate's meaning, or an empty week. */
+.wk__foot {
+  margin: 0;
+  padding: 12px 4px 10px;
+}
+
+.wk__foot.wk__key {
+  margin: 0;
+}
+
+.wk__foot--error {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.wk__note {
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
+
+/* A day still ahead: its name, nothing to pick. */
+.wk__col.is-future {
+  cursor: default;
+}
+
+.wk__col.is-future .wk__name {
+  color: var(--label);
+}
+
+@media (hover: hover) {
+  .wk__col.is-future:hover {
+    background: none;
+  }
+}
