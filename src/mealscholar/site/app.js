@@ -5745,7 +5745,7 @@ const LEGAL = {
       ),
       legalSection(
         "On your device",
-        `<p>The app keeps a few small things in your browser: the dining hall you last opened on Menu, whether you were asked about location and your answer, and, until you finish, what you typed into an account form.</p>`
+        `<p>The app keeps a few small things in your browser: your Appearance choice, the dining hall you last opened on Menu, and whether you were asked about location. If you turn location on, that is saved with your account's email and stays after you log out. The tab you're using also keeps what you type into an account form until you finish, and the code from a password reset link until the new password is saved.</p>`
       ),
       legalSection(
         "Dining hall cams",
