@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>MealScholar · Every meal is a range</title>
-  <meta name="description" content="Snap a photo of your meal. It works out the foods and how much is there, checks the campus menu first, and shows the nutrients as honest ranges.">
+  <title>MealScholar · Nutrition from a photo</title>
+  <meta name="description" content="Snap a photo of your meal. It works out the foods and how much is there, checks the campus menu first, and shows the calories and nutrients. No weighing.">
   <meta name="theme-color" content="#EEF0F2">
   <meta name="color-scheme" content="light">
   <meta name="application-name" content="MealScholar">
@@ -63,7 +63,7 @@
   <script type="module" src="app.js?v=__COMMIT__"></script>
   <script src="install.js?v=__COMMIT__" defer></script>
 </head>
-<body data-view="today" data-screen="boot">
+<body data-view="today" data-screen="boot" data-ranges="off">
   <svg class="sprite" aria-hidden="true" focusable="false">
     <symbol id="i-camera" viewBox="0 0 24 24"><path d="M3.75 9A2.25 2.25 0 0 1 6 6.75h1.7l1.3-2h6l1.3 2H18A2.25 2.25 0 0 1 20.25 9v8.25A2.25 2.25 0 0 1 18 19.5H6a2.25 2.25 0 0 1-2.25-2.25z"/><circle cx="12" cy="13" r="3.4"/></symbol>
     <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.75" y="4.75" width="16.5" height="14.5" rx="3"/><circle cx="9" cy="9.75" r="1.6"/><path d="M20.25 15.25l-4.4-4.4a1.5 1.5 0 0 0-2.12 0L5.5 19.1"/></symbol>
@@ -199,7 +199,7 @@
         <p id="week-sub" class="page-head__label">Last 7 days</p>
         <h1 id="week-page-title" class="view-title" tabindex="-1">This week</h1>
         <div class="intro">
-          <p class="intro__text">Calories by day, and the day's vitamins and minerals, all as ranges.</p>
+          <p class="intro__text">Calories by day, and the day's vitamins and minerals<span data-ranges-only>, all as ranges</span>.</p>
         </div>
       </header>
       <div class="week-grid">

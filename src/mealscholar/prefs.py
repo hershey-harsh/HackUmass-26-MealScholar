@@ -1,4 +1,4 @@
-"""Onboarding preferences: goals, dining halls, diet, allergens, favorite dishes and alerts.
+"""Onboarding preferences: goals, dining halls, diet, allergens, favorite dishes, alerts and ranges.
 
 One document per user in the user_prefs collection of the accounts database, or in memory without
 MONGODB_URI. It holds these settings only; the account itself stays in auth_store.py.
@@ -102,6 +102,9 @@ class Prefs(BaseModel):
     avoid_allergens: list[str] = Field(default_factory=list)
     favorites: list[Favorite] = Field(default_factory=list)
     notify: Notify = Field(default_factory=Notify)
+    show_ranges: bool = False
+    """Show the low–high range next to each likely amount. Off, the app prints the likely value alone;
+    the server computes the ranges either way."""
     updated_at: datetime | None = None
     """The last change; None until the user saves anything."""
 
@@ -134,6 +137,8 @@ def validate_changes(body: Any, known_halls: Callable[[], Collection[int]] | Non
                 changes[field] = _favorites(value)
             case "notify":
                 changes.update(_notify(value))
+            case "show_ranges":
+                changes[field] = _flag(value, field)
             case "updated_at":
                 pass  # set by the server; accepted so a client can send back what it read
             case _:
