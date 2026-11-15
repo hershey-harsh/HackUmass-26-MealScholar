@@ -3175,6 +3175,18 @@ body[data-screen="auth"] .footer {
   animation-delay: calc(var(--i, 0) * 45ms);
 }
 
+/* As columns, a bar keeps its own translateX while it rises (bar-in's translateY is for rows). */
+@keyframes bar-in-col {
+  from { transform: translateX(-50%) scaleY(0); }
+  to { transform: translateX(-50%) scaleY(1); }
+}
+
+@container week (min-width: 19.5rem) {
+  .week-block.is-entering .wk__bar {
+    animation-name: bar-in-col;
+  }
+}
+
 .week-block.is-entering .wk__whisker {
   animation: fade-in var(--dur-2) linear backwards;
   animation-delay: calc(var(--i, 0) * 45ms + 320ms);
