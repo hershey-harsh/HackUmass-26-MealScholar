@@ -312,23 +312,14 @@ p { text-wrap: pretty; }
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: rgba(var(--page-rgb), .9);
+  background: rgba(var(--page-rgb), .96);
   box-shadow: 0 1px 0 var(--line);
   opacity: 0;
   transition: opacity .3s cubic-bezier(.3, .7, .3, 1);
 }
 .site-header.is-scrolled::before, html:not(.js) .site-header::before { opacity: 1; }
-/* The frosted look only once the header has something to frost, and never on phones: a
-   backdrop blur over moving content is the one thing iPhone Safari cannot scroll smoothly. */
-@media (min-width: 760px) {
-  .site-header.is-scrolled::before {
-    -webkit-backdrop-filter: blur(16px) saturate(1.2);
-    backdrop-filter: blur(16px) saturate(1.2);
-  }
-}
-@media (max-width: 759px) {
-  .site-header::before { background: rgba(var(--page-rgb), .96); }
-}
+/* No backdrop blur, on any screen: blurring the moving page under the bar costs Safari a full
+   blur of the bar on every scroll frame, on laptops as much as on phones. */
 .header-inner {
   height: var(--header-h);
   display: flex;
@@ -1963,23 +1954,15 @@ html:not(.js) .rail-ctrl { display: none; }
   .lbl-phone { display: inline; }
 }
 
-/* A band's columns rise in as it scrolls into view (app.js adds .is-in). The rest state is the
-   plain, fully visible one, so nothing depends on it; fill-mode backwards (not both) means a finished
-   entrance leaves no composited layer behind: with "both", Safari kept every risen block (some 2,700px
-   tall on a phone) as a live animation layer for the life of the page, and scrolling paid for it. */
+/* A section's heading rises in as it scrolls into view (app.js adds .is-in): only the eyebrow, the
+   title and its line under it, small blocks, so the entrance never paints a big layer mid-scroll.
+   Columns and grids of photos rising cost Safari dropped frames on laptops as well as phones. The
+   rest state is the plain, fully visible one, and fill-mode backwards (not both) leaves no layer behind. */
 @keyframes rise {
   from { opacity: .4; transform: translateY(20px); }
   to { opacity: 1; transform: none; }
 }
-@media (min-width: 900px) {
-  .js .section.is-in:not(.section--band) > * { animation: rise .7s cubic-bezier(.2, .7, .2, 1) backwards; }
-}
-@media (max-width: 899px) {
-  /* A section's one column can be 2,700px tall on a phone, and painting all of it into a layer
-     mid-scroll was most of what the entrance cost there. Only the column's intro rises. */
-  .js .section.is-in:not(.section--band) > * > :first-child { animation: rise .7s cubic-bezier(.2, .7, .2, 1) backwards; }
-}
-.js .section--band.is-in { animation: rise .7s cubic-bezier(.2, .7, .2, 1); }
+.js .section.is-in .eyebrow, .js .section.is-in .h2, .js .section.is-in .section-sub { animation: rise .7s cubic-bezier(.2, .7, .2, 1) backwards; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -1989,14 +1972,14 @@ html:not(.js) .rail-ctrl { display: none; }
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
   }
-  .js .is-in, .js .is-in > *, .js .is-in > * > :first-child { animation: none; }
+  .js .is-in .eyebrow, .js .is-in .h2, .js .is-in .section-sub { animation: none; }
   /* The highlighter is simply there, with no delayed pop-in. */
   .hl__mark { animation: none; }
   .fan.is-fan .fan-card { transition: none; }
 }
 @media print {
   .dock { display: none !important; }
-  .js .is-in, .js .is-in > *, .js .is-in > * > :first-child { animation: none; }
+  .js .is-in .eyebrow, .js .is-in .h2, .js .is-in .section-sub { animation: none; }
 }
 
 /* Food pins placed on the photo by inline left/top: centred on that point. */
@@ -2107,7 +2090,6 @@ html:not(.js) .rail-ctrl { display: none; }
 .fv-cam__dot[data-level="quiet"] { background: #39b26e; }
 .fv-cam__dot[data-level="moderate"] { background: #e59a28; }
 .fv-cam__dot[data-level="busy"] { background: #ef4b4b; }
-@media (prefers-reduced-motion: reduce) { .fv-cam__live i { animation: none; } }
 
 /* ---- How it works, compact: the five steps as a grid instead of five full-width rows. Two columns
    from 900px, three from 1200px, where step 04 (the nutrients and the label arithmetic) takes two. */
