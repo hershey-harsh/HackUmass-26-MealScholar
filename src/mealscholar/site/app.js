@@ -3067,6 +3067,13 @@ function enterApp({ focus = false } = {}) {
   if (focus) viewTitle(route)?.focus({ preventScroll: true });
 }
 
+/** Signed in, leaving a link screen: the set-up steps first if they were never finished. */
+function enterHome(options) {
+  if (!needsOnboarding()) return enterApp(options);
+  forgetResetToken(); // as enterApp does, so a refresh doesn't bring back Set a new password
+  startOnboarding();
+}
+
 /** Forget everything that belongs to the account that was signed in, including work still in
     flight: an analysis is called off, and late replies are dropped (see state.epoch). */
 function resetData() {
@@ -3546,7 +3553,7 @@ function togglePassword(button) {
 els.auth.addEventListener("click", (event) => {
   const nav = event.target.closest("[data-auth]");
   if (nav) {
-    if (nav.dataset.auth === "app") return enterApp({ focus: true });
+    if (nav.dataset.auth === "app") return enterHome({ focus: true });
     return goAuth(nav.dataset.auth); // the email typed so far comes along (authDraft)
   }
   const toggle = event.target.closest('[data-action="toggle-password"]');
@@ -3571,7 +3578,7 @@ async function confirmEmail(token) {
     const { user } = await api("/api/auth/verify-email", { method: "POST", ...jsonBody({ token }) });
     if (state.user && user?.id === state.user.id) {
       state.user = user;
-      enterApp();
+      enterHome();
       toast("Email confirmed. Thanks.");
       return;
     }
@@ -4231,7 +4238,7 @@ window.addEventListener("popstate", (event) => {
   const screen = document.body.dataset.screen;
   const entry = event.state;
   if (screen === "auth") {
-    if (state.user) return enterApp({ focus: true }); // back from a link screen while signed in
+    if (state.user) return enterHome({ focus: true }); // back from a link screen while signed in
     if (isAuthEntry(entry)) return showAuthPath(entry.auth);
     return syncHistory(); // an entry from before signing out: stay on the account screens
   }
