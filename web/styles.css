@@ -210,16 +210,6 @@ p { text-wrap: pretty; }
 }
 @media (min-width: 900px) { .section-sub { font-size: 18px; } }
 .fineprint { max-width: 44em; margin: 24px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
-/* Index numerals: light, tabular, quiet until their item is hovered. */
-.num {
-  font-weight: 300;
-  font-size: 26px;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
-  color: var(--label);
-  transition: color .2s ease;
-}
 
 /* Buttons and chips. The signature call to action is a pill next to a round arrow button. */
 /* One pill: the label with the arrow inside at the end. */
@@ -247,12 +237,6 @@ p { text-wrap: pretty; }
 .cta:hover { background: var(--hover); }
 .cta:hover .cta__arrow svg { transform: translate(2px, -2px); }
 .cta:active { transform: scale(.985); }
-.cta--light {
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 0 1px 2px rgba(28, 28, 28, .06), 0 6px 18px rgba(28, 28, 28, .06), inset 0 0 0 1px var(--edge);
-}
-.cta--light:hover { background: var(--surface); box-shadow: inset 0 0 0 1px var(--line), 0 6px 18px rgba(28, 28, 28, .09); }
 .cta--invert { background: rgb(var(--on-band-rgb)); color: rgb(var(--band-rgb)); }
 .cta--invert:hover { background: var(--on-band-hover); }
 .cta--sm { height: 44px; padding: 0 16px 0 18px; font-size: 15px; gap: 8px; }
@@ -765,14 +749,8 @@ html:not(.js) .theme { display: none; }
 .fv-menu__n { margin-top: 10px; font-size: 64px; font-weight: 300; line-height: 1; letter-spacing: -0.045em; }
 .fv-menu__k { max-width: 13em; margin: 8px 0 auto; font-size: 14px; line-height: 1.4; color: var(--ink-2); }
 .fv-home { display: grid; place-items: center; align-content: center; gap: 16px; padding: 18px; }
-.fv-home__grid { display: grid; grid-template-columns: repeat(4, 38px); gap: 12px; }
-.fv-home__grid i, .fv-home__grid b { width: 38px; height: 38px; border-radius: 10px; }
-.fv-home__grid i { background: rgba(var(--ink-rgb), .08); }
-.fv-home__grid b { box-shadow: 0 0 0 3px var(--surface), 0 6px 16px rgba(28, 28, 28, .2); }
-.fv-home__grid b svg { width: 38px; height: 38px; color: var(--mark-tile); }
 .fv-home__step { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 999px; background: var(--surface); font-size: 12.5px; font-weight: 500; }
 .fv-home__step svg { width: 15px; height: 15px; flex: none; }
-.fv-video .video-ph::after { top: 30%; width: 34%; }
 
 /* Dots and the pause button (app.js). */
 .fan__ctrl { display: flex; justify-content: center; align-items: center; gap: 4px; margin-top: 2px; }
@@ -963,7 +941,6 @@ html:not(.js) .theme { display: none; }
   color: var(--ink-2);
 }
 .ps-photo { overflow: hidden; border-radius: 1.6em; }
-.ps-photo svg { width: 100%; height: auto; }
 .ps-card {
   padding: 1.2em 1.3em;
   border-radius: 1.6em;
@@ -981,7 +958,6 @@ html:not(.js) .theme { display: none; }
 .ps-big { display: flex; align-items: baseline; gap: .35em; margin: .25em 0 .8em; }
 .ps-big b { font-size: 3.7em; font-weight: 300; letter-spacing: -0.035em; line-height: 1; }
 .ps-big span { font-size: 1.35em; color: var(--ink-2); }
-.ps-ends { margin-top: .6em; font-family: var(--mono); font-size: 1.05em; color: var(--ink-2); }
 /* The meal's calories, as a dark card with the number first. */
 .ps-total {
   display: grid;
@@ -1223,7 +1199,6 @@ html:not(.js) .theme { display: none; }
 .mini__stack small { font-size: 13px; color: var(--ink-2); }
 
 .vf { position: relative; overflow: hidden; border-radius: 14px; aspect-ratio: 16 / 10; }
-.vf svg { width: 100%; height: 100%; }
 .vf img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 50%; }
 .ml-note { margin: 4px 0 0; font-size: 12.5px; color: var(--ink-2); }
 .vf__c { position: absolute; width: 22px; height: 22px; border: 0 solid #FAFAFF; }
@@ -1424,25 +1399,6 @@ html:not(.js) .rail-ctrl { display: none; }
 .rail-dots i { width: 6px; height: 6px; border-radius: 3px; background: var(--line); transition: width .25s ease, background-color .25s ease; }
 .rail-dots i.is-on { width: 26px; background: var(--ink); }
 
-/* Videos: three 16:9 figures. Until the recordings land, each is a deliberate empty slot. */
-.videos {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: min(340px, calc(100vw - 2 * var(--gutter) - 34px));
-  gap: 16px;
-  width: max-content;
-  padding: 2px var(--gutter) 20px;
-}
-.video-card { scroll-snap-align: start; margin: 0; }
-.video-frame {
-  position: relative;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-  border-radius: 18px;
-  background: var(--warm);
-  box-shadow: inset 0 0 0 1px var(--line);
-}
-.video-frame > video { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--ink); }
 .video-ph {
   position: absolute;
   inset: 0;
@@ -1487,25 +1443,6 @@ html:not(.js) .rail-ctrl { display: none; }
   box-shadow: 0 16px 36px rgba(28, 28, 28, .08);
 }
 .video-ph .chip { position: absolute; z-index: 1; top: 12px; left: 12px; }
-/* Small slots (the two half-width cards beside the text): a smaller play glyph and no index, so
-   nothing overlaps the chip. */
-.video-frame { container-type: inline-size; }
-@container (max-width: 320px) {
-  .video-ph .chip { top: 8px; left: 8px; }
-  .video-ph__idx { display: none; }
-  .video-ph__play { width: 44px; height: 44px; }
-  .video-ph__play svg { width: 18px; height: 18px; margin-left: 2px; }
-}
-.video-ph__idx {
-  position: absolute;
-  z-index: 1;
-  top: 18px;
-  right: 16px;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-2);
-}
 .video-ph__play {
   position: relative;
   z-index: 1;
@@ -1521,19 +1458,6 @@ html:not(.js) .rail-ctrl { display: none; }
   transition: background-color .2s ease, color .2s ease;
 }
 .video-ph__play svg { width: 24px; height: 24px; margin-left: 3px; }
-.video-card:hover .video-ph__play { background: var(--ink); color: var(--surface); }
-.video-card figcaption { margin-top: 14px; padding: 14px 2px 0; border-top: 1px solid var(--line); }
-.video-card h3 { font-size: 18px; letter-spacing: -0.01em; }
-.video-card p { margin-top: 4px; max-width: 28em; font-size: 15px; line-height: 1.5; color: var(--ink-2); }
-.rail--videos + .rail-dots { margin-top: 2px; }
-@media (min-width: 640px) {
-  .rail--videos { margin-inline: 0; overflow: visible; scroll-snap-type: none; border-radius: 0; }
-  .videos { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px var(--col-gap); width: auto; padding: 0; }
-  .video-card:first-child { grid-column: 1 / -1; }
-}
-@media (min-width: 900px) {
-  .videos { gap: 40px var(--col-gap); }
-}
 
 /* Nutrients: two ruled tables, numbered 01 to 19 */
 .ntables { display: grid; gap: 48px; }
@@ -1987,17 +1911,7 @@ html:not(.js) .rail-ctrl { display: none; }
 
 /* The Home Screen recording: in the hero card it fills the screen area; in the rail it plays in the frame. */
 .fv-home--video { position: relative; padding: 0; overflow: hidden; }
-.fv-home--video video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .fv-home--video .fv-home__step { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); white-space: nowrap; box-shadow: 0 4px 14px rgba(28, 28, 28, .16); }
-
-/* The Home Screen recording is portrait: its frame takes the video's own shape, so there are no
-   bars. From 640px it sits beside its caption instead of filling a wide frame. */
-.video-card--portrait .video-frame { aspect-ratio: 624 / 780; background: #17171a; box-shadow: none; }
-.video-card--portrait .video-frame > video { object-fit: cover; background: transparent; }
-@media (min-width: 640px) {
-  .video-card--portrait { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); column-gap: clamp(24px, 4vw, 56px); align-items: end; }
-  .video-card--portrait figcaption { margin-top: 0; padding-bottom: 4px; }
-}
 
 /* ---- Where each food's numbers came from: the dish's own label on the campus menu, or USDA.
    The words carry the meaning; the filled or outlined shape only repeats it. */

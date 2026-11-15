@@ -43,10 +43,6 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
 <a class="skip" href="#main">Skip to content</a>
 
 <svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
-  <defs>
-    <linearGradient id="g-table" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ECEBE4"/><stop offset="1" stop-color="#DADDD8"/></linearGradient>
-    <radialGradient id="g-plate" cx=".42" cy=".36" r=".72"><stop offset="0" stop-color="#FAFAFF"/><stop offset=".78" stop-color="#FAFAFF"/><stop offset="1" stop-color="#EEF0F2"/></radialGradient>
-  </defs>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M8.5 7H17v8.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-arrow-se" viewBox="0 0 24 24"><path d="M7 7l10 10M17 8.5V17H8.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8.5 5.6v12.8a1 1 0 0 0 1.53.85l10.2-6.4a1 1 0 0 0 0-1.7l-10.2-6.4a1 1 0 0 0-1.53.85z" fill="currentColor"/></symbol>
@@ -67,22 +63,6 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
   <symbol id="i-split" viewBox="0 0 24 24"><path d="M4 12h5.5c2 0 2.6-1.3 3.4-3S15 6 17 6h3M9.5 12c2 0 2.6 1.3 3.4 3s2.1 3 4.1 3h3M17.5 3.5 20 6l-2.5 2.5M17.5 15.5 20 18l-2.5 2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5.5 19.5V12M10 19.5v-12M14.5 19.5V10M19 19.5v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   <symbol id="mark" viewBox="0 0 512 512"><rect width="512" height="512" rx="128" fill="currentColor"/><circle cx="256" cy="292" r="140" fill="#FAFAFF"/><circle cx="256" cy="292" r="124" fill="none" stroke="currentColor" stroke-width="8" stroke-opacity=".18"/><g fill="currentColor" stroke="currentColor" stroke-linejoin="round" stroke-linecap="round"><path d="M176 174v52q80 44 160 0v-52Z" stroke-width="20"/><path d="M256 80 420 146 256 212 92 146Z" stroke-width="20"/><path d="M197 272v18c0 9 8 16 17 16s17-7 17-16v-18m-17 0v58" fill="none" stroke-width="12"/><path d="M287 266c16 8 26 24 26 40 0 3-3 6-6 6h-11v18a6 6 0 0 1-12 0V270q0-6 3-4Z" stroke="none"/><path d="M204 360C216 398 296 398 308 360" fill="none" stroke-width="14"/><path d="M412 148v100" fill="none" stroke-width="28"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" stroke-width="12"/></g><path d="M176 174v52q80 44 160 0v-52Z" fill="#FAFAFF"/><path d="M256 80 420 146 256 212 92 146Z" fill="currentColor" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><path d="M256 80 420 146 256 212 92 146Z" fill="#FAFAFF" stroke="#FAFAFF" stroke-width="6" stroke-linejoin="round"/><path d="M412 148v100" fill="none" stroke="#E9B44C" stroke-width="11" stroke-linecap="round"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" fill="#E9B44C" stroke="#E9B44C" stroke-width="2" stroke-linejoin="round"/></symbol>
-  <symbol id="plate" viewBox="0 0 320 200">
-    <rect width="320" height="200" fill="url(#g-table)"/>
-    <ellipse cx="167" cy="109" rx="91" ry="87" fill="#1C1C1C" opacity=".08"/>
-    <circle cx="160" cy="100" r="88" fill="url(#g-plate)"/>
-    <circle cx="160" cy="100" r="67" fill="none" stroke="#DADDD8" stroke-width="1.5"/>
-    <path d="M92 113c-3-22 15-38 36-37 19 1 32 14 32 31 0 19-15 31-35 31-17 0-31-9-33-25z" fill="#ECEBE4" stroke="#DADDD8" stroke-width="1.5"/>
-    <path d="M108 97l6 2M136 95l6 1M129 106l6-1M104 123l6 1M136 123l6 2M124 135h6M142 135l4-3" stroke="#DADDD8" stroke-width="2.6" stroke-linecap="round"/>
-    <path d="M122 89l5-2M114 109l5 3M144 109l4 4M120 121l5-2M150 99l3 4M110 137l5-2M100 109l4 2" stroke="#FAFAFF" stroke-width="2.6" stroke-linecap="round"/>
-    <path d="M154 84c-3-17 12-32 34-37 22-4 40 3 42 16 2 13-12 24-32 30-22 5-41 5-44-9z" fill="#DADDD8" stroke="#1C1C1C" stroke-opacity=".22" stroke-width="1.5"/>
-    <path d="M157 74l8-5M158 85l8-5M172 66l8-5M173 78l8-5M174 89l7-4M188 60l8-5M189 72l8-5M190 84l8-5M204 60l8-5M205 72l8-5M220 62l6-4M221 72l6-4" stroke="#1C1C1C" stroke-opacity=".34" stroke-width="2.4" stroke-linecap="round"/>
-    <path d="M168 56c-2 12-1 24 2 35M184 49c-2 15-1 30 2 44M200 48c-2 14-1 29 2 42M216 53c-1 11 0 21 2 30" fill="none" stroke="#FAFAFF" stroke-width="2.6" stroke-linecap="round"/>
-    <path d="M192 152l7-16M207 154l1-18M223 148l-6-16" stroke="#1C1C1C" stroke-opacity=".2" stroke-width="7" stroke-linecap="round"/>
-    <g fill="#1C1C1C" fill-opacity=".56" stroke="#FAFAFF" stroke-width="1.6"><circle cx="186" cy="134" r="8"/><circle cx="196" cy="129" r="11"/><circle cx="205" cy="122" r="9"/><circle cx="221" cy="124" r="8"/><circle cx="211" cy="131" r="11"/><circle cx="230" cy="131" r="8"/><circle cx="220" cy="136" r="9"/></g>
-    <g fill="#1C1C1C" fill-opacity=".3"><circle cx="190" cy="133" r="1.8"/><circle cx="199" cy="134" r="1.8"/><circle cx="203" cy="125" r="1.6"/><circle cx="213" cy="135" r="1.8"/><circle cx="223" cy="127" r="1.6"/><circle cx="231" cy="134" r="1.6"/><circle cx="217" cy="139" r="1.6"/></g>
-    <g fill="#FAFAFF" fill-opacity=".3"><circle cx="193" cy="125" r="3.2"/><circle cx="207" cy="127" r="3.2"/><circle cx="218" cy="121" r="2.6"/><circle cx="228" cy="128" r="2.4"/><circle cx="184" cy="131" r="2.4"/></g>
-  </symbol>
 </svg>
 
 <header class="site-header">
