@@ -4534,12 +4534,15 @@ async function nearestHall() {
   }
 }
 
-/** After a photo with location: the nearest hall under the result, and the side column follows it. */
+/** After a photo with location: the nearest hall under the result, and the side column follows it.
+    The note goes into the card on show, where resultHtml puts it: a re-render would cut the boxes'
+    entrance short and drop keyboard focus. */
 async function noteNearest([lat, lon], slot) {
   const near = await fetchNearest(lat, lon);
   if (!near || state.slots.analyze !== slot) return;
   slot.nearest = near;
-  if (state.shown === slot) renderResult("update");
+  const body = state.shown === slot && slot.result.items.length ? $(".meal-card__body", els.result) : null;
+  if (body && !$(".nearest-note", body)) body.insertAdjacentHTML("beforeend", nearestNoteHtml(near.note, "result"));
   state.upcoming = null;
   loadUpcoming();
 }
