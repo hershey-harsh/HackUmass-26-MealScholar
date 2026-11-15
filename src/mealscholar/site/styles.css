@@ -6116,7 +6116,7 @@ body[data-screen="onboard"] .toast {
     grid-column: auto;
   }
 
-  body[data-prefs="on"] .week-grid .micro-card {
+  .week-grid .micro-card {
     grid-area: auto;
     align-self: start;
   }
