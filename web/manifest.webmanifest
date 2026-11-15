@@ -2,9 +2,9 @@
   "name": "MealScholar",
   "short_name": "MealScholar",
   "description": "Snap a photo of your meal and get the foods, how much is there and the nutrients, as honest ranges.",
-  "start_url": "/?home=1",
+  "start_url": "/app/?source=home",
   "scope": "/",
-  "display": "browser",
+  "display": "standalone",
   "background_color": "#EEF0F2",
   "theme_color": "#EEF0F2",
   "icons": [

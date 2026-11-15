@@ -17,7 +17,7 @@ from typing import Annotated, Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel, Field
@@ -452,5 +452,14 @@ def create_app(
             health=health_score(s.totals, s.daily_value_pct),
         )
 
+    # The same app also answers under /app: the landing's domain serves it there (the tunnel sends
+    # mealscholar.health/app/* here), so an icon added to a phone's Home Screen from the landing
+    # opens the app on the same origin, without the browser's toolbar. The site's own paths are
+    # relative, and app.js resolves server paths against where the page was loaded from.
+    @app.get("/app", include_in_schema=False)
+    def app_slash() -> RedirectResponse:
+        return RedirectResponse("/app/", status_code=308)
+
+    app.mount("/app", app, name="app-under-landing")
     app.mount("/", StaticFiles(directory=SITE, html=True), name="site")
     return app

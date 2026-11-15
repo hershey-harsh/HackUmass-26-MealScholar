@@ -520,3 +520,20 @@ def test_rematch_never_replaces_a_logged_meal_with_nothing(home):
     res = app.post(f"/api/meals/{meal['id']}/menu", json={"location_id": 1, "date": "2026-11-12"})
     assert res.status_code == 503
     assert app.get(f"/api/meals/{meal['id']}").json() == meal
+
+
+def test_the_app_also_answers_under_app_for_the_landing_domain(tmp_path):
+    """mealscholar.health/app/* is routed to this server, so an icon added to a phone's Home Screen
+    from the landing opens the app on the same origin. Every page path is relative, so the page
+    and its assets work at / and at /app/ alike."""
+    client = TestClient(create_app(load_settings({"MEALSCHOLAR_HOME": str(tmp_path)})))
+    assert client.get("/app", follow_redirects=False).headers["location"] == "/app/"
+    page = client.get("/app/")
+    assert page.status_code == 200 and "<html" in page.text
+    assert (
+        'href="styles.css' in page.text and 'src="app.js' in page.text and 'href="/' not in page.text.split("<body")[0]
+    )
+    assert client.get("/app/api/status").json() == client.get("/api/status").json()
+    assert client.get("/app/manifest.webmanifest").json()["scope"] == "./"
+    assert client.get("/app/icons/icon-192.png").headers["content-type"] == "image/png"
+    assert client.get("/app/nope").status_code == 404
