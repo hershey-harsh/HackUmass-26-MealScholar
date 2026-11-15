@@ -39,7 +39,7 @@ def test_thresholds_validate():
     assert busy.level_from_thresholds(15, th) == "busy"
     assert busy.score_from_thresholds(15, th) == 0.5
     assert busy.score_from_thresholds(100, th) == 1.0
-    for yid in ("r154Wa3jr38", "gvs6Mf-vR7o", "-yaPv3fQqiw", "urmHVZff1Io"):
+    for yid in ("7wHgOpwHz8k", "RprORF_ggOA", "AoceCqa6MWw", "89KPOnjHEC4"):
         assert isinstance(busy.thresholds_for(yid), Thresholds)
     assert busy.thresholds_for("nope") is busy.DEFAULT_THRESHOLDS
 
@@ -127,10 +127,10 @@ def test_same_hour_samples_and_forecast():
 
 def test_assess_cold_start_uses_thresholds():
     now = datetime(2026, 11, 20, 17, 0, tzinfo=UTC)
-    a = busy.assess(people=3, youtube_id="r154Wa3jr38", history=[], now=now)
+    a = busy.assess(people=3, youtube_id="7wHgOpwHz8k", history=[], now=now)
     assert a.method == "thresholds" and a.level == "quiet" and a.trend == "steady"
     assert a.forecast_30m is None and 0 <= a.score <= 1 and a.confidence == 0.4
-    b = busy.assess(people=30, youtube_id="r154Wa3jr38", history=[], now=now)
+    b = busy.assess(people=30, youtube_id="7wHgOpwHz8k", history=[], now=now)
     assert b.level == "busy" and b.score > a.score
 
 
@@ -143,24 +143,24 @@ def test_assess_switches_to_history_after_three_days():
     # one day of history spans 2 local dates, 1 of them prior (< 3) -> still thresholds
     one_day = _history(now - timedelta(hours=1), 1, value, every_min=15)
     assert busy.history_days(one_day) == 2 and busy.history_days(one_day, now) == 1
-    a = busy.assess(people=30, youtube_id="gvs6Mf-vR7o", history=one_day, now=now)
+    a = busy.assess(people=30, youtube_id="RprORF_ggOA", history=one_day, now=now)
     assert a.method == "thresholds"
     # 3-7 days: only one prior Friday (4 samples at 12:xx) -> hour-of-day fallback over every prior day
     four_days = _history(now - timedelta(hours=1), 4, value, every_min=15)
-    b = busy.assess(people=30, youtube_id="gvs6Mf-vR7o", history=four_days, now=now)
+    b = busy.assess(people=30, youtube_id="RprORF_ggOA", history=four_days, now=now)
     assert b.method == "history" and b.reference["basis"] == "hour_of_day"
     assert b.level == "busy"  # 30 vs mostly-2 samples at 12:xx on other days (and 30 >= busy_min anyway)
     # two full weeks: enough same hour-of-week samples (every 3 min -> 20/hour/week)
     two_weeks = _history(now - timedelta(hours=1), 14, value, every_min=3)
-    c = busy.assess(people=30, youtube_id="gvs6Mf-vR7o", history=two_weeks, now=now)
+    c = busy.assess(people=30, youtube_id="RprORF_ggOA", history=two_weeks, now=now)
     assert c.method == "history" and c.reference["basis"] == "hour_of_week"
-    # 30 equals every same-hour sample (flat history, p40 == p75 == 30) but is above Franklin's
-    # busy_min of 16: the absolute bound wins, a packed hall is busy even when it is always packed
-    assert c.level == "busy" and c.score == pytest.approx(30 / 35, abs=1e-3)
+    # 30 equals every same-hour sample (flat history, p40 == p75 == 30) but is above Hampshire
+    # South's busy_min of 14: the absolute bound wins, a packed hall is busy even when it is always packed
+    assert c.level == "busy" and c.score == pytest.approx(30 / 30, abs=1e-3)
     assert c.reference["p40"] == c.reference["p75"] == 30 and c.reference["rank"] == 0.5
-    d = busy.assess(people=10, youtube_id="gvs6Mf-vR7o", history=two_weeks, now=now)
+    d = busy.assess(people=10, youtube_id="RprORF_ggOA", history=two_weeks, now=now)
     assert d.level == "moderate" and d.reference["rank"] == 0.0  # flat reference, between the bounds
-    e = busy.assess(people=4, youtube_id="gvs6Mf-vR7o", history=two_weeks, now=now)
+    e = busy.assess(people=4, youtube_id="RprORF_ggOA", history=two_weeks, now=now)
     assert e.level == "quiet"  # <= quiet_max
     assert c.forecast_30m == 30
     assert c.reference["same_hour_n"] >= 6 and c.confidence > b.confidence > 0.4
@@ -171,7 +171,7 @@ def test_history_reference_excludes_the_current_day():
     noon = datetime(2026, 11, 20, 17, 45, tzinfo=UTC)  # Fri 12:45 NY
     hist = [(noon - timedelta(days=d, minutes=3 * i), 10) for d in (1, 2, 3) for i in range(0, 24 * 20)]
     hist += [(noon - timedelta(minutes=3 * i), 40) for i in range(1, 15)]  # the last 42 min of today: 40 people
-    a = busy.assess(40, "gvs6Mf-vR7o", hist, noon)
+    a = busy.assess(40, "RprORF_ggOA", hist, noon)
     assert a.method == "history" and a.level == "busy"
     assert a.reference["p40"] == a.reference["p75"] == 10 and a.reference["rank"] == 1.0
     assert busy.history_days(hist, noon) == 4  # Mon 12:48 .. Thu 12:45 touch 4 prior dates; Fri excluded
@@ -182,7 +182,7 @@ def test_history_reference_excludes_the_current_day():
     # same shape between the bounds: usual 8 at this hour, today 14 -> busy by percentile, not "moderate"
     hist2 = [(noon - timedelta(days=d, minutes=3 * i), 8 + (i % 3)) for d in (1, 2, 3) for i in range(0, 24 * 20)]
     hist2 += [(noon - timedelta(minutes=3 * i), 14) for i in range(1, 15)]
-    b = busy.assess(14, "gvs6Mf-vR7o", hist2, noon)
+    b = busy.assess(14, "RprORF_ggOA", hist2, noon)
     assert b.method == "history" and b.level == "busy" and b.reference["p75"] < 14
 
 
@@ -192,10 +192,12 @@ def test_history_days_counts_prior_days_only():
     h25 = [(now - timedelta(minutes=3 * i), 5) for i in range(0, 25 * 20)]
     assert busy.history_days(h25) == 3
     assert busy.history_days(h25, now) == 2
-    assert busy.assess(5, "gvs6Mf-vR7o", h25, now).method == "thresholds"
+    assert busy.assess(5, "RprORF_ggOA", h25, now).method == "thresholds"
 
 
-def test_history_mode_empty_hall_at_night_is_quiet_and_packed_noon_is_busy():
+def test_history_mode_empty_hall_at_night_is_quiet_and_packed_noon_is_busy(monkeypatch):
+    monkeypatch.setitem(busy.CAMERA_THRESHOLDS, "cam-y", busy.Thresholds(quiet_max=6, busy_min=16, full=35))
+    monkeypatch.setitem(busy.CAMERA_THRESHOLDS, "cam-x", busy.Thresholds(quiet_max=8, busy_min=22, full=45))
     """Review finding: no absolute floor in history mode."""
     now = datetime(2026, 11, 20, 8, 0, tzinfo=UTC)  # Fri 03:00 NY
 
@@ -208,7 +210,7 @@ def test_history_mode_empty_hall_at_night_is_quiet_and_packed_noon_is_busy():
         hist.append((t, val(t)))
         t += timedelta(minutes=3)
     for p in (0, 1):
-        a = busy.assess(p, "gvs6Mf-vR7o", hist, now)
+        a = busy.assess(p, "cam-y", hist, now)
         assert a.method == "history" and a.level == "quiet", (p, a)
         assert a.score == pytest.approx(p / 35, abs=1e-3)
     noon = datetime(2026, 11, 20, 17, 0, tzinfo=UTC)
@@ -218,10 +220,10 @@ def test_history_mode_empty_hall_at_night_is_quiet_and_packed_noon_is_busy():
         h3.append((t, 40 if busy.to_local(t).hour == 12 else 5))
         t += timedelta(minutes=3)
     for p in (30, 25, 22):
-        a = busy.assess(p, "r154Wa3jr38", h3, noon)  # Worcester busy_min 22
+        a = busy.assess(p, "cam-x", h3, noon)  # Worcester busy_min 22
         assert a.method == "history" and a.level == "busy", (p, a)
-    assert busy.assess(20, "r154Wa3jr38", h3, noon).level == "moderate"  # between 8 and 22, p40 == p75 == 40
-    assert busy.assess(8, "r154Wa3jr38", h3, noon).level == "quiet"
+    assert busy.assess(20, "cam-x", h3, noon).level == "moderate"  # between 8 and 22, p40 == p75 == 40
+    assert busy.assess(8, "cam-x", h3, noon).level == "quiet"
 
 
 def test_assess_low_frame_count_lowers_confidence():

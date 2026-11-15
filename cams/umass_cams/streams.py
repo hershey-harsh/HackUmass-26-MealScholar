@@ -56,14 +56,13 @@ class Stream:
 # student-businesses, around-campus and its 20 cafe sub-pages). Titles from the
 # public oembed endpoint.
 STREAMS: tuple[Stream, ...] = (
-    Stream(1, "Worcester", "worcester", "r154Wa3jr38", "Worcester Dining Common", True, "page iframe"),
-    Stream(1, "Worcester", "worcester", "7wHgOpwHz8k", "Worcester Commons North", False, "livestream list"),
+    # The real cams are the "Livestream" links on each hall page. The video embedded at the top of
+    # those pages (r154Wa3jr38, gvs6Mf-vR7o, -yaPv3fQqiw, urmHVZff1Io) is a 2022 promo upload, not
+    # a live stream, so it is not listed. Franklin's page lists no livestream.
+    Stream(1, "Worcester", "worcester", "7wHgOpwHz8k", "Worcester Commons North", True, "livestream list"),
     Stream(1, "Worcester", "worcester", "89KPOnjHEC4", "Worcester Commons South", False, "livestream list"),
-    Stream(2, "Franklin", "franklin", "gvs6Mf-vR7o", "Franklin Dining Common", True, "page iframe"),
-    Stream(4, "Berkshire", "berkshire", "-yaPv3fQqiw", "Berkshire Dining Common", True, "page iframe"),
-    Stream(4, "Berkshire", "berkshire", "AoceCqa6MWw", "Berkshire Commons Entrance", False, "livestream list"),
-    Stream(3, "Hampshire", "hampshire", "urmHVZff1Io", "Hampshire Dining Common", True, "page iframe"),
-    Stream(3, "Hampshire", "hampshire", "RprORF_ggOA", "Hampshire Commons South", False, "livestream list"),
+    Stream(4, "Berkshire", "berkshire", "AoceCqa6MWw", "Berkshire Commons Entrance", True, "livestream list"),
+    Stream(3, "Hampshire", "hampshire", "RprORF_ggOA", "Hampshire Commons South", True, "livestream list"),
     Stream(
         3,
         "Hampshire",
@@ -88,7 +87,7 @@ DEAD_IDS = frozenset({"TWC87AgKJHA"})
 
 
 def primary_streams() -> list[Stream]:
-    """One camera per dining common: the iframe on each hall page."""
+    """One live camera per dining common that has one (Franklin has none)."""
     return [s for s in STREAMS if s.primary]
 
 
@@ -204,6 +203,7 @@ class FrameGrabber:
         self.screenshot_dir = screenshot_dir
         self.poll_s = poll_s  # seconds between player-state polls while waiting for playback
         self.egress = egress
+        self._live: dict[str, bool | None] = {}
         self._proxy = None
         self._pw = None
         self._browsers: dict[str, object] = {}
@@ -251,7 +251,10 @@ class FrameGrabber:
         play_timeout_s: float = 20.0,
         deadline: float | None = None,
     ) -> GrabResult:
-        """Capture about window_s / interval_s frames from one stream."""
+        """Capture about window_s / interval_s frames from one stream, only if it is live right now."""
+        live = self.live(stream)
+        if live is not True:
+            return GrabResult(stream=stream, engine="-", status="not_live" if live is False else "live_check_failed")
         last: GrabResult | None = None
         for engine in self.engines:
             res = self._grab_with(engine, stream, window_s, interval_s, play_timeout_s, deadline)
@@ -265,6 +268,14 @@ class FrameGrabber:
             if deadline is not None and time.time() > deadline:
                 return res
         return last  # type: ignore[return-value]
+
+    def live(self, stream: Stream) -> bool | None:
+        """Whether YouTube says the stream is live right now (the watch page's isLive), asked once
+        per grabber through the same egress as the browsers. None when the page can't be read.
+        A recorded video must never be counted as the hall now."""
+        if stream.youtube_id not in self._live:
+            self._live[stream.youtube_id] = is_live(stream.youtube_id, self._proxy.url if self._proxy else None)
+        return self._live[stream.youtube_id]
 
     def _grab_with(self, engine, stream, window_s, interval_s, play_timeout_s, deadline) -> GrabResult:
         t0 = time.time()
@@ -386,3 +397,29 @@ def iter_frames(stream: Stream, window_s: float = 20.0, interval_s: float = 2.0)
         if not res.ok:
             raise RuntimeError(f"{stream.label}: {res.status} ({res.player_text[:80]})")
         yield from res.frames
+
+
+def is_live(youtube_id: str, proxy_url: str | None = None, timeout: float = 15.0) -> bool | None:
+    """True when YouTube's watch page says the video is a live broadcast that is on now, False when
+    it is a recording or an ended stream, None when the page can't be read."""
+    import re
+    import urllib.request
+
+    handlers = [urllib.request.ProxyHandler({"https": proxy_url, "http": proxy_url})] if proxy_url else []
+    opener = urllib.request.build_opener(*handlers)
+    req = urllib.request.Request(
+        f"https://www.youtube.com/watch?v={youtube_id}",
+        headers={
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) "
+            "Version/18.5 Safari/605.1.15",
+            "Accept-Language": "en-US",
+        },
+    )
+    try:
+        with opener.open(req, timeout=timeout) as resp:
+            page = resp.read(4_000_000).decode("utf-8", "replace")
+    except OSError:
+        return None
+    if '"isLiveContent":true' not in page:
+        return False
+    return bool(re.search(r'"isLive":true', page))

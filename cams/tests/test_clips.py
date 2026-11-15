@@ -116,7 +116,7 @@ class FakeTracker:
 
 
 def test_sample_writes_a_clip_per_main_camera(monkeypatch, tmp_path):
-    s = by_youtube_id("r154Wa3jr38")
+    s = by_youtube_id("7wHgOpwHz8k")
     clips = tmp_path / "cams"
     now = datetime(2026, 11, 20, 17, 0, tzinfo=UTC)
     doc = sample.sample_one(FrameGrabberOK(), FakeTracker, s, None, now, 2.0, 1e12, True, clips)
@@ -124,7 +124,7 @@ def test_sample_writes_a_clip_per_main_camera(monkeypatch, tmp_path):
     assert sorted(p.name for p in clips.iterdir()) == ["1.jpg", "1.mp4"]
     assert not any(isinstance(v, (bytes, np.ndarray)) for v in doc.values())  # nothing of the clip in the doc
 
-    side = by_youtube_id("7wHgOpwHz8k")  # Worcester's second camera: no clip, the main one keeps its own
+    side = by_youtube_id("89KPOnjHEC4")  # Worcester's second camera: no clip, the main one keeps its own
     assert not side.primary
     before = (clips / "1.mp4").stat().st_mtime_ns
     sample.sample_one(FrameGrabberOK(), FakeTracker, side, None, now, 2.0, 1e12, True, clips)
@@ -148,7 +148,7 @@ def test_a_failed_clip_never_stops_the_pass(monkeypatch, tmp_path):
     monkeypatch.setattr(d, "PersonTracker", FakeTracker)
     assert sample.main(["--no-mongo"]) == 0
     data = json.loads(config.LATEST_JSON.read_text())
-    assert sorted(data["halls"]) == ["1", "2", "3", "4"]
+    assert sorted(data["halls"]) == ["1", "3", "4"]  # Franklin has no live cam
     assert all(h["level"] != "unknown" and h["people"] == 2 for h in data["halls"].values())
     assert not (tmp_path / "cams").exists() or not any((tmp_path / "cams").iterdir())
 

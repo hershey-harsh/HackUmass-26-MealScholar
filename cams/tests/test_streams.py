@@ -12,20 +12,22 @@ def test_registry_is_consistent():
         assert s.embed_url == f"https://www.youtube.com/embed/{s.youtube_id}?autoplay=1&mute=1&playsinline=1"
 
 
-def test_four_primary_halls_match_locations_ids():
+def test_primary_cams_are_the_halls_live_streams():
     prim = streams.primary_streams()
-    assert sorted((s.location_id, s.location_name) for s in prim) == [
-        (1, "Worcester"),
-        (2, "Franklin"),
-        (3, "Hampshire"),
-        (4, "Berkshire"),
+    # Franklin's page lists no livestream; the video at the top of each hall page is a 2022 upload
+    assert sorted((s.location_id, s.location_name, s.youtube_id) for s in prim) == [
+        (1, "Worcester", "7wHgOpwHz8k"),
+        (3, "Hampshire", "RprORF_ggOA"),
+        (4, "Berkshire", "AoceCqa6MWw"),
     ]
+    old_uploads = {"r154Wa3jr38", "gvs6Mf-vR7o", "-yaPv3fQqiw", "urmHVZff1Io"}
+    assert not old_uploads & {s.youtube_id for s in streams.STREAMS}
     assert all(s.youtube_id not in streams.DEAD_IDS for s in streams.all_live_streams())
     assert "TWC87AgKJHA" not in {s.youtube_id for s in streams.all_live_streams()}
 
 
 def test_by_youtube_id():
-    assert streams.by_youtube_id("r154Wa3jr38").location_name == "Worcester"
+    assert streams.by_youtube_id("7wHgOpwHz8k").location_name == "Worcester"
 
 
 def test_classify_player_text():
@@ -63,7 +65,7 @@ def test_check_against_locations_reports_mismatch():
     db2 = {"locations": _FakeColl([{"_id": 1, "name": "Worcester DC"}])}
     problems = streams.check_against_locations(db2)
     assert any("not in locations" in p for p in problems)
-    assert any("r154Wa3jr38" in p and "!=" in p for p in problems)
+    assert any("7wHgOpwHz8k" in p and "!=" in p for p in problems)
 
 
 # --------------------------------------------------------------------------
@@ -137,6 +139,7 @@ def _grabber(page, tmp_path=None):
 
     g = streams.FrameGrabber(engines=("chromium",), screenshot_dir=str(tmp_path) if tmp_path else None, poll_s=0.01)
     g._browser = lambda engine: Browser()
+    g.live = lambda stream: True  # the live check reads YouTube; these tests are about the player
     return g
 
 
@@ -148,21 +151,21 @@ def test_grabber_waits_for_current_time_to_advance(tmp_path):
     # width known, not paused, but currentTime stuck at 0 and nothing decoded: never "playing"
     page = _FakePage([_state(t=0.0, ready=0)])
     g = _grabber(page, tmp_path)
-    r = g._grab_with("chromium", streams.by_youtube_id("r154Wa3jr38"), 4, 2, 0.3, None)
+    r = g._grab_with("chromium", streams.by_youtube_id("7wHgOpwHz8k"), 4, 2, 0.3, None)
     assert r.status == "timeout" and r.frames == [] and page.grab_calls == 0
     assert page.state_polls > 1
     # a stalled player with a width is never screenshotted (it may be showing a frame)
     assert page.screenshots == [] and r.screenshot is None
     # a decoded frame whose clock does not move is still not playing
     page = _FakePage([_state(t=3.5, ready=4)])
-    r = _grabber(page)._grab_with("chromium", streams.by_youtube_id("r154Wa3jr38"), 4, 2, 0.3, None)
+    r = _grabber(page)._grab_with("chromium", streams.by_youtube_id("7wHgOpwHz8k"), 4, 2, 0.3, None)
     assert r.status == "timeout" and page.grab_calls == 0
 
 
 def test_grabber_captures_once_playback_advances():
     page = _FakePage([_state(t=0.0, ready=0), _state(t=0.0, ready=1), _state(t=0.4, ready=4), _state(t=0.9, ready=4)])
     g = _grabber(page)
-    r = g._grab_with("chromium", streams.by_youtube_id("gvs6Mf-vR7o"), 0.04, 0.02, 2.0, None)
+    r = g._grab_with("chromium", streams.by_youtube_id("RprORF_ggOA"), 0.04, 0.02, 2.0, None)
     assert r.status == "ok" and len(r.frames) == 2 and r.video_size == (640, 360)
     assert page.state_polls == 3  # first poll can never count; third sees t advance with ready >= 2
     assert r.frames[0][1].shape == (360, 640, 3)
@@ -174,7 +177,7 @@ def test_grabber_never_screenshots_the_playing_video(tmp_path):
 
     page = _FakePage([_state(t=0.0), _state(t=0.5)], grab=boom)
     g = _grabber(page, tmp_path)
-    r = g._grab_with("chromium", streams.by_youtube_id("r154Wa3jr38"), 4, 2, 2.0, None)
+    r = g._grab_with("chromium", streams.by_youtube_id("7wHgOpwHz8k"), 4, 2, 2.0, None)
     assert r.status == "error:RuntimeError" and r.frames == []
     assert page.screenshots == [] and r.screenshot is None
     assert list(tmp_path.iterdir()) == []
@@ -184,10 +187,41 @@ def test_grabber_screenshots_only_the_pre_playback_player(tmp_path):
     # no <video> at all, then the page crashes: that player state is screenshotted for diagnostics
     page = _FakePage([_state(video=False, w=0)], state_raises_at=2)
     g = _grabber(page, tmp_path)
-    r = g._grab_with("chromium", streams.by_youtube_id("r154Wa3jr38"), 4, 2, 2.0, None)
+    r = g._grab_with("chromium", streams.by_youtube_id("7wHgOpwHz8k"), 4, 2, 2.0, None)
     assert r.status == "error:RuntimeError"
-    assert len(page.screenshots) == 1 and page.screenshots[0].endswith("player_worcester_r154Wa3jr38_chromium.png")
+    assert len(page.screenshots) == 1 and page.screenshots[0].endswith("player_worcester_7wHgOpwHz8k_chromium.png")
     # the bot wall is a pre-playback state too
     page = _FakePage([_state(video=False, w=0, text="Sign in to confirm you're not a bot")])
-    r = _grabber(page, tmp_path)._grab_with("chromium", streams.by_youtube_id("r154Wa3jr38"), 4, 2, 2.0, None)
+    r = _grabber(page, tmp_path)._grab_with("chromium", streams.by_youtube_id("7wHgOpwHz8k"), 4, 2, 2.0, None)
     assert r.status == "youtube_bot_check" and len(page.screenshots) == 1
+
+
+def test_a_stream_that_is_not_live_is_never_grabbed():
+    g = streams.FrameGrabber(engines=("chromium",))
+    g._browser = lambda engine: (_ for _ in ()).throw(AssertionError("no browser for a recording"))
+    g.live = lambda stream: False
+    assert g.grab(streams.by_youtube_id("7wHgOpwHz8k")).status == "not_live"
+    g.live = lambda stream: None  # the watch page couldn't be read
+    assert g.grab(streams.by_youtube_id("7wHgOpwHz8k")).status == "live_check_failed"
+
+
+def test_is_live_reads_the_watch_page(monkeypatch):
+    import io
+    import urllib.request
+
+    pages = {
+        "live": b'..."isLiveContent":true,..."isLive":true...',
+        "ended": b'..."isLiveContent":true,..."isLive":false...',
+        "upload": b'..."isLiveContent":false...',
+    }
+
+    class Opener:
+        def __init__(self, page):
+            self.page = page
+
+        def open(self, req, timeout):
+            return io.BytesIO(pages[self.page])
+
+    for name, want in (("live", True), ("ended", False), ("upload", False)):
+        monkeypatch.setattr(urllib.request, "build_opener", lambda *h, n=name: Opener(n))
+        assert streams.is_live("7wHgOpwHz8k") is want
