@@ -198,6 +198,26 @@ def test_pages_and_api_errors_have_browser_protections(tmp_path, path, status):
     assert response.headers["x-frame-options"] == "DENY"
 
 
+def test_pages_are_checked_for_a_new_deploy_and_assets_keep_their_caching(tmp_path):
+    """The page and the manifest are revalidated on every load (no-cache, then a 304 while unchanged),
+    so a deploy reaches a phone at once; the assets the page links with ?v= and the API are left alone."""
+    client = TestClient(create_app(load_settings({"MEALSCHOLAR_HOME": str(tmp_path)})))
+    for path in ("/", "/app/", "/manifest.webmanifest", "/app/manifest.webmanifest"):
+        res = client.get(path)
+        assert res.headers["cache-control"] == "no-cache", path
+        assert client.get(path, headers={"If-None-Match": res.headers["etag"]}).status_code == 304, path
+    for path in ("/styles.css", "/app/app.js", "/api/status"):
+        assert "cache-control" not in client.get(path).headers, path
+
+
+@pytest.mark.parametrize(("public_url", "status"), [(None, 200), ("https://app.example.com", 404)])
+def test_api_docs_only_for_local_development(tmp_path, public_url, status):
+    env = {"MEALSCHOLAR_HOME": str(tmp_path)} | ({"MEALSCHOLAR_PUBLIC_URL": public_url} if public_url else {})
+    client = TestClient(create_app(load_settings(env)))
+    for path in ("/api/docs", "/api/openapi.json", "/app/api/docs", "/app/api/openapi.json"):
+        assert client.get(path).status_code == status, path
+
+
 @pytest.mark.parametrize(
     ("photo", "status"),
     [
@@ -212,6 +232,13 @@ def test_photos_that_wont_decode_get_a_client_error(home, photo, status):
     res = client(home, FailingVision()).post("/api/meals", content=photo)
     assert res.status_code == status
     assert "detail" in res.json()
+
+
+@pytest.mark.filterwarnings("error:Image size:RuntimeWarning")  # as the server runs (PYTHONWARNINGS)
+def test_a_photo_over_pillows_warning_size_gets_the_megapixel_reply(home):
+    res = client(home, FailingVision()).post("/api/meals", content=png_claiming(12_000, 9_000))  # 108 MP
+    assert res.status_code == 413
+    assert res.json()["detail"] == "Photos are limited to 50 megapixels. Choose a lower-resolution photo."
 
 
 def test_gemini_failure_reply_hides_the_providers_error(home, caplog):
@@ -537,3 +564,12 @@ def test_the_app_also_answers_under_app_for_the_landing_domain(tmp_path):
     assert client.get("/app/manifest.webmanifest").json()["scope"] == "./"
     assert client.get("/app/icons/icon-192.png").headers["content-type"] == "image/png"
     assert client.get("/app/nope").status_code == 404
+
+
+def test_the_app_answers_under_app_one_level_deep_only(tmp_path):
+    """/app/app/... is not a path of the site. The app under /app doesn't nest itself again, so a path
+    with many /app in it is a plain 404, not a recursion error with a long traceback in the log."""
+    client = TestClient(create_app(load_settings({"MEALSCHOLAR_HOME": str(tmp_path)})))
+    deep = "/app" * 61 + "/api/status"
+    for res in (client.get("/app/app/api/status"), client.get("/app/app"), client.get(deep), client.post(deep)):
+        assert (res.status_code, res.json()) == (404, {"detail": "Not Found"})
