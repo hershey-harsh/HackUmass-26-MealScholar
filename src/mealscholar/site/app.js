@@ -1835,8 +1835,10 @@ function weighHtml(r, i) {
 
 function foodHtml(r, i) {
   const options = [r.match, ...r.alternatives].filter(Boolean);
+  // A menu dish counts from the hall's label (its USDA match only fills in the rest), so no USDA food
+  // is current: picking any of them, its match too, switches the food to USDA.
   const list = options.length
-    ? options.map((m) => optionHtml(m, r.match?.fdc_id === m.fdc_id)).join("")
+    ? options.map((m) => optionHtml(m, r.source !== "campus" && r.match?.fdc_id === m.fdc_id)).join("")
     : '<li class="options__empty">No suggestions. Try a search above.</li>';
   return `
     <label class="field-label" for="search-${i}">Search USDA FoodData Central</label>
@@ -1897,7 +1899,8 @@ async function searchFoods(input) {
   try {
     const found = await api(`/api/foods?q=${encodeURIComponent(q)}&limit=6`);
     if (seq !== searchSeq || !list.isConnected) return;
-    const current = shownMeal()?.items[index]?.match?.fdc_id;
+    const item = shownMeal()?.items[index];
+    const current = item?.source === "campus" ? null : item?.match?.fdc_id; // a menu dish has no current USDA food
     list.innerHTML = found.foods.length
       ? (found.exact ? "" : '<li class="options__empty">No exact match. Closest results:</li>') +
         found.foods.map((f) => optionHtml(f, f.fdc_id === current)).join("")
