@@ -155,11 +155,16 @@ class ApiError extends Error {
   }
 }
 
+/** The app's base path: "/" at app.mealscholar.health, "/app/" when served under the landing's
+    domain. Server paths ("/api/...", a meal's photo_url) are resolved against it. */
+const BASE_PATH = location.pathname.endsWith("/") ? location.pathname : location.pathname.replace(/[^/]*$/, "");
+const serverUrl = (path) => (typeof path === "string" && path.startsWith("/") ? BASE_PATH + path.slice(1) : path);
+
 /** `session`: a 401 here means the sign-in ended (meal and day routes; some account routes). */
 async function api(path, { method = "GET", body, headers, signal, session = !path.startsWith("/api/auth/") } = {}) {
   let response;
   try {
-    response = await fetch(path, { method, body, headers, signal, credentials: "same-origin" });
+    response = await fetch(serverUrl(path), { method, body, headers, signal, credentials: "same-origin" });
   } catch {
     const error = new ApiError(OFFLINE);
     error.cancelled = Boolean(signal?.aborted);
@@ -926,7 +931,7 @@ function photoHtml(result, photoUrl) {
     <figure class="shot">
       <div class="shot__frame">
         <div class="shot__img">
-          <img src="${esc(photoUrl)}"${photoUrl === result.photo_url ? " data-stored" : ""} alt="Your meal photo, with each detected food outlined and numbered">
+          <img src="${esc(serverUrl(photoUrl))}"${photoUrl === result.photo_url ? " data-stored" : ""} alt="Your meal photo, with each detected food outlined and numbered">
           <div class="boxes" aria-hidden="true">${boxes}</div>
         </div>
       </div>
@@ -4391,8 +4396,8 @@ const minsAgo = (iso) => {
 const camClip = (hall) =>
   typeof hall?.clip_url === "string" && hall.clip_url.startsWith("/api/dining/cams/")
     ? {
-        clip: hall.clip_url,
-        poster: typeof hall.poster_url === "string" && hall.poster_url.startsWith("/api/dining/cams/") ? hall.poster_url : "",
+        clip: serverUrl(hall.clip_url),
+        poster: typeof hall.poster_url === "string" && hall.poster_url.startsWith("/api/dining/cams/") ? serverUrl(hall.poster_url) : "",
         at: typeof hall.clip_at === "string" ? hall.clip_at : hall.updated_at,
         live: typeof hall.live_url === "string" && hall.live_url.startsWith("https://www.youtube.com/watch?v=") ? hall.live_url : "",
       }
@@ -4752,7 +4757,7 @@ function recentCardHtml(m) {
   const place = placeName(m.context);
   // The meal's own photo when one was saved with it, else a plate.
   const photo = m.photo_url
-    ? `<span class="recent-card__photo recent-card__photo--img" aria-hidden="true"><img src="${esc(thumbUrl(m.photo_url))}" alt="" width="44" height="44" loading="lazy" decoding="async" data-stored></span>`
+    ? `<span class="recent-card__photo recent-card__photo--img" aria-hidden="true"><img src="${esc(serverUrl(thumbUrl(m.photo_url)))}" alt="" width="44" height="44" loading="lazy" decoding="async" data-stored></span>`
     : `<span class="recent-card__photo" aria-hidden="true">${icon("fork")}</span>`;
   return `
     <li>

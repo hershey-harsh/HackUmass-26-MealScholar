@@ -59,7 +59,7 @@
   function video() {
     var still = w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches;
     return '<div class="install__video">' +
-      '<video src="/media/add-to-home-screen.mp4" poster="/media/add-to-home-screen.jpg" width="624" height="780" muted loop playsinline preload="metadata"' +
+      '<video src="media/add-to-home-screen.mp4" poster="media/add-to-home-screen.jpg" width="624" height="780" muted loop playsinline preload="metadata"' +
       (still ? ' controls' : ' autoplay') +
       ' aria-label="Screen recording: in Safari, Share, then Add to Home Screen, then Add, and MealScholar appears on the Home Screen"></video>' +
       '</div>';
@@ -78,7 +78,7 @@
         '<div class="sheet__grab" aria-hidden="true"><span></span></div>' +
         '<div class="sheet__head">' +
           '<div class="install__head">' +
-            '<img class="install__icon" src="/icons/icon-192.png" alt="" width="56" height="56">' +
+            '<img class="install__icon" src="icons/icon-192.png" alt="" width="56" height="56">' +
             '<div><h2 id="install-title" class="install__title" tabindex="-1">Add MealScholar to your Home Screen</h2>' +
             '<p id="install-lede" class="install__lede">Opens like an app, with no app store download.</p></div>' +
           '</div>' +
