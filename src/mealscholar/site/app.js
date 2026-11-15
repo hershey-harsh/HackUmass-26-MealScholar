@@ -1443,6 +1443,8 @@ function notesHtml(result) {
 // ----------------------------------------------------------- result actions
 
 async function withBusy(button, task) {
+  // Disabling the focused button drops focus to the page: it comes back after, unless the task moved it.
+  const hadFocus = document.activeElement === button;
   button.disabled = true;
   button.setAttribute("aria-busy", "true");
   try {
@@ -1451,6 +1453,8 @@ async function withBusy(button, task) {
     if (button.isConnected) {
       button.disabled = false;
       button.removeAttribute("aria-busy");
+      const lost = !document.activeElement || document.activeElement === document.body;
+      if (hadFocus && lost) button.focus({ preventScroll: true });
     }
   }
 }
@@ -3032,7 +3036,8 @@ function dropSheets() {
     panelRestore = false;
     els.panel.close();
   }
-  window.MealScholarInstall?.close?.(true);
+  // At boot the first screen replaces only the loading screen: the Home Screen sheet from ?install=1 stays.
+  if (document.body.dataset.screen !== "boot") window.MealScholarInstall?.close?.(true);
 }
 
 /** Leave the app for one of the account screens. */
@@ -3107,6 +3112,13 @@ function enterApp({ focus = false } = {}) {
   if (route === "menu") ensureMenus();
   renderLocateAsk();
   if (focus) viewTitle(route)?.focus({ preventScroll: true });
+}
+
+/** Signed in, leaving a link screen: the set-up steps first if they were never finished. */
+function enterHome(options) {
+  if (!needsOnboarding()) return enterApp(options);
+  forgetResetToken(); // as enterApp does, so a refresh doesn't bring back Set a new password
+  startOnboarding();
 }
 
 /** Forget everything that belongs to the account that was signed in, including work still in
@@ -3191,6 +3203,11 @@ function leaveAccount(screen, options = {}) {
   state.user = null;
   state.demoVerifyUrl = null;
   state.resendUntil = 0;
+  // A delete link this account asked for is its own: the next account starts without one.
+  state.deleteUntil = 0;
+  state.deleteDemoUrl = null;
+  clearInterval(deleteTimer);
+  deleteTimer = null;
   updateAccountUi();
   renderBanner();
   state.authPath = STACKED.has(screen) ? [screen] : [];
@@ -3589,7 +3606,7 @@ function togglePassword(button) {
 els.auth.addEventListener("click", (event) => {
   const nav = event.target.closest("[data-auth]");
   if (nav) {
-    if (nav.dataset.auth === "app") return enterApp({ focus: true });
+    if (nav.dataset.auth === "app") return enterHome({ focus: true });
     return goAuth(nav.dataset.auth); // the email typed so far comes along (authDraft)
   }
   const toggle = event.target.closest('[data-action="toggle-password"]');
@@ -3614,7 +3631,7 @@ async function confirmEmail(token) {
     const { user } = await api("/api/auth/verify-email", { method: "POST", ...jsonBody({ token }) });
     if (state.user && user?.id === state.user.id) {
       state.user = user;
-      enterApp();
+      enterHome();
       toast("Email confirmed. Thanks.");
       return;
     }
@@ -3848,6 +3865,7 @@ els.account.addEventListener("close", () => {
   els.account.style.transition = "";
   els.account.style.transform = "";
   if (!els.sheet.open) document.documentElement.classList.remove("has-sheet");
+  flushSaves(); // a change made just before closing still saves
   els.accountBody.innerHTML = "";
   if (accountRestore) {
     const back = canTakeFocus(accountOpener) ? accountOpener : els.accountButton;
@@ -4274,7 +4292,7 @@ window.addEventListener("popstate", (event) => {
   const screen = document.body.dataset.screen;
   const entry = event.state;
   if (screen === "auth") {
-    if (state.user) return enterApp({ focus: true }); // back from a link screen while signed in
+    if (state.user) return enterHome({ focus: true }); // back from a link screen while signed in
     if (isAuthEntry(entry)) return showAuthPath(entry.auth);
     return syncHistory(); // an entry from before signing out: stay on the account screens
   }
@@ -5771,7 +5789,7 @@ const LEGAL = {
       ),
       legalSection(
         "On your device",
-        `<p>The app keeps a few small things in your browser: the dining hall you last opened on Menu, whether you were asked about location and your answer, and, until you finish, what you typed into an account form.</p>`
+        `<p>The app keeps a few small things in your browser: your Appearance choice, the dining hall you last opened on Menu, and whether you were asked about location. If you turn location on, that is saved with your account's email and stays after you log out. The tab you're using also keeps what you type into an account form until you finish, and the code from a password reset link until the new password is saved.</p>`
       ),
       legalSection(
         "Dining hall cams",
@@ -5796,16 +5814,24 @@ const LEGAL = {
 function openLegal(kind) {
   const page = LEGAL[kind];
   if (!page) return;
-  openPanel({ kicker: "MealScholar", title: page.title, intro: LEGAL_UPDATED, html: `<div class="legal">${page.html}</div>`, kind: "legal" });
+  // A labelled region that takes focus, so arrow keys and Page Down scroll the text (Safari doesn't
+  // make the scrolling sheet body focusable). Focus still starts on the title.
+  const html = `<div class="legal" tabindex="0" role="region" aria-label="${esc(page.title)}">${page.html}</div>`;
+  openPanel({ kicker: "MealScholar", title: page.title, intro: LEGAL_UPDATED, html, kind: "legal" });
   els.panelBody.scrollTop = 0;
 }
 
 document.addEventListener("click", (event) => {
   const link = event.target.closest?.("[data-legal]");
-  if (link) openLegal(link.dataset.legal);
+  if (!link) return;
+  link.focus({ preventScroll: true }); // so closing the sheet comes back here (Safari doesn't focus on click)
+  openLegal(link.dataset.legal);
 });
 
-function openAlerts() {
+/** From the bell or the sidebar's Alerts, with the click event. */
+function openAlerts(event) {
+  // Safari doesn't focus a clicked button: focus it, so closing the sheet comes back to it.
+  if (event?.currentTarget instanceof HTMLElement) event.currentTarget.focus({ preventScroll: true });
   renderAlertsPanel();
   loadAlerts(); // fresh, in case a menu changed
 }
@@ -6309,7 +6335,7 @@ function summaryHtml(prefs) {
 
 // ---- what the widgets do, in the set-up steps and in Settings alike
 
-const saveTimers = new Map();
+const saveTimers = new Map(); // section -> { id, run }: a Settings save waiting for its moment
 const statusTimers = new WeakMap();
 
 function flashStatus(el, text) {
@@ -6323,8 +6349,21 @@ function flashStatus(el, text) {
 /** Settings saves as you go, a moment after the last change; the set-up steps save on Next. */
 function autosave(root, section) {
   if (root.dataset.mode !== "settings") return;
-  clearTimeout(saveTimers.get(section));
-  saveTimers.set(section, setTimeout(() => saveSection(root, section), 350));
+  clearTimeout(saveTimers.get(section)?.id);
+  const epoch = state.epoch;
+  const run = () => {
+    saveTimers.delete(section);
+    if (epoch === state.epoch) saveSection(root, section); // not once the account has signed out
+  };
+  saveTimers.set(section, { id: setTimeout(run, 350), run });
+}
+
+/** Settings is closing: send the saves still waiting now, while their widgets can still be read. */
+function flushSaves() {
+  for (const { id, run } of [...saveTimers.values()]) {
+    clearTimeout(id);
+    run();
+  }
 }
 
 function readSection(section, root) {
@@ -6746,7 +6785,7 @@ const STEP_TITLES = {
 
 // A lede is a sentence, or a function of the choices so far (the goal step comes before Ranges).
 const STEP_LEDES = {
-  name: "This is how the dashboard greets you.",
+  name: "Shown in Settings. Optional.",
   goal: () =>
     `Optional. With a goal, the dashboard shows what's left for the day. Without one, it shows ${rangesOn() ? "the ranges of" : "just"} what you ate.`,
   ranges: "Every amount is an estimate. Show the range it falls in next to the likely number?",
@@ -6879,6 +6918,7 @@ async function onboardNav(action, button) {
   clearFormErrors(form);
   const changes = step === "done" ? { onboarded: true } : readSection(step === "halls" ? "dining" : step === "goal" ? "goals" : step, form);
   if (!changes) return; // an error is showing at a field
+  const at = ob.at; // a Back pressed while this saves wins: move on only from the step that was saved
   await withBusy(button, async () => {
     let saved = true;
     try {
@@ -6887,7 +6927,7 @@ async function onboardNav(action, button) {
       saved = false;
       showPrefsError(form, err);
     }
-    if (!saved || !state.onboard) return;
+    if (!saved || state.onboard !== ob || ob.at !== at) return;
     if (action === "finish") return finishOnboarding("You're all set.");
     ob.at += 1;
     renderOnboarding();
@@ -6903,7 +6943,8 @@ els.onboard.addEventListener("click", (event) => {
 els.onboard.addEventListener("submit", (event) => {
   event.preventDefault();
   const next = $('[data-onboard="next"], [data-onboard="finish"]', els.onboard);
-  if (next) onboardNav(next.dataset.onboard, next);
+  // Enter again while the step saves: that save moves on, once.
+  if (next && !next.disabled && next.getAttribute("aria-busy") !== "true") onboardNav(next.dataset.onboard, next);
 });
 
 els.onboard.addEventListener("input", (event) => {
