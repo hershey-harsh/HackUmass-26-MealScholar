@@ -327,15 +327,16 @@
   d.querySelectorAll('main .section').forEach(function (el) { io.observe(el); });
 })();
 
-// The live hall cam card: the newest boxed clip from the hall with the most people in view, from the
-// app's GET /api/dining/busy (the app answers under /app on this domain). It refreshes with the cams,
-// every three minutes. Without an answer the card keeps its plain words and no Live tag.
+// The live hall cam card: the newest boxed frame (the clip's poster) from the hall with the most people
+// in view, from the app's GET /api/dining/busy (the app answers under /app on this domain). It refreshes
+// with the cams, every three minutes. A still rather than the looping clip, so scrolling past the card
+// never decodes video. Without an answer, or if the frame doesn't load, the card keeps its plain words.
 (function () {
   var d = document, w = window;
   var card = d.querySelector('[data-cam]');
   if (!card || !w.fetch) return;
   var vis = card.querySelector('.fv-cam');
-  var video = card.querySelector('[data-cam-video]');
+  var img = card.querySelector('[data-cam-img]');
   var LEVEL = { quiet: 'Quiet', moderate: 'Moderate', busy: 'Busy' };
   var APP = '/app';
   function q(s) { return card.querySelector(s); }
@@ -344,14 +345,14 @@
     return m < 1 ? 'just now' : m + ' min ago';
   }
   function show(h) {
-    var clip = APP + h.clip_url;
-    if (video.getAttribute('src') !== clip) {
-      video.poster = APP + h.poster_url;
-      video.src = clip;
+    var src = APP + h.poster_url;
+    if (img.getAttribute('src') !== src) {
+      img.onload = function () { vis.classList.add('has-clip'); };
+      img.onerror = function () { vis.classList.remove('has-clip'); img.removeAttribute('src'); };
+      img.src = src;
     }
     var level = LEVEL[h.level] || '';
     var people = h.people + (h.people === 1 ? ' person' : ' people') + ' in view';
-    vis.classList.add('has-clip');
     q('[data-cam-live]').hidden = false;
     q('[data-cam-hall]').textContent = h.name;
     q('[data-cam-dot]').setAttribute('data-level', h.level);
@@ -359,14 +360,13 @@
     q('[data-cam-when]').textContent = (level ? level + ' · ' : '') + ago(h.updated_at);
     q('[data-cam-sr]').textContent = ' ' + h.name + ' right now: ' + people + (level ? ', ' + level.toLowerCase() : '') + '.';
     if (h.live_url) q('[data-cam-link]').href = h.live_url;
-    if (w.__syncVideos) w.__syncVideos();
   }
   function load() {
     if (d.hidden) return;
     w.fetch(APP + '/api/dining/busy', { credentials: 'omit', cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
-        var halls = ((data && data.halls) || []).filter(function (h) { return h && h.clip_url && h.poster_url && typeof h.people === 'number'; });
+        var halls = ((data && data.halls) || []).filter(function (h) { return h && h.poster_url && typeof h.people === 'number'; });
         if (!halls.length) return;
         halls.sort(function (a, b) { return b.people - a.people; }); // ties keep the hall order
         show(halls[0]);

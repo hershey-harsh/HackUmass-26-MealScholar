@@ -2083,19 +2083,21 @@ html:not(.js) .rail-ctrl { display: none; }
 .ps-dvs--plain .ps-dv small { font-size: 1.15em; font-weight: 500; color: var(--ink); }
 
 
-/* The live hall cam card: the newest clip from the hall with the most people in view, a green box
-   on each person the counter saw (drawn by the cams sampler). The clip fills the card's screen like
-   the brunch photo does; the Live tag, the hall and the count sit on it. The count and the level are
-   words, the dot only repeats them. */
+/* The live hall cam card: the latest boxed frame from the hall with the most people in view, a green
+   box on each person the counter saw (drawn by the cams sampler), refreshed with the cams every few
+   minutes. A still, not the looping clip, so scrolling past it never decodes video. The frame fills
+   the card's screen like the brunch photo does; the Live tag, the hall and the count sit on it. The
+   count and the level are words, the dot only repeats them. */
 .fv-cam { background: #141416; color: #EEF0F2; }
 .fv-cam__frame { position: absolute; inset: 0; }
-.fv-cam__frame video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.fv-cam__frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.fv-cam__frame img:not([src]) { display: none; }
 .fv-cam__empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 22px; color: rgba(238, 240, 242, .78); font-size: 13px; line-height: 1.45; text-align: center; text-wrap: balance; }
 .fv-cam.has-clip .fv-cam__empty { display: none; }
 .fv-cam__head { position: absolute; z-index: 1; top: 10px; left: 10px; right: 10px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 500; }
 .fv-cam__live, .fv-cam__hall { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: rgba(14, 14, 15, .66); }
 .fv-cam__live[hidden] { display: none; }
-.fv-cam__live i { width: 7px; height: 7px; border-radius: 50%; background: #ef4b4b; animation: cam-pulse 1.8s ease-in-out infinite; }
+.fv-cam__live i { width: 7px; height: 7px; border-radius: 50%; background: #ef4b4b; }
 .fv-cam__hall { margin-left: auto; }
 .fv-cam__meta { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 34px 14px 12px; background: linear-gradient(to top, rgba(10, 10, 11, .88), rgba(10, 10, 11, .55) 55%, rgba(10, 10, 11, 0)); font-size: 13px; line-height: 1.35; }
 .fv-cam__meta b { font-weight: 500; }
@@ -2105,7 +2107,6 @@ html:not(.js) .rail-ctrl { display: none; }
 .fv-cam__dot[data-level="quiet"] { background: #39b26e; }
 .fv-cam__dot[data-level="moderate"] { background: #e59a28; }
 .fv-cam__dot[data-level="busy"] { background: #ef4b4b; }
-@keyframes cam-pulse { 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) { .fv-cam__live i { animation: none; } }
 
 /* ---- How it works, compact: the five steps as a grid instead of five full-width rows. Two columns
