@@ -3011,7 +3011,6 @@ const AUTH_SCREENS = {
   welcome: () => `
     <div class="auth-screen auth-screen--welcome">
       <header class="view-head welcome__head">
-        <p class="eyebrow">Meal photo <span aria-hidden="true">&rarr;</span><span class="visually-hidden">to</span> foods <span aria-hidden="true">&rarr;</span><span class="visually-hidden">to</span> USDA nutrients</p>
         <h1 class="view-title" tabindex="-1">Every meal, from one photo</h1>
         <p class="lede">Photograph a meal to see its foods, how much is there and its nutrients, checked against the campus menu first. No weighing.</p>
       </header>
