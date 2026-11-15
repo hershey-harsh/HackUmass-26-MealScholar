@@ -64,12 +64,10 @@ supply the nutrition facts. Review the sources, correct a match and log your mea
   is on, otherwise the Menu-tab choice or main hall, plus local photo time. Candidates include
   Grab N' Go and can use past dishes on a missing menu day. Unmatched foods and API/CLI calls
   without a hall fall back to USDA.
-- **Accounts depend on deployment settings.** Sign-in and onboarding screens exist. Production must
-  require authentication; disabling it shares one local diary and preferences among all visitors,
-  not a private diary per device.
-- **Email delivery is opt-in configuration.** SMTP is implemented, but the default `outbox` provider
-  only queues messages. The app reads `/api/status`'s `email_sending` capability; production email
-  delivery and account-isolation smoke checks still need operator verification.
+- **Turning off sign-in shares one diary.** `MEALSCHOLAR_AUTH_REQUIRED=0` is for local development:
+  every visitor shares one diary and one set of preferences. The live app requires sign-in.
+- **Email needs a relay.** The default `outbox` provider only queues messages; the `smtp` provider
+  sends them. The app reads `/api/status`'s `email_sending` to decide what to tell users.
 
 See [TODO.md](TODO.md) for remaining work.
 
@@ -268,13 +266,17 @@ separately; a billing alert alone does not stop spending.
 
 | Site | Address | Source |
 |---|---|---|
-| **App** | [app.mealscholar.health](https://app.mealscholar.health) | [`src/mealscholar/site/`](src/mealscholar/site/) + [`web.py`](src/mealscholar/web.py) |
+| **App** | [app.mealscholar.health](https://app.mealscholar.health), also [mealscholar.health/app](https://mealscholar.health/app/) | [`src/mealscholar/site/`](src/mealscholar/site/) + [`web.py`](src/mealscholar/web.py) |
 | **Landing page** | [mealscholar.health](https://mealscholar.health) | [`web/`](web/) |
 
 Both sites deploy on pushes to `main` through
 [`deploy-site.yml`](.github/workflows/deploy-site.yml) on Harsh's Mac mini. Both frontends use
 plain HTML/CSS/JavaScript, with no build step. Coordinate deploy changes through the team board
 as described in [AGENTS.md](AGENTS.md).
+
+The live app requires sign-in. Verification, password-reset and account-deletion links come from
+`no-reply@mealscholar.health` through Resend's SMTP relay (the `smtp` provider). Meals logged
+without an account before sign-in became required don't appear in any account.
 
 The app sends `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`
 and `X-Frame-Options: DENY` on pages, static files and handled API errors. HTTPS upgrading/HSTS and
