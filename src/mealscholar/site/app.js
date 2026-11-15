@@ -780,9 +780,17 @@ function closeSlot(key, { focus = false } = {}) {
   leaveCapture({ focus });
 }
 
-/** Off the capture screen, back to Today (an analysis still running carries on). */
+/** Off the capture screen, back to Today (an analysis still running carries on). Its buttons say
+    "Today", so that's the day they land on, whichever day was on show before. */
 function leaveCapture({ focus = false } = {}) {
-  if (state.view === "analyze") setView("today");
+  if (state.view === "analyze") {
+    ensureToday();
+    if (state.day !== state.todayKey) {
+      state.day = state.todayKey;
+      state.weekStart = null; // the Week tab follows the day
+    }
+    setView("today");
+  }
   window.scrollTo(0, state.scroll.today ?? 0);
   if (focus) els.todayTitle.focus({ preventScroll: true });
 }
