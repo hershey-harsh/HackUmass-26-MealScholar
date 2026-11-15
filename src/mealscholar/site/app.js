@@ -2131,7 +2131,7 @@ function ensureDashboard() {
 }
 
 async function loadDashboard() {
-  if (document.body.dataset.screen !== "app") return;
+  if (document.body.dataset.screen !== "app" || state.bootFailed) return;
   ensureToday();
   const seq = ++state.dashSeq;
   const week = pastKeys(weekKeys());
@@ -2403,7 +2403,8 @@ els.dashDay.addEventListener("click", (event) => {
 
 // Crossing the laptop width swaps the swipe for the open grid, and back.
 laptop.addEventListener("change", () => {
-  if (document.body.dataset.screen !== "app" || !els.dashDay.childElementCount) return;
+  // A failed start keeps its error and Try again.
+  if (document.body.dataset.screen !== "app" || state.bootFailed || !els.dashDay.childElementCount) return;
   rendered.day = ""; // the width isn't part of what renderDay compares, so it would skip the redraw
   renderDay();
 });
@@ -2782,6 +2783,9 @@ function dashClick(event) {
       if (!action.isConnected) (inWeek ? $("#week-title", els.dashWeek) : els.todayTitle)?.focus({ preventScroll: true });
       return;
     }
+    case "reboot":
+      // The app never started: reload once the server answers, else say why again.
+      return api("/api/status", { session: false }).then(() => location.reload(), bootFailed);
     case "locate-allow":
       return allowLocation(action);
     case "locate-later":
@@ -7091,12 +7095,18 @@ function takeLinkTokens() {
   return tokens;
 }
 
+/** The app couldn't start: nothing on it works until a reload, so Try again reloads once the server answers. */
 function bootFailed(err) {
+  state.bootFailed = true;
   document.body.dataset.screen = "app";
   setPickers(false);
   setStatus(err.message, { error: true });
   els.today.dataset.state = "error";
-  els.dashDay.innerHTML = `<div class="card dash-error"><p class="status is-error" role="alert">${esc(err.message)}</p></div>`;
+  els.dayPrev.disabled = true;
+  els.dayNext.disabled = true;
+  const refocus = els.dashDay.contains(document.activeElement);
+  els.dashDay.innerHTML = `<div class="card dash-error"><p class="status is-error" role="alert">${esc(err.message)}</p><button class="btn btn--secondary" type="button" data-action="reboot">Try again</button></div>`;
+  if (refocus) $('[data-action="reboot"]', els.dashDay).focus({ preventScroll: true });
 }
 
 async function init() {
