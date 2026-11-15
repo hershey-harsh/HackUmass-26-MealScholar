@@ -3155,6 +3155,11 @@ function leaveAccount(screen, options = {}) {
   state.user = null;
   state.demoVerifyUrl = null;
   state.resendUntil = 0;
+  // A delete link this account asked for is its own: the next account starts without one.
+  state.deleteUntil = 0;
+  state.deleteDemoUrl = null;
+  clearInterval(deleteTimer);
+  deleteTimer = null;
   updateAccountUi();
   renderBanner();
   state.authPath = STACKED.has(screen) ? [screen] : [];
