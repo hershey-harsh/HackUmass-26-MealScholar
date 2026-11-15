@@ -71,7 +71,7 @@ class BusyReply(BaseModel):
 
 class OccupancySource(Protocol):
     def latest(self, since: datetime) -> Iterable[Mapping[str, Any]]:
-        """The newest reading per hall from its main camera, taken at `since` or later."""
+        """The newest reading with a level per hall from its main camera, taken at `since` or later."""
         ...
 
 
@@ -84,9 +84,11 @@ class MongoOccupancySource:
     def latest(self, since: datetime) -> Iterable[Mapping[str, Any]]:
         if self._client is None:  # connect on first use, so start-up never waits on it
             self._client = MongoClient(self._uri, serverSelectionTimeoutMS=5_000, appname="mealscholar-busy")
+        # Only readings with a level: a pass that couldn't read a cam (unknown) leaves the hall's
+        # reading from a few minutes before on show, instead of hiding the hall until the next pass.
         return self._client[self._database]["occupancy"].aggregate(
             [
-                {"$match": {"primary": True, "ts": {"$gte": since}}},
+                {"$match": {"primary": True, "ts": {"$gte": since}, "level": {"$in": list(LEVELS)}}},
                 {"$sort": {"ts": -1}},
                 {"$group": {"_id": "$location_id", "doc": {"$first": "$$ROOT"}}},
             ]

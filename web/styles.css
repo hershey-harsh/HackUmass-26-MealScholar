@@ -29,7 +29,6 @@
   --label: #5C5C59;
   --hover: rgba(28, 28, 28, .84);
   --on-ink-2: rgba(250, 250, 255, .74);
-  --range: rgba(28, 28, 28, .32);
   --plate: transparent;
   --plate-pad: 0px;
   --plate-fit: fill;
@@ -79,7 +78,6 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 10px 24px rgba(0, 0, 0, .32);
   --shadow-lg: 0 1px 2px rgba(0, 0, 0, .3), 0 22px 44px rgba(0, 0, 0, .5);
   --on-ink-2: rgba(28, 28, 28, .74);
-  --range: rgba(238, 240, 242, .36);
   --plate: #EEF0F2;
   --plate-pad: 14px;
   --plate-fit: contain;
@@ -743,6 +741,12 @@ html:not(.js) .theme { display: none; }
 .fan-btn:active { transform: scale(.97); }
 .fan-btn--fill { border-color: var(--ink); background: var(--ink); color: var(--surface); }
 .fan-btn--fill:hover { background: var(--hover); }
+/* A card under 250px wide (screens from 760 to about 1470px, and phones under 390px) has room for one
+   pill: the outline one goes, except on the cam card, which keeps Watch live, its only stream link. */
+.fan-card { container-type: inline-size; }
+@container (max-width: 249px) {
+  .fan-card:not([data-cam]) .fan-btn:not(.fan-btn--fill), .fan-card[data-cam] .fan-btn--fill { display: none; }
+}
 
 /* The screens themselves, built from the same pieces as the rest of the page. */
 .fv-lunch { display: flex; flex-direction: column; gap: 8px; padding: 10px; font-size: 7.4px; }
@@ -779,7 +783,7 @@ html:not(.js) .theme { display: none; }
 .fan__dots { display: flex; }
 .fan__dot {
   position: relative;
-  width: min(44px, calc((100vw - 32px) / 7));
+  width: min(44px, calc((100vw - 88px) / 7));
   height: 44px;
   padding: 0;
   border: 0;
@@ -798,13 +802,14 @@ html:not(.js) .theme { display: none; }
   border-radius: 50%;
   transition: transform .35s var(--ease-fan), opacity .35s ease;
 }
-.fan__dot::before { background: var(--range); }
+.fan__dot::before { background: rgba(var(--ink-rgb), .5); }
 .fan__dot::after { background: var(--ink); opacity: 0; transform: scale(.5); }
 .fan__dot:hover::before { transform: scale(1.3); }
 .fan__dot[aria-current="true"]::after { opacity: 1; transform: scale(1.25); }
 .fan__dot:focus-visible { outline-offset: -8px; border-radius: 12px; }
 .fan__pause {
   display: grid;
+  flex: none;
   place-items: center;
   width: 44px;
   height: 44px;
@@ -1944,6 +1949,8 @@ html:not(.js) .rail-ctrl { display: none; }
     transition: transform .35s ease, opacity .35s ease, visibility 0s .35s;
   }
   html:not(.js) body { padding-bottom: 92px; }
+  /* A link that gets focus near the bottom of the screen scrolls clear of the dock. */
+  html { scroll-padding-bottom: 96px; }
 }
 
 /* Phones get "Add to Home Screen"; larger screens keep "Open the app". */

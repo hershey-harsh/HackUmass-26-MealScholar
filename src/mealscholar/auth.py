@@ -862,6 +862,13 @@ class SameOriginWrites:
 BODY_TOO_LARGE = "That request is too large."
 
 
+def route_path(scope: Scope) -> str:
+    """The path as the app's routes see it. Where the app is mounted (at /app, web.py) the scope
+    keeps the full path, /app/api/auth/..., and root_path is the mount's /app."""
+    path, root = scope["path"], scope.get("root_path", "")
+    return path[len(root) :] if root and path.startswith(root + "/") else path
+
+
 class AuthRouteGuard:
     """For /api/auth: answers 413 to request bodies over MAX_AUTH_BODY bytes before they are
     read into memory, and marks every response Cache-Control: no-store."""
@@ -870,7 +877,7 @@ class AuthRouteGuard:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or not scope["path"].startswith(router.prefix + "/"):
+        if scope["type"] != "http" or not route_path(scope).startswith(router.prefix + "/"):
             await self.app(scope, receive, send)
             return
 
@@ -939,7 +946,7 @@ async def _auth_error(request: Request, exc: AuthError) -> JSONResponse:
 
 async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Auth forms get a 400 naming the field; other routes keep FastAPI's 422."""
-    if not request.url.path.startswith(router.prefix + "/"):
+    if not route_path(request.scope).startswith(router.prefix + "/"):
         return await request_validation_exception_handler(request, exc)
     errors = exc.errors()
     first = errors[0] if errors else {}

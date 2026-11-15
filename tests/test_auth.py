@@ -361,6 +361,17 @@ def test_auth_bodies_are_capped_and_answers_are_not_cached(make_app):
     assert res.headers["cache-control"] == "no-store"
 
 
+def test_auth_checks_hold_under_app_too(make_app):
+    """mealscholar.health/app/* reaches the same app under /app: the same body cap, no-store and form errors."""
+    client = browser(make_app())
+    res = client.post("/app/api/auth/login", json={"email": "sam@example.com", "password": "x" * 20_000})
+    assert (res.status_code, res.json()) == (413, {"detail": "That request is too large."})
+    assert res.headers["cache-control"] == "no-store"
+    res = client.post("/app/api/auth/login", json={})
+    assert (res.status_code, res.json()) == (400, {"detail": "Missing email.", "field": "email"})
+    assert client.get("/app/api/auth/me").headers["cache-control"] == "no-store"
+
+
 def test_password_hash_format():
     encoded = hash_password("pässwörd ünicode")
     scheme, n, r, p, salt, key = encoded.split("$")

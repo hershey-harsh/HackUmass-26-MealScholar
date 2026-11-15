@@ -33,6 +33,7 @@ from .auth import (
     RequestClient,
     Rule,
     install_auth,
+    route_path,
 )
 from .busy import Busy, install_busy, open_busy
 from .config import USER_AGENT, Settings
@@ -54,6 +55,7 @@ MAX_PHOTO_BYTES = 25 * 1024 * 1024
 ANALYSIS_PER_USER = Rule("analysis-user", 30, 10 * 60)  # photos and answers together; a demo tries several meals
 ANALYSIS_PER_IP = Rule("analysis-ip", 100, 10 * 60)  # campus Wi-Fi can share one network
 PHOTO_CACHE = "private, max-age=86400"
+PAGE_TYPES = ("text/html", "application/manifest+json")
 JPEG_REPLY: dict[int | str, dict] = {200: {"content": {"image/jpeg": {}}, "description": "The photo."}}
 
 log = logging.getLogger(__name__)
@@ -154,6 +156,10 @@ class _ResponseSecurity:
                 headers["X-Content-Type-Options"] = "nosniff"
                 headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
                 headers["X-Frame-Options"] = "DENY"
+                # The page and the manifest are checked with the server on every load (a 304 while
+                # unchanged), so a new deploy reaches phones at once; ?v= assets keep their caching.
+                if "cache-control" not in headers and headers.get("content-type", "").startswith(PAGE_TYPES):
+                    headers["Cache-Control"] = "no-cache"
             await send(message)
 
         await self.app(scope, receive, send_protected)
@@ -177,7 +183,14 @@ def create_app(
     if places is None:
         places = NominatimPlaces(settings.nominatim_url, USER_AGENT)
 
-    app = FastAPI(title="MealScholar", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
+    # The interactive API docs are for local development (an http:// public URL); a public server has none.
+    local = settings.public_url.startswith("http://")
+    app = FastAPI(
+        title="MealScholar",
+        docs_url="/api/docs" if local else None,
+        redoc_url=None,
+        openapi_url="/api/openapi.json" if local else None,
+    )
     auth = auth or AuthService.from_settings(settings)
     install_auth(app, auth)
     dining = dining or open_dining(settings)
@@ -291,7 +304,9 @@ def create_app(
                     usual_portions=diary.usual_portions(),
                     location_id=location_id,
                 )
-            except Image.DecompressionBombError as exc:
+            # Over 50 MP (metadata.load_image). Pillow's own warning from about 89 MP comes first, in
+            # Image.open, and is raised where warnings are errors (the server's PYTHONWARNINGS).
+            except (Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
                 limit = MAX_PHOTO_PIXELS // 1_000_000
                 reply = f"Photos are limited to {limit} megapixels. Choose a lower-resolution photo."
                 raise HTTPException(413, reply) from exc
@@ -461,6 +476,15 @@ def create_app(
     def app_slash() -> RedirectResponse:
         return RedirectResponse("/app/", status_code=308)
 
-    app.mount("/app", app, name="app-under-landing")
+    # One level only: under /app, a path that starts with /app again is not found. Mounted in itself
+    # with no such stop, every /app in a path nested the whole app once more, until a long one ran out
+    # of stack (a 500 and a long traceback in the log).
+    async def app_once(scope: Scope, receive: Receive, send: Send) -> None:
+        path = route_path(scope)
+        if path == "/app" or path.startswith("/app/"):
+            raise HTTPException(404)
+        await app(scope, receive, send)
+
+    app.mount("/app", app_once, name="app-under-landing")
     app.mount("/", StaticFiles(directory=SITE, html=True), name="site")
     return app

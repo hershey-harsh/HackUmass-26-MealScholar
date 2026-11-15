@@ -43,15 +43,28 @@
   onScroll();
 
   // Phone menu: close after a pick, on Escape, or on a tap outside
-  // (that tap only closes the menu, so it can't open a link underneath).
+  // (that tap only closes the menu, so it can't open a link underneath). It also closes when the
+  // keyboard moves focus out of it, and when the screen gets too wide for it (a phone turned sideways),
+  // so a hidden open menu never holds focus or swallows the next tap.
   var menu = d.querySelector('.menu');
   if (menu) {
+    var byKey = false;
+    var phone = w.matchMedia('(max-width: 599px)');
     menu.addEventListener('click', function (e) { if (e.target.closest('a')) menu.open = false; });
     d.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && menu.open) { menu.open = false; menu.querySelector('summary').focus(); }
     });
+    // Only the keyboard: a tap outside moves focus too (in Chrome), and the guard below handles that tap.
+    d.addEventListener('keydown', function () { byKey = true; }, true);
+    d.addEventListener('pointerdown', function () { byKey = false; }, true);
+    menu.addEventListener('focusout', function (e) {
+      if (byKey && menu.open && e.relatedTarget && !menu.contains(e.relatedTarget)) menu.open = false;
+    });
+    phone.addEventListener('change', function () { if (!phone.matches) menu.open = false; });
     d.addEventListener('click', function (e) {
-      if (menu.open && !menu.contains(e.target)) { e.preventDefault(); e.stopPropagation(); menu.open = false; }
+      if (menu.open && menu.getClientRects().length && !menu.contains(e.target)) {
+        e.preventDefault(); e.stopPropagation(); menu.open = false;
+      }
     }, true);
   }
 
@@ -277,6 +290,8 @@
     if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) go(active + (dx < 0 ? 1 : -1), true);
   });
   track.addEventListener('pointercancel', function () { sx = null; });
+  // Photos and links would start a native drag instead, which cancels the swipe.
+  track.addEventListener('dragstart', function (e) { e.preventDefault(); });
   // A drag should not also count as a click on a link.
   track.addEventListener('click', function (e) { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } }, true);
 
@@ -332,6 +347,8 @@
 // in view, from the app's GET /api/dining/busy (the app answers under /app on this domain). It refreshes
 // with the cams, every three minutes. A still rather than the looping clip, so scrolling past the card
 // never decodes video. Without an answer, or if the frame doesn't load, the card keeps its plain words.
+// When no hall has a recent reading any more (the API leaves out readings over 15 minutes old), or the
+// one on show passes 15 minutes while the API can't be reached, the card goes back to its plain words.
 (function () {
   var d = document, w = window;
   var card = d.querySelector('[data-cam]');
@@ -340,10 +357,22 @@
   var img = card.querySelector('[data-cam-img]');
   var LEVEL = { quiet: 'Quiet', moderate: 'Moderate', busy: 'Busy' };
   var APP = '/app';
+  var FRESH = 15 * 60000;
+  var shown = null; // the reading on the card
   function q(s) { return card.querySelector(s); }
+  var plain = {
+    hall: q('[data-cam-hall]').textContent,
+    count: q('[data-cam-count]').textContent,
+    when: q('[data-cam-when]').textContent,
+    link: q('[data-cam-link]').getAttribute('href')
+  };
   function ago(iso) {
     var m = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60000));
     return m < 1 ? 'just now' : m + ' min ago';
+  }
+  function when(h) {
+    var level = LEVEL[h.level] || '';
+    return (level ? level + ' · ' : '') + ago(h.updated_at);
   }
   function show(h) {
     var src = APP + h.poster_url;
@@ -354,25 +383,46 @@
     }
     var level = LEVEL[h.level] || '';
     var people = h.people + (h.people === 1 ? ' person' : ' people') + ' in view';
+    shown = h;
     q('[data-cam-live]').hidden = false;
     q('[data-cam-hall]').textContent = h.name;
     q('[data-cam-dot]').setAttribute('data-level', h.level);
     q('[data-cam-count]').textContent = people;
-    q('[data-cam-when]').textContent = (level ? level + ' · ' : '') + ago(h.updated_at);
+    q('[data-cam-when]').textContent = when(h);
     q('[data-cam-sr]').textContent = ' ' + h.name + ' right now: ' + people + (level ? ', ' + level.toLowerCase() : '') + '.';
     if (h.live_url) q('[data-cam-link]').href = h.live_url;
+  }
+  function reset() {
+    shown = null;
+    img.onload = img.onerror = null;
+    img.removeAttribute('src');
+    vis.classList.remove('has-clip');
+    q('[data-cam-live]').hidden = true;
+    q('[data-cam-hall]').textContent = plain.hall;
+    q('[data-cam-dot]').removeAttribute('data-level');
+    q('[data-cam-count]').textContent = plain.count;
+    q('[data-cam-when]').textContent = plain.when;
+    q('[data-cam-sr]').textContent = '';
+    q('[data-cam-link]').setAttribute('href', plain.link);
   }
   function load() {
     if (d.hidden) return;
     w.fetch(APP + '/api/dining/busy', { credentials: 'omit', cache: 'no-store' })
-      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (r) {
+        if (!r.ok) throw new Error('busy ' + r.status);
+        return r.json();
+      })
       .then(function (data) {
         var halls = ((data && data.halls) || []).filter(function (h) { return h && h.poster_url && typeof h.people === 'number'; });
-        if (!halls.length) return;
+        if (!halls.length) { if (shown) reset(); return; }
         halls.sort(function (a, b) { return b.people - a.people; }); // ties keep the hall order
         show(halls[0]);
       })
-      .catch(function () {});
+      .catch(function () {
+        if (!shown) return;
+        if (Date.now() - Date.parse(shown.updated_at) > FRESH) reset();
+        else q('[data-cam-when]').textContent = when(shown);
+      });
   }
   load();
   w.setInterval(load, 180000);
