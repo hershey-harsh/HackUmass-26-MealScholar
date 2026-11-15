@@ -118,8 +118,9 @@ class MealAnalysis(BaseModel):
     )
     question: str | None = Field(
         description=(
-            "At most one short question about the uncertainty with the biggest calorie "
-            "impact; null when nothing material is uncertain."
+            "Usually null. At most one short question, only about a drink the photo can't "
+            "settle (diet or regular, sweetened or not, which milk) when the answer changes "
+            "its calories a lot; food never gets a question."
         )
     )
 

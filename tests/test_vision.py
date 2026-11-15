@@ -104,13 +104,15 @@ def test_the_menu_rule_is_strict_not_eager():
     )
     assert "menu_item\n  stays null and you name the food from what the photo shows" in SYSTEM_PROMPT
     assert "When you set menu_item, name is the menu's dish name." in SYSTEM_PROMPT
-    # Two listed dishes that both fit: the one question asks which, with those two as the options.
-    assert '("Is\n  this the Chicken Tikka Masala or the Butter Chicken?")' in SYSTEM_PROMPT
+    # Two listed dishes that both fit: the likelier one, without a question.
+    flat = " ".join(SYSTEM_PROMPT.split())
+    assert "set menu_item to the likelier one without asking" in flat
     # The example names no dish a hall really serves next to noodle soups, so it can't prime a pick.
     assert "Tantanmen" not in SYSTEM_PROMPT and "Pho or" not in SYSTEM_PROMPT
-    # The other rules stay: glanceable questions only, never about cooking oil, one sentence.
-    assert "at a glance" in SYSTEM_PROMPT and "Never ask about cooking oil" in SYSTEM_PROMPT
-    assert "Ask it in one sentence." in SYSTEM_PROMPT
+    # Questions are for drinks the photo can't settle, almost never; food gets a best estimate.
+    assert "Ask only about a drink you can't judge from the photo" in flat
+    assert "diet or regular soda" in flat and "Food never gets a question" in flat
+    assert "Never ask about cooking oil" in flat and "Ask it in one sentence." in flat
     assert "only when the food in the photo is that dish" in MENU_RULE
     assert "Otherwise leave menu_item and the servings null and name the food from the photo." in MENU_RULE
 
