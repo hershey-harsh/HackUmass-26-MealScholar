@@ -4992,6 +4992,8 @@ function renderMenu() {
   }
   els.menuBody.setAttribute("aria-busy", String(!entry || Boolean(entry.pending)));
   els.menuBody.innerHTML = `${menus.note ? `<p class="menu-note" role="status">${esc(menus.note)}</p>` : ""}${body}`;
+  const tabs = $(".menu-meals", els.menuBody);
+  if (tabs) fitMealTabs(tabs);
   if (focusedHall != null) $(`[data-hall="${CSS.escape(focusedHall)}"]`, els.menuHalls)?.focus({ preventScroll: true });
   else if (focusedDish != null) $(`[data-dish="${CSS.escape(focusedDish)}"]`, els.menuBody)?.focus({ preventScroll: true });
   else if (focusedMeal != null) $(`[data-meal-pick][value="${CSS.escape(focusedMeal)}"]`, els.menuBody)?.focus({ preventScroll: true });
@@ -5097,6 +5099,30 @@ async function ensureMenuDay() {
   renderMenu();
 }
 
+/** Phones: a day's meal tabs scroll sideways when they don't fit (Worcester lists five). Keep the one on
+    show in view, since every redraw starts the row at its start, and fade the side that has more. */
+function fitMealTabs(row) {
+  const on = $(".menu-meals__input:checked + .menu-meals__opt", row);
+  if (on && row.scrollWidth > row.clientWidth) row.scrollLeft = Math.max(0, on.offsetLeft + on.offsetWidth / 2 - row.clientWidth / 2);
+  markMealTabs(row);
+}
+
+function markMealTabs(row) {
+  const max = row.scrollWidth - row.clientWidth;
+  row.classList.toggle("has-more-start", max > 1 && row.scrollLeft > 1);
+  row.classList.toggle("has-more-end", max > 1 && row.scrollLeft < max - 1);
+}
+
+els.menuBody.addEventListener("scroll", (event) => event.target.classList?.contains("menu-meals") && markMealTabs(event.target), { capture: true, passive: true });
+// Tabbing into the meals lands on the one on show; bring its tab fully into view.
+els.menuBody.addEventListener("focusin", (event) => {
+  if (event.target.matches?.("[data-meal-pick]")) fitMealTabs(event.target.closest(".menu-meals"));
+});
+addEventListener("resize", () => {
+  const row = $(".menu-meals", els.menuBody);
+  if (row) markMealTabs(row);
+}, { passive: true });
+
 /** A dish on another day's menu with the flags the server puts on the next meal's (dining.flag_items). */
 function flagDish(item, category) {
   const allergens = Array.isArray(item.allergens) ? item.allergens : [];
@@ -5135,12 +5161,10 @@ function menuDayHtml(hall, menu) {
       ? `
     <div class="menu-meals" role="radiogroup" aria-label="Meals">${meals
       .map(
-        (m) => `
-      <input id="menu-meal-${esc(m.meal)}" class="menu-meals__input visually-hidden" type="radio" name="menu-meal" value="${esc(m.meal)}" data-meal-pick${m === shown ? " checked" : ""}>
-      <label class="menu-meals__opt" for="menu-meal-${esc(m.meal)}">${esc(label(m))}</label>`
+        (m) =>
+          `<input id="menu-meal-${esc(m.meal)}" class="menu-meals__input visually-hidden" type="radio" name="menu-meal" value="${esc(m.meal)}" data-meal-pick${m === shown ? " checked" : ""}><label class="menu-meals__opt" for="menu-meal-${esc(m.meal)}">${esc(label(m))}</label>`
       )
-      .join("")}
-    </div>`
+      .join("")}</div>`
       : "";
   return `${tabs}${menuCardHtml(hall, { location: { id: hall, name }, date: day, meal: shown.meal, label: label(shown), items }, null, { day: true })}`;
 }

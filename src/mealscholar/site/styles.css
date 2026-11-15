@@ -9418,9 +9418,9 @@ body[data-prefs="on"] .menunav .datenav__btn {
 }
 
 .menu-meals {
-  display: flex;
-  gap: 4px;
+  display: block; /* not flex: each hidden radio then sits by its tab, so focusing it scrolls that tab into view */
   min-width: 0;
+  white-space: nowrap;
   margin: 0 -4px 18px; /* the first meal's name lines up with the hall's name under it */
   overflow-x: auto;
   background: linear-gradient(var(--hair), var(--hair)) left 8px bottom / calc(100% - 16px) 1px no-repeat;
@@ -9431,13 +9431,35 @@ body[data-prefs="on"] .menunav .datenav__btn {
   display: none;
 }
 
+/* When the tabs scroll sideways, the side with more fades out; the tabs are measured from the row. */
+.menu-meals {
+  position: relative;
+  scroll-padding-inline: 8px;
+}
+
+.menu-meals.has-more-end {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 40px), transparent);
+}
+
+.menu-meals.has-more-start {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 40px);
+  mask-image: linear-gradient(90deg, transparent, #000 40px);
+}
+
+.menu-meals.has-more-start.has-more-end {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+}
+
 .menu-meals__opt {
   position: relative;
-  flex: none;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   min-height: 44px;
+  margin-right: 4px;
   padding-inline: 8px;
+  vertical-align: top;
   color: var(--ink-2);
   font: 500 0.9375rem / 1 var(--font-sans);
   cursor: pointer;
