@@ -250,7 +250,7 @@ three data sets and verify restoration.
   is a label reference, not a prescribed goal. No insulin or carb-dosing advice.
 - **Bounded image decoding:** photos over 50 megapixels are refused before their pixels are decoded.
   Web uploads also have a 25 MB encoded-body limit and return 413 with resizing guidance.
-- **Shared model-request budgets:** photo uploads and clarifying answers together allow 10 attempts
+- **Shared model-request budgets:** photo uploads and clarifying answers together allow 30 attempts
   per signed-in account and 100 per network in a sliding 10-minute window. Guests have the network
   limit too. IPv6 addresses in one /64 share a network allowance, and forwarded visitor IPs are
   trusted only from the local tunnel. Refused requests return 429 with `Retry-After` before model work;
