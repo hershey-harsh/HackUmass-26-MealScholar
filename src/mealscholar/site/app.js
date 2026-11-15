@@ -3125,6 +3125,7 @@ function resetData() {
   els.dashRecent.innerHTML = "";
   els.strip.hidden = true;
   els.strip.innerHTML = "";
+  strip.key = "";
   els.onboard.hidden = true;
   els.onboard.innerHTML = "";
   updateBell();
