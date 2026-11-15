@@ -1441,6 +1441,8 @@ function notesHtml(result) {
 // ----------------------------------------------------------- result actions
 
 async function withBusy(button, task) {
+  // Disabling the focused button drops focus to the page: it comes back after, unless the task moved it.
+  const hadFocus = document.activeElement === button;
   button.disabled = true;
   button.setAttribute("aria-busy", "true");
   try {
@@ -1449,6 +1451,8 @@ async function withBusy(button, task) {
     if (button.isConnected) {
       button.disabled = false;
       button.removeAttribute("aria-busy");
+      const lost = !document.activeElement || document.activeElement === document.body;
+      if (hadFocus && lost) button.focus({ preventScroll: true });
     }
   }
 }
