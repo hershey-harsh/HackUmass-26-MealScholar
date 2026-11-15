@@ -7163,11 +7163,19 @@ body:not([data-dining="on"]) .tab[data-view="menu"] {
   margin-top: 4px;
 }
 
+/* The stations are inline blocks, each one a line of the columns: Safari balances block stations slowly
+   (60-110 ms a hall switch) and these in a fraction of it, in the same places. Widows and orphans at 1
+   keep the browser from moving a lone station to balance the columns differently. */
 .menu-cats {
   column-gap: 32px;
+  widows: 1;
+  orphans: 1;
 }
 
 .menu-cat {
+  display: inline-block;
+  width: 100%;
+  vertical-align: top;
   break-inside: avoid;
   padding-bottom: 6px;
 }
