@@ -27,6 +27,8 @@ const els = {
   weekView: $("#week"),
   weekPageTitle: $("#week-page-title"),
   weekSub: $("#week-sub"),
+  weekPrev: $("#week-prev"),
+  weekNext: $("#week-next"),
   railAlerts: $("#rail-alerts"),
   railDot: $("#rail-alerts .rail__dot"),
   railSettings: $("#rail-settings"),
@@ -45,11 +47,9 @@ const els = {
   today: $("#today-body"),
   todayTitle: $("#today-title"),
   todayDate: $("#today-date"),
-  greeting: $("#today-greeting"),
   banner: $("#today-banner"),
   dayPrev: $("#day-prev"),
   dayNext: $("#day-next"),
-  dayToday: $("#day-today"),
   dayStatus: $("#day-status"),
   dashNotice: $("#dash-notice"),
   dashDay: $("#dash-day"),
@@ -81,7 +81,6 @@ const els = {
   dashRecent: $("#dash-recent"),
   strip: $("#dash-strip"),
   plus: $("#plus-button"),
-  footerNote: $("#footer-note"),
 };
 
 const media = (query) => window.matchMedia(query);
@@ -122,7 +121,7 @@ const state = {
   todayKey: null, // what "today" was when last checked
   dashSeq: 0,
   microOpen: true, // the Week tab's vitamins card
-  scoreOpen: false, // the health score's "How it's scored" disclosure
+  weekStart: null, // the Week tab's week (its Sunday) when it was paged away from the day on show
   // Preferences (goals, dining halls, diet, favorites, alerts): only once GET /api/me/prefs answers
   // 200, either for the signed-in account or for the server's one "local" user when sign-in is
   // optional. Without that, nothing below exists and the app is as it was.
@@ -311,7 +310,6 @@ function shiftDay(key, delta) {
 }
 
 /** `count` days ending with `end`, oldest first. */
-const lastDays = (end, count) => Array.from({ length: count }, (_, i) => shiftDay(end, i - count + 1));
 
 /** The diary files a meal under the local date of its photo. */
 const mealDay = (result) => localDate(wallClock(result.context.taken_at));
@@ -518,7 +516,7 @@ const onScroll = () => {
 window.addEventListener("scroll", onScroll, { passive: true });
 
 /** Laptops: the pinned left column scrolls inside itself when it's taller than its slot (larger
-    browser text, a short window, an open "How it's scored"). Its scrollbar is hidden, so a soft fade
+    browser text, a short window). Its scrollbar is hidden, so a soft fade
     at its bottom edge (styles.css) shows while more of it sits below. */
 function markColumnMore() {
   const col = els.dashDay;
@@ -539,27 +537,6 @@ new MutationObserver(watchColumn).observe(els.dashDay, { childList: true });
 els.dashDay.addEventListener("scroll", markColumnMore, { passive: true });
 laptop.addEventListener("change", markColumnMore);
 
-/** Laptops from 80em: the dashboard is exactly the window's height and its middle column scrolls
-    inside itself (styles.css), so the page itself never scrolls; the footer then sits at the end of
-    that column, under the scans. Everywhere else (phones, and the two-column layout up to 80em,
-    where the page scrolls) it goes back under <main>. */
-const bound = matchMedia("(min-width: 80em)");
-const footer = $(".footer");
-const dashMid = $("#dash-mid");
-
-function placeFooter() {
-  const { prefs, view, result, screen } = document.body.dataset;
-  const inColumn = bound.matches && prefs === "on" && view === "today" && !result && screen === "app";
-  if (inColumn) {
-    if (footer.parentElement !== dashMid) dashMid.append(footer);
-  } else if (footer.parentElement !== document.body) {
-    els.main.after(footer);
-  }
-}
-
-placeFooter();
-new MutationObserver(placeFooter).observe(document.body, { attributes: true, attributeFilter: ["data-view", "data-result", "data-prefs", "data-screen"] });
-bound.addEventListener("change", placeFooter);
 
 /** The tab that is on screen for this layout: the tab bar on phones, the top bar on wide screens. */
 const visibleTab = () => els.tabs.find((tab) => tab.matches("[aria-current]") && tab.getClientRects().length);
@@ -1761,35 +1738,21 @@ function dayTitle(key) {
 
 const firstName = (user) => (user?.name ?? "").trim().split(/\s+/)[0] ?? "";
 
-function greetingPart() {
-  const hour = new Date().getHours();
-  return `Good ${hour >= 5 && hour < 12 ? "morning" : hour >= 12 && hour < 18 ? "afternoon" : "evening"}`;
-}
-
-function greetingText() {
-  const name = state.authRequired ? firstName(state.user) : "";
-  return name ? `${greetingPart()}, ${name}` : greetingPart();
-}
-
 function renderDashHead() {
   const key = state.day;
   const { title, sub } = dayTitle(key);
   const isToday = key === state.todayKey;
   els.todayTitle.textContent = title;
   els.todayDate.textContent = sub;
-  // Text, never HTML: the name comes from the server.
-  const tail = rangesOn() ? "every amount a range" : "estimated from your photos";
-  els.greeting.textContent = isToday ? `${greetingText()}. Your day so far, ${tail}.` : `What you ate that day, ${tail}.`;
   const active = document.activeElement;
   els.dayNext.disabled = isToday; // never a future day
-  els.dayToday.hidden = isToday;
-  if (isToday && (active === els.dayNext || active === els.dayToday)) els.dayPrev.focus();
+  if (isToday && active === els.dayNext) els.dayPrev.focus();
   els.dayPrev.setAttribute("aria-label", `Previous day, ${longDay.format(parseDay(shiftDay(key, -1)))}`);
   els.dayNext.setAttribute("aria-label", isToday ? "Next day" : `Next day, ${longDay.format(parseDay(shiftDay(key, 1)))}`);
   renderStrip();
 }
 
-/** Laptop, with preferences: a slide of weeks, Monday to Sunday on each page, the current week last
+/** Laptop, with preferences: a slide of weeks, Sunday to Saturday on each page, the current week last
     and on show first. Swipe, scroll sideways or use the chevrons at the ends to page a week; the day
     arrows still step one day and the slide follows the day on show. Today is ringed, the day on show
     filled in, days still ahead disabled. A past day opens like any other (the same data-day handler). */
@@ -1797,7 +1760,8 @@ const STRIP_WEEKS = 8; // this week and the 7 before it
 const WEEK_MS = 7 * 864e5;
 const strip = { key: "", day: null, page: 0, pages: 0, timer: 0 };
 
-const mondayOf = (key) => shiftDay(key, -((parseDay(key).getDay() + 6) % 7));
+/** Weeks run Sunday to Saturday, the way US calendars print them. */
+const sundayOf = (key) => shiftDay(key, -parseDay(key).getDay());
 const weeksBetween = (from, to) => Math.round((parseDay(to) - parseDay(from)) / WEEK_MS); // DST-safe
 const stripTrack = () => $(".strip__track", els.strip);
 
@@ -1821,18 +1785,18 @@ function renderStrip() {
     return;
   }
   const today = state.todayKey;
-  const thisMonday = mondayOf(today);
+  const thisSunday = sundayOf(today);
   // Eight weeks, or as many as it takes to reach a day picked further back with the day arrows.
-  const back = Math.max(STRIP_WEEKS - 1, weeksBetween(mondayOf(state.day), thisMonday));
+  const back = Math.max(STRIP_WEEKS - 1, weeksBetween(sundayOf(state.day), thisSunday));
   const key = `${today}|${back}`;
   if (key !== strip.key) {
-    const weeks = Array.from({ length: back + 1 }, (_, i) => shiftDay(thisMonday, (i - back) * 7));
+    const weeks = Array.from({ length: back + 1 }, (_, i) => shiftDay(thisSunday, (i - back) * 7));
     const html = `
       <button class="strip__nav" type="button" data-strip="-1" aria-label="Earlier week">${icon("chevron-left")}</button>
       <div class="strip__track">${weeks
         .map(
-          (monday) => `
-        <div class="strip__week" role="group" aria-label="${esc(`Week of ${monthDay.format(parseDay(monday))}`)}">${Array.from({ length: 7 }, (_, d) => stripDayHtml(shiftDay(monday, d), today)).join("")}</div>`
+          (sunday) => `
+        <div class="strip__week" role="group" aria-label="${esc(`Week of ${monthDay.format(parseDay(sunday))}`)}">${Array.from({ length: 7 }, (_, d) => stripDayHtml(shiftDay(sunday, d), today)).join("")}</div>`
         )
         .join("")}</div>
       <button class="strip__nav" type="button" data-strip="1" aria-label="Later week">${icon("chevron-right")}</button>`;
@@ -1850,7 +1814,7 @@ function renderStrip() {
   if (strip.day !== state.day) {
     const first = strip.day === null;
     strip.day = state.day;
-    showStripPage(strip.pages - 1 - weeksBetween(mondayOf(state.day), thisMonday), !first);
+    showStripPage(strip.pages - 1 - weeksBetween(sundayOf(state.day), thisSunday), !first);
   }
 }
 
@@ -1901,9 +1865,27 @@ new ResizeObserver(() => {
   if (track?.clientWidth) track.scrollTo({ left: strip.page * track.clientWidth, behavior: "auto" });
 }).observe(els.strip);
 
+/** The Week tab's week, Sunday to Saturday: the week of the day on show, unless paged to another. */
+const WEEKS_BACK = 52;
+const weekStartKey = () => state.weekStart ?? sundayOf(state.day ?? state.todayKey ?? localDate());
+const weekKeys = () => Array.from({ length: 7 }, (_, i) => shiftDay(weekStartKey(), i));
+const pastKeys = (keys) => keys.filter((key) => key <= state.todayKey);
+
+/** Page the Week tab a week back (-1) or ahead (1); never past this week, nor more than a year back. */
+function showWeek(delta) {
+  ensureToday();
+  const thisWeek = sundayOf(state.todayKey);
+  const oldest = shiftDay(thisWeek, -7 * WEEKS_BACK);
+  let start = shiftDay(weekStartKey(), delta * 7);
+  if (start > thisWeek) start = thisWeek;
+  if (start < oldest) start = oldest;
+  state.weekStart = start === sundayOf(state.day) ? null : start;
+  loadDashboard();
+}
+
 function ensureDashboard() {
   if (ensureToday() || !rendered.day.startsWith(`${state.day}|`)) return loadDashboard();
-  const keys = [state.day, ...lastDays(state.todayKey, 7)];
+  const keys = [state.day, ...pastKeys(weekKeys())];
   if (keys.some((key) => !dayCache.get(key)?.value || dayCache.get(key).stale)) loadDashboard();
 }
 
@@ -1911,7 +1893,7 @@ async function loadDashboard() {
   if (document.body.dataset.screen !== "app") return;
   ensureToday();
   const seq = ++state.dashSeq;
-  const week = lastDays(state.todayKey, 7);
+  const week = pastKeys(weekKeys());
   const dayTask = fetchDay(state.day);
   const weekTasks = week.map((key) => fetchDay(key));
   renderDashHead();
@@ -1931,6 +1913,7 @@ function goToDay(key) {
   if (key > state.todayKey) key = state.todayKey; // never a future day
   if (key === state.day) return;
   state.day = key;
+  state.weekStart = null; // the Week tab follows the day
   els.dayStatus.textContent = `Showing ${longDay.format(parseDay(key))}.`;
   loadDashboard();
 }
@@ -2014,22 +1997,19 @@ function heroHtml(view) {
   const [low, likely, high] = [amount(kcal.low, "kcal"), amount(kcal.likely, "kcal"), amount(kcal.high, "kcal")];
   const exact = low === high;
   if (goalsMode()) return goalHeroHtml(kcal, head, state.prefs.calorie_goal);
+  // No goal, so no bar: a bar would only measure the day against nothing.
   const ranges = rangesOn();
-  const setGoal = state.prefsOn ? ` ${settingsLinkHtml("Set a goal", "goals", { light: true })}` : "";
   const rangeLine = exact
     ? "Every counted food has a set amount, so this is one number."
     : `Most likely, in a range of <strong>${low}${TO}${high}&nbsp;kcal</strong>`;
   return `
-    <section class="card hero" aria-labelledby="hero-title">
+    <section class="card hero hero--nogoal" aria-labelledby="hero-title">
       ${head}
       <div class="hero__main">
         <p class="hero__value"><span class="hero__num">${likely}</span><span class="hero__unit">kcal</span>${exact || !ranges ? "" : '<span class="visually-hidden">, most likely</span>'}</p>
         ${ranges ? `<p class="hero__range">${rangeLine}</p>` : ""}
       </div>
-      <div class="hero__foot">
-        ${bandHtml("dash-kcal", kcal, { dark: true })}
-        <p class="hero__note">${icon("info")}<span>${ranges ? "A range" : "An estimate"}, not a target. There's no goal to hit.${setGoal}</span></p>
-      </div>
+      ${state.prefsOn ? `<div class="hero__foot"><p class="hero__set">${settingsLinkHtml("Set a goal", "goals", { light: true })}</p></div>` : ""}
     </section>`;
 }
 
@@ -2101,21 +2081,16 @@ function statHtml(view, key, label, size) {
          ${ranges ? `<span class="stat__range">${isExact(range) ? "Set amount" : `<span class="visually-hidden">range </span>${fmt(range.low)}${TO}${fmt(range.high)}`}</span>` : ""}
        </p>`
     : '<p class="stat__figure"><span class="stat__none">No data</span></p>';
-  let foot;
+  let foot = "";
   if (range && goal != null) {
     // The goal is the whole bar; what's left counts from the likely amount.
     const left = goal - range.likely;
     foot = `${bandHtml(`dash-${key}`, range, { scale: goal || 1 })}<p class="stat__dv stat__left">${SEP}${esc(leftText(left, unit, (v) => fmt(v)))}</p>`;
-  } else if (range && pct) {
+  } else if (range && pct && goalsMode()) {
     foot = `${bandHtml(`dash-${key}`, pct, { scale: Math.max(100, pct.high * 1.05) })}<p class="stat__dv">${SEP}${dvHtml(pct)}</p>`;
-  } else {
-    foot = `<p class="stat__dv stat__dv--none">${SEP}No Daily Value</p>`;
   }
-  return `<li class="card stat stat--${size}"><p class="stat__label">${esc(label)}</p>${figure}${foot}</li>`;
+  return `<li class="card stat stat--${size}${foot ? "" : " stat--plain"}"><p class="stat__label">${esc(label)}</p>${figure}${foot}</li>`;
 }
-
-const GOAL_NOTE = "Bars run to your daily goal, or to the FDA Daily Value where you have none.";
-const goalNote = () => (rangesOn() ? `${GOAL_NOTE} What's left counts from the likely amount.` : GOAL_NOTE);
 
 function statsHtml(view) {
   return `
@@ -2123,7 +2098,6 @@ function statsHtml(view) {
       <h2 id="stats-title" class="visually-hidden">Nutrients</h2>
       <ul class="stats stats--macro">${MACROS.map(([key, label]) => statHtml(view, key, label, "macro")).join("")}</ul>
       <ul class="stats stats--mini">${MINIS.map(([key, label]) => statHtml(view, key, label, "mini")).join("")}</ul>
-      <p class="note stats__note">${goalsMode() ? goalNote() : DV_NOTE}</p>
     </section>`;
 }
 
@@ -2145,7 +2119,6 @@ function swipeHtml(view, score) {
       <div class="swipe__dots">
         ${pages.map(([label], i) => `<button class="swipe__dot" type="button" data-swipe-to="${i}" aria-label="${label}"${i === at ? ' aria-current="true"' : ""}></button>`).join("")}
       </div>
-      <p class="note stats__note">${goalsMode() ? goalNote() : DV_NOTE}</p>
     </section>`;
 }
 
@@ -2249,7 +2222,6 @@ function microHtml(view) {
       <div class="micro-card__body">
         <p class="note">Photos can't show vitamins and minerals well, so these are rough estimates. A weekly trend says more than one day. Pick a day in the chart to see its own.</p>
         <ul class="nutrients">${rows}</ul>
-        <p class="note">${DV_NOTE}</p>
       </div>
     </details>`;
 }
@@ -2311,6 +2283,9 @@ function niceTop(value) {
 /** One day of the week chart. A day that failed to load is never drawn as a day with no meals, and
     a logged day with nothing counted is never drawn as an empty one. */
 function weekDay(key) {
+  if (key > state.todayKey) {
+    return { key, view: null, logged: false, kcal: null, pending: false, failed: false, future: true, error: null, version: 0 };
+  }
   const entry = dayCache.get(key);
   const view = entry?.value ?? null;
   const logged = Boolean(view?.meals.length);
@@ -2329,11 +2304,12 @@ function weekDay(key) {
 
 function renderWeek() {
   renderWeekSub();
-  const days = lastDays(state.todayKey, 7).map(weekDay);
-  const sig = `${state.day}|${days.map((d) => `${d.key}:${d.version}:${d.view ? "v" : d.failed ? "e" : "p"}`).join(",")}`;
+  const days = weekKeys().map(weekDay);
+  const sig = `${state.day}|${state.todayKey}|${days.map((d) => `${d.key}:${d.version}:${d.future ? "f" : d.view ? "v" : d.failed ? "e" : "p"}`).join(",")}|${state.prefsVersion}`;
   if (sig === rendered.week) return;
   // Some days in: the chart. Every day failed: say so, with Try again. Otherwise the skeleton.
-  const mode = days.some((d) => d.view) ? "ready" : days.every((d) => d.failed) ? "error" : "loading";
+  const past = days.filter((d) => !d.future);
+  const mode = past.some((d) => d.view) ? "ready" : past.every((d) => d.failed) ? "error" : "loading";
   const entering = mode === "ready" && (!rendered.week || els.dashWeek.dataset.state !== "ready");
   rendered.week = sig;
   els.dashWeek.dataset.state = mode;
@@ -2356,10 +2332,19 @@ function weekHead() {
 }
 
 function renderWeekSub() {
-  const days = lastDays(state.todayKey, 7);
-  const first = parseDay(days[0]);
-  const last = parseDay(days[6]);
-  els.weekSub.textContent = `Last 7 days, ${monthDay.format(first)} to ${monthDay.format(last)}`;
+  const start = weekStartKey();
+  const [first, last] = [parseDay(start), parseDay(shiftDay(start, 6))];
+  const sameMonth = first.getMonth() === last.getMonth();
+  els.weekSub.textContent = `${monthDay.format(first)} to ${sameMonth ? last.getDate() : monthDay.format(last)}`;
+  const thisWeek = sundayOf(state.todayKey);
+  els.weekPageTitle.textContent =
+    start === thisWeek ? "This week" : start === shiftDay(thisWeek, -7) ? "Last week" : `Week of ${monthDay.format(first)}`;
+  const active = document.activeElement;
+  els.weekNext.disabled = start >= thisWeek;
+  els.weekPrev.disabled = start <= shiftDay(thisWeek, -7 * WEEKS_BACK);
+  if (active === els.weekNext && els.weekNext.disabled) els.weekPrev.focus({ preventScroll: true });
+  els.weekPrev.setAttribute("aria-label", `Previous week, from ${monthDay.format(parseDay(shiftDay(start, -7)))}`);
+  els.weekNext.setAttribute("aria-label", els.weekNext.disabled ? "Next week" : `Next week, from ${monthDay.format(parseDay(shiftDay(start, 7)))}`);
 }
 
 function weekErrorHtml(days) {
@@ -2395,38 +2380,23 @@ function weekHtml(days) {
     </div>`;
 }
 
-/** Under the chart: the average over the days it can honestly use, or why there isn't one. */
+/** Under the chart: days that didn't load, what the plate means when a day shows one, or that the
+    week has no meals yet. */
 function weekFootHtml(days, counted) {
   const failed = days.filter((d) => d.failed).length;
   if (failed) {
-    // An average without the missing days would quietly be about fewer days than it looks.
     return `
-      <div class="wk__avg wk__avg--error">
-        <p class="wk__error">Couldn't load ${failed} of 7 days, so there's no average.</p>
+      <div class="wk__foot wk__foot--error">
+        <p class="wk__error">Couldn't load ${failed === 1 ? "one of these days" : `${failed} of these days`}.</p>
         <button class="btn btn--soft" type="button" data-action="retry">Try again</button>
       </div>`;
   }
-  if (days.some((d) => d.pending)) {
-    return '<div class="wk__avg" aria-hidden="true"><span class="sk sk--line"></span></div>';
-  }
+  if (days.some((d) => d.pending)) return "";
   const logged = days.filter((d) => d.logged).length;
-  if (!logged) return '<div class="wk__avg"><p class="wk__avg-label">No meals logged in the last 7 days.</p></div>';
-  const uncounted = logged - counted.length;
-  const key = uncounted ? `<p class="wk__key">${icon("plate")}<span>Meals logged, calories not counted yet</span></p>` : "";
-  if (!counted.length) {
-    const which = logged === 1 ? "the logged day" : `the ${logged} logged days`;
-    return `<div class="wk__avg"><p class="wk__avg-label">No calories counted yet on ${which}.</p>${key}</div>`;
-  }
-  // Only days with counted calories go in; a day with no meals is missing data, not a zero.
-  const mean = (part) => counted.reduce((sum, d) => sum + d.kcal[part], 0) / counted.length;
-  const n = counted.length;
-  const label = uncounted ? `Average over ${n} of ${logged} logged days` : `Average over ${n} logged day${n === 1 ? "" : "s"}`;
-  return `
-    <div class="wk__avg">
-      <p class="wk__avg-label">${label}</p>
-      <p class="wk__avg-value">${rangeHtml({ low: mean("low"), likely: mean("likely"), high: mean("high") }, "kcal")}</p>
-      ${key}
-    </div>`;
+  const thisWeek = weekStartKey() === sundayOf(state.todayKey);
+  if (!logged) return `<p class="wk__foot wk__note">No meals logged ${thisWeek ? "this week yet" : "that week"}.</p>`;
+  if (logged > counted.length) return `<p class="wk__foot wk__key">${icon("plate")}<span>Meals logged, calories not counted yet</span></p>`;
+  return "";
 }
 
 function weekColHtml(d, top, i) {
@@ -2466,6 +2436,10 @@ function weekColHtml(d, top, i) {
     label = `${spoken}: couldn't load`;
     tip = "Couldn't load this day";
     full = "Couldn't load";
+  } else if (d.future) {
+    kind = " is-future";
+    label = `${spoken}: still ahead`;
+    tip = "Still ahead";
   } else if (d.pending) {
     kind = " is-empty is-pending";
     label = `${spoken}: loading`;
@@ -2474,7 +2448,7 @@ function weekColHtml(d, top, i) {
   const cls = `wk__col${isToday ? " is-today" : ""}${kind}`;
   return `
     <li class="wk__day">
-      <button class="${cls}" type="button" data-day="${d.key}"${current} aria-label="${esc(label)}" data-tip-day="${esc(dayFormat.format(date))}" data-tip="${esc(tip)}">
+      <button class="${cls}" type="button" data-day="${d.key}"${current}${d.future ? " disabled" : ""} aria-label="${esc(label)}" data-tip-day="${esc(dayFormat.format(date))}" data-tip="${esc(tip)}">
         ${plot}
         <span class="wk__name" aria-hidden="true">${name}</span>
         <span class="wk__val${d.kcal ? "" : " wk__val--note"}" aria-hidden="true"><span class="wk__val--short">${short}</span><span class="wk__val--full">${esc(full)}</span></span>
@@ -2537,6 +2511,11 @@ function dashClick(event) {
     if (pager.getAttribute("aria-disabled") !== "true") showStripPage(strip.page + Number(pager.dataset.strip));
     return;
   }
+  const weekPager = target.closest("[data-week]");
+  if (weekPager) {
+    if (!weekPager.disabled) showWeek(Number(weekPager.dataset.week));
+    return;
+  }
   const day = target.closest("[data-day]");
   if (day) {
     const which = day.dataset.day;
@@ -2593,7 +2572,6 @@ els.todayView.addEventListener("click", dashClick);
 els.weekView.addEventListener("click", dashClick);
 
 els.dashMicro.addEventListener("toggle", (event) => (state.microOpen = event.target.open), true);
-els.dashDay.addEventListener("toggle", (event) => event.target.matches(".score__how") && (state.scoreOpen = event.target.open), true);
 
 function clearMealError() {
   $("[data-meal-error]", els.today)?.remove();
@@ -2865,7 +2843,7 @@ function resetData() {
   state.day = null;
   state.todayKey = null;
   state.microOpen = true;
-  state.scoreOpen = false;
+  state.weekStart = null;
   state.scroll = { analyze: 0, today: 0, menu: 0, week: 0, list: 0 };
   state.view = "today";
   document.body.dataset.view = "today";
@@ -4205,14 +4183,10 @@ function diningLost() {
   renderMenu();
 }
 
-const FOOTER_PLAIN = "Information, not medical advice. Any goal is one you set yourself; no insulin or carb dosing advice.";
-const FOOTER_PREFS = "Information, not medical advice. A goal here is one you set yourself; no insulin or carb dosing advice.";
-
 function updatePrefsUi() {
   if (state.prefsOn) document.body.dataset.dining = diningOn() ? "on" : "off";
   else delete document.body.dataset.dining;
   els.plus.hidden = false;
-  els.footerNote.textContent = state.prefsOn ? FOOTER_PREFS : FOOTER_PLAIN;
   updateBell();
   // The menus went away (or were never there): the Menu tab folds away, and so does its page.
   if (!diningOn() && state.view === "menu" && document.body.dataset.screen === "app") {
@@ -4966,23 +4940,30 @@ function recentHtml(view) {
     </section>`;
 }
 
+/** What a meal is called: the name the analysis gave it, else its foods. */
+function mealTitle(m) {
+  const name = typeof m.name === "string" ? m.name.trim() : "";
+  if (name) return capitalize(name);
+  return m.items.map((r) => capitalize(r.item.name)).join(", ");
+}
+
 function recentCardHtml(m) {
   const kcal = m.totals.energy_kcal;
-  const names = m.items.map((r) => capitalize(r.item.name)).join(", ");
+  const names = mealTitle(m);
   const place = placeName(m.context);
   // The meal's own photo when one was saved with it, else a plate.
   const photo = m.photo_url
-    ? `<span class="recent-card__photo recent-card__photo--img" aria-hidden="true"><img src="${esc(serverUrl(thumbUrl(m.photo_url)))}" alt="" width="44" height="44" loading="lazy" decoding="async" data-stored></span>`
+    ? `<span class="recent-card__photo recent-card__photo--img" aria-hidden="true"><img src="${esc(serverUrl(thumbUrl(m.photo_url)))}" alt="" width="60" height="60" loading="lazy" decoding="async" data-stored></span>`
     : `<span class="recent-card__photo" aria-hidden="true">${icon("fork")}</span>`;
   return `
     <li>
       <button class="card recent-card" type="button" data-meal="${esc(m.id)}">
         ${photo}
         <span class="recent-card__body">
-          <span class="recent-card__when"><span class="recent-card__slot">${esc(capitalize(m.context.meal_slot))}</span>${SEP}<span class="recent-card__time">${timeFormat.format(wallClock(m.context.taken_at))}</span>${
+          <span class="recent-card__foods">${names ? esc(names) : "No foods found"}</span>
+          <span class="recent-card__when">${SEP}<span class="recent-card__slot">${esc(capitalize(m.context.meal_slot))}</span>${SEP}<span class="recent-card__time">${timeFormat.format(wallClock(m.context.taken_at))}</span>${
             place ? `<span class="recent-card__place">${SEP}${esc(place)}</span>` : ""
           }</span>
-          <span class="recent-card__foods">${SEP}${names ? esc(names) : "No foods found"}</span>
           <span class="recent-card__kcal">${SEP}${kcal ? rangeHtml(kcal, "kcal", undefined, { stack: true }) : '<span class="value__none">Not counted</span>'}</span>
         </span>
         <span class="meal__chev" aria-hidden="true">${icon("chevron-right")}</span>
@@ -5071,18 +5052,6 @@ function healthScore(view) {
 
 function scoreHtml(view) {
   const { score, parts } = healthScore(view);
-  const points = (p) => (p.pct == null ? "0" : `${p.points > 0 ? "+" : p.points < 0 ? "-" : ""}${nf1.format(Math.abs(p.points))}`);
-  const rows = parts
-    .map(
-      (p) => `
-      <li class="score__part${p.plus ? "" : " score__part--minus"}">
-        <span class="score__part-name">${esc(p.label)}</span>
-        <span class="score__part-pct">${p.pct == null ? "No data" : `${nf0.format(p.pct)}% of DV`}</span>
-        <span class="score__part-pts">${points(p)}</span>
-      </li>`
-    )
-    .join("");
-  const plusNames = SCORE_PLUS.map(([key, fallback]) => (labelOf(key) === key ? fallback : labelOf(key))); // names keep their case
   const nothingCounted = parts.every((p) => p.pct == null);
   const main = nothingCounted
     ? `<p class="score__empty note">No data yet. Pick a USDA food for each item to score the day.</p>`
@@ -5096,16 +5065,6 @@ function scoreHtml(view) {
       </div>
       <div class="score__main">
         ${main}
-      </div>
-      <div class="score__foot">
-        <p class="score__note">A rough guide, not medical advice.</p>
-        <details class="disclosure score__how"${state.scoreOpen ? " open" : ""}>
-          <summary>How it's scored</summary>
-          <div class="disclosure__body">
-            <p class="note">Up to ${nf1.format(PLUS_POINTS)} points each for ${esc(plusNames.slice(0, -1).join(", "))} and ${esc(plusNames.at(-1))} as today's ${rangesOn() ? "likely " : ""}amount reaches 100% of its Daily Value. Up to ${MINUS_POINTS} points off each for saturated fat, sodium and sugars past 100% (${ADDED_SUGARS_DV} g for sugars, the label value for added sugars).</p>
-            <ul class="score__parts">${rows}</ul>
-          </div>
-        </details>
       </div>
     </section>`;
 }
@@ -5203,6 +5162,123 @@ els.panel.addEventListener("click", (event) => {
       closePanel({ restoreFocus: false });
       return openSettings(button.dataset.section);
   }
+});
+
+// ---- Terms of Service and Privacy Policy: the sidebar on laptops, the page footer on phones and
+// on the sign-in screens. Plain words, and only what the code actually does.
+
+const LEGAL_UPDATED = "Last updated November 15, 2026.";
+const legalSection = (title, body) => `<section class="legal__part"><h3>${title}</h3>${body}</section>`;
+
+const LEGAL = {
+  terms: {
+    title: "Terms of Service",
+    html: [
+      `<p>MealScholar is a student project from HackUMass '26, piloting with students at UMass Amherst. By using it you agree to these terms.</p>`,
+      legalSection(
+        "What it does",
+        `<p>MealScholar estimates the foods in a meal photo, how much of each is there, and their calories and nutrients. It checks UMass Dining's menus first and uses USDA FoodData Central as a backup. Every number is an estimate.</p>`
+      ),
+      legalSection(
+        "Not medical advice",
+        `<p>MealScholar gives information, not medical advice. Estimates from a photo can be wrong. Don't rely on them for medical decisions, and never use them to dose insulin or count carbs for dosing. Any goal you set is your own. Talk to a doctor or dietitian about your health.</p>`
+      ),
+      legalSection(
+        "Allergens and diets",
+        `<p>Allergen and diet labels come from UMass Dining's menus and can be incomplete or out of date. If you have a food allergy, check with dining hall staff before you eat.</p>`
+      ),
+      legalSection(
+        "Your account",
+        `<p>Use an email address you can reach, keep your password to yourself, and keep to one account per person. You're responsible for what happens under your account.</p>`
+      ),
+      legalSection(
+        "Your photos",
+        `<p>Your photos stay yours. When you upload one, you let us store it and process it to run the app, which includes sending it to Google's Gemini API. Only upload photos you have the right to share, and leave other people out of them.</p>`
+      ),
+      legalSection(
+        "Fair use",
+        `<p>Don't overload, scrape, attack or break into MealScholar, and don't use it to break the law. Uploads are rate limited.</p>`
+      ),
+      legalSection(
+        "Busy levels",
+        `<p>How busy a dining hall is comes from its public live cam and is an estimate.</p>`
+      ),
+      legalSection(
+        "No guarantees",
+        `<p>MealScholar is provided as is, without warranties. It may change, go offline or stop at any time. As far as the law allows, the team isn't liable for losses that come from using it.</p>`
+      ),
+      legalSection(
+        "Ending",
+        `<p>You can delete your account at any time in Settings. We may suspend an account that breaks these terms.</p>`
+      ),
+      legalSection(
+        "Changes",
+        `<p>When these terms change, the date at the top changes too. Using MealScholar after that means you accept the new terms.</p>`
+      ),
+    ].join(""),
+  },
+  privacy: {
+    title: "Privacy Policy",
+    html: [
+      `<p>What MealScholar keeps, who else sees it, and how to delete it.</p>`,
+      legalSection(
+        "What we keep",
+        `<ul>
+          <li><strong>Your account:</strong> your email address, the name you give (optional), and your password, kept only as a scrypt hash.</li>
+          <li><strong>Sign-in:</strong> a cookie keeps you signed in for up to 30 days. With each session we keep the IP address and the browser name it came from, to protect your account. Expired sessions are deleted.</li>
+          <li><strong>Your meals:</strong> each photo you log, saved again as a JPEG of at most 1280 pixels plus a small copy, with location and camera details removed; the foods found, their amounts and nutrients; the time; and the dining hall or place name if you shared one. The file you uploaded isn't kept.</li>
+          <li><strong>Your settings:</strong> goals, dining halls, diets, allergens to avoid, favorite dishes, alert choices and whether ranges show.</li>
+        </ul>`
+      ),
+      legalSection(
+        "Location",
+        `<p>Location is off unless you allow it. When it's on, your location is used to find the nearest dining hall, and only the hall's name is saved with your meal. Your coordinates are not stored.</p>`
+      ),
+      legalSection(
+        "Who else handles it",
+        `<ul>
+          <li><strong>Google:</strong> each meal photo, with the time and the dining hall's menu, goes to Google's Gemini API to name the foods and estimate amounts. We ask Google not to store it; Google's API terms cover how it handles the request.</li>
+          <li><strong>MongoDB Atlas</strong> stores accounts, sign-ins and settings.</li>
+          <li><strong>Resend</strong> delivers our emails: confirming your address, password resets, account deletion links, and menu alerts if you turn them on.</li>
+          <li><strong>Cloudflare</strong> carries traffic between your browser and our server.</li>
+          <li>Meals and photos are kept on the MealScholar server, which the team runs.</li>
+        </ul>
+        <p>We don't sell your data, show ads, or use tracking or analytics scripts.</p>`
+      ),
+      legalSection(
+        "On your device",
+        `<p>The app keeps a few small things in your browser: the dining hall you last opened on Menu, whether you were asked about location and your answer, and, until you finish, what you typed into an account form.</p>`
+      ),
+      legalSection(
+        "Dining hall cams",
+        `<p>Busy levels come from UMass Dining's public live cams. We count the people in view and never identify anyone. We keep the counts; the short clip in the app is replaced every few minutes.</p>`
+      ),
+      legalSection(
+        "Deleting your data",
+        `<p>In Settings you can clear your history or delete everything you've logged. Deleting your account, which you confirm from a link we email you, also removes your account, sign-ins, meals, photos and settings.</p>`
+      ),
+      legalSection(
+        "Age",
+        `<p>MealScholar is for college students. Don't use it if you're under 13.</p>`
+      ),
+      legalSection(
+        "Changes",
+        `<p>When this policy changes, the date at the top changes too.</p>`
+      ),
+    ].join(""),
+  },
+};
+
+function openLegal(kind) {
+  const page = LEGAL[kind];
+  if (!page) return;
+  openPanel({ kicker: "MealScholar", title: page.title, intro: LEGAL_UPDATED, html: `<div class="legal">${page.html}</div>`, kind: "legal" });
+  els.panelBody.scrollTop = 0;
+}
+
+document.addEventListener("click", (event) => {
+  const link = event.target.closest?.("[data-legal]");
+  if (link) openLegal(link.dataset.legal);
 });
 
 function openAlerts() {
@@ -5408,15 +5484,24 @@ function revealField(input) {
   for (let box = input.closest("details"); box; box = box.parentElement?.closest("details")) box.open = true;
 }
 
+const AREA_NAMES = { "campus-center": "Campus Center", "around-campus": "Around campus" };
+
 function hallsPickerHtml(prefs, { note = null } = {}) {
   const locations = state.dining?.locations ?? [];
   const chosen = prefs.dining_halls.filter((id) => locations.some((l) => l.id === id));
+  // Where a place is, in words, only when that adds something: the menus' area for a dining commons
+  // is its own name again ("berkshire"), and the Grab 'n Go names already say it.
+  const flat = (text) => text.toLowerCase().replace(/[^a-z]/g, "");
+  const areaOf = (l) => {
+    const area = typeof l.area === "string" ? l.area.trim() : "";
+    return area && !flat(l.name).includes(flat(area)) ? AREA_NAMES[area] ?? "" : "";
+  };
   const row = (l) => `
     <li>
       <label class="pick">
         <input class="pick__box" type="checkbox" data-hall value="${l.id}"${chosen.includes(l.id) ? " checked" : ""}>
         <span class="pick__check" aria-hidden="true">${icon("check")}</span>
-        <span class="pick__text"><span class="pick__name">${esc(l.name)}</span>${typeof l.area === "string" && l.area ? `<span class="pick__area">${SEP}${esc(l.area)}</span>` : ""}</span>
+        <span class="pick__text"><span class="pick__name">${esc(l.name)}</span>${areaOf(l) ? `<span class="pick__area">${SEP}${esc(areaOf(l))}</span>` : ""}</span>
         <span class="chip pick__main"${chosen[0] === l.id ? "" : " hidden"}>Main</span>
       </label>
     </li>`;
@@ -6180,7 +6265,7 @@ function stepBodyHtml(step) {
             user
               ? name
                 ? "From your account."
-                : "Your account has no name, so the dashboard greets you without one."
+                : "Your account doesn't have a name."
               : "You're using MealScholar on this device without an account."
           }</p>
         </div>`;

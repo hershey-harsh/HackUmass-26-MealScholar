@@ -116,6 +116,7 @@
       <a class="tab" href="#week" data-view="week"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-week"/></svg><span class="tab__label">Week</span></a>
     </nav>
     <div class="rail__foot">
+      <p class="rail__legal"><button class="rail__legal-link" type="button" data-legal="terms" aria-haspopup="dialog">Terms of Service</button><button class="rail__legal-link" type="button" data-legal="privacy" aria-haspopup="dialog">Privacy Policy</button></p>
       <button id="rail-alerts" class="tab rail__btn" type="button" aria-haspopup="dialog" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-bell"/></svg><span class="tab__label">Alerts</span><span class="bell__dot rail__dot" hidden></span></button>
       <button id="rail-settings" class="tab rail__btn" type="button" aria-haspopup="dialog" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg><span class="tab__label">Settings</span></button>
     </div>
@@ -155,11 +156,9 @@
       <div id="today-banner" class="today__banner"></div>
       <header class="page-head dash-head">
         <p id="today-date" class="page-head__label"></p>
-        <h1 id="today-title" class="view-title" tabindex="-1">Today</h1>
-        <div class="intro">
-          <p id="today-greeting" class="intro__text">Hello</p>
-          <div class="datenav intro__actions" role="group" aria-label="Choose a day">
-            <button id="day-today" class="datenav__today" type="button" data-day="today" hidden>Today</button>
+        <div class="dash-head__line">
+          <h1 id="today-title" class="view-title" tabindex="-1">Today</h1>
+          <div class="datenav" role="group" aria-label="Choose a day">
             <button id="day-prev" class="icon-btn datenav__btn" type="button" data-day="prev" aria-label="Previous day"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-left"/></svg></button>
             <button id="day-next" class="icon-btn datenav__btn" type="button" data-day="next" aria-label="Next day" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-right"/></svg></button>
           </div>
@@ -196,8 +195,14 @@
 
     <section id="week" class="view week-view" aria-labelledby="week-page-title">
       <header class="page-head">
-        <p id="week-sub" class="page-head__label">Last 7 days</p>
-        <h1 id="week-page-title" class="view-title" tabindex="-1">This week</h1>
+        <p id="week-sub" class="page-head__label">This week</p>
+        <div class="dash-head__line">
+          <h1 id="week-page-title" class="view-title" tabindex="-1">This week</h1>
+          <div class="datenav weeknav" role="group" aria-label="Choose a week">
+            <button id="week-prev" class="icon-btn datenav__btn" type="button" data-week="-1" aria-label="Previous week"><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-left"/></svg></button>
+            <button id="week-next" class="icon-btn datenav__btn" type="button" data-week="1" aria-label="Next week" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-right"/></svg></button>
+          </div>
+        </div>
         <div class="intro">
           <p class="intro__text">Calories by day, and the day's vitamins and minerals<span data-ranges-only>, all as ranges</span>.</p>
         </div>
@@ -254,7 +259,7 @@
   </main>
 
   <footer class="footer">
-    <p id="footer-note">Information, not medical advice. Any goal is one you set yourself; no insulin or carb dosing advice.</p>
+    <p class="footer__legal"><button class="footer__link" type="button" data-legal="terms" aria-haspopup="dialog">Terms of Service</button><button class="footer__link" type="button" data-legal="privacy" aria-haspopup="dialog">Privacy Policy</button></p>
   </footer>
 
   <button id="plus-button" class="plus" type="button" aria-label="Snap a meal" title="Snap a meal" hidden><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-plus"/></svg></button>
