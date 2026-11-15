@@ -64,13 +64,9 @@ class Thresholds:
 # quiet_max to roughly the quiet count and busy_min to ~60% of the packed count.
 DEFAULT_THRESHOLDS = Thresholds(quiet_max=6, busy_min=18, full=35)
 CAMERA_THRESHOLDS: dict[str, Thresholds] = {
-    "r154Wa3jr38": Thresholds(quiet_max=8, busy_min=22, full=45),  # Worcester main (largest hall)
-    "7wHgOpwHz8k": Thresholds(quiet_max=5, busy_min=14, full=30),  # Worcester Commons North
+    "7wHgOpwHz8k": Thresholds(quiet_max=3, busy_min=8, full=18),  # Worcester Commons North (high, glary: undercounts)
     "89KPOnjHEC4": Thresholds(quiet_max=5, busy_min=14, full=30),  # Worcester Commons South
-    "gvs6Mf-vR7o": Thresholds(quiet_max=6, busy_min=16, full=35),  # Franklin main
-    "-yaPv3fQqiw": Thresholds(quiet_max=6, busy_min=18, full=40),  # Berkshire main
     "AoceCqa6MWw": Thresholds(quiet_max=3, busy_min=10, full=20),  # Berkshire entrance (narrow view)
-    "urmHVZff1Io": Thresholds(quiet_max=6, busy_min=18, full=40),  # Hampshire main
     "RprORF_ggOA": Thresholds(quiet_max=5, busy_min=14, full=30),  # Hampshire Commons South
     "nMFduwGyYUY": Thresholds(quiet_max=3, busy_min=8, full=16),  # Roots Cafe (small venue)
 }

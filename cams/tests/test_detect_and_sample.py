@@ -31,7 +31,7 @@ def test_contact_sheet_and_status_tile():
 
 
 def test_build_doc_shapes():
-    s = by_youtube_id("gvs6Mf-vR7o")
+    s = by_youtube_id("RprORF_ggOA")
     now = datetime(2026, 11, 20, 17, 0, tzinfo=UTC)
     a = busy.assess(people=7, youtube_id=s.youtube_id, history=[], now=now)
     doc = sample.build_doc(s, now, 20.0, 10, 7, 9, a, "yolo11n", "chromium", extra={"counts": [7] * 10})
@@ -54,7 +54,7 @@ def test_build_doc_shapes():
     ):
         assert k in doc
     assert (
-        doc["location_id"] == 2 and doc["level"] == "moderate" and doc["source"] == "youtube-embed/playwright/chromium"
+        doc["location_id"] == 3 and doc["level"] == "moderate" and doc["source"] == "youtube-embed/playwright/chromium"
     )
     assert "reason" not in doc
     # no frame-like payloads ever
@@ -67,7 +67,7 @@ def test_build_doc_shapes():
 
 
 def test_write_latest(tmp_path):
-    s = by_youtube_id("r154Wa3jr38")
+    s = by_youtube_id("7wHgOpwHz8k")
     now = datetime(2026, 11, 20, 17, 0, tzinfo=UTC)
     doc = sample.build_doc(s, now, 20.0, 0, 0, 0, None, "yolo11n", None, reason="stream_offline")
     path = tmp_path / "latest.json"
@@ -133,12 +133,12 @@ def test_mongo_write_failure_does_not_abort_the_pass(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "LATEST_JSON", tmp_path / "state" / "latest.json")
 
     assert sample.main([]) == 0
-    assert FakeColl.writes == 4  # every hall was attempted
-    assert sample.STORE_FAILURES == 3
+    assert FakeColl.writes == 3  # every hall with a live cam was attempted
+    assert sample.STORE_FAILURES == 2  # all but the first of the three halls
     import json
 
     data = json.loads(config.LATEST_JSON.read_text())
-    assert sorted(data["halls"]) == ["1", "2", "3", "4"]
+    assert sorted(data["halls"]) == ["1", "3", "4"]  # Franklin has no live cam
     assert all(h["reason"] == "youtube_bot_check" for h in data["halls"].values())
 
 
@@ -172,4 +172,4 @@ def test_latest_json_written_even_when_the_grabber_dies(monkeypatch, tmp_path):
     import json
 
     data = json.loads(config.LATEST_JSON.read_text())
-    assert sorted(data["halls"]) == ["1", "2"]  # the two halls sampled before the crash
+    assert sorted(data["halls"]) == ["1", "4"]  # the two halls sampled before the crash
