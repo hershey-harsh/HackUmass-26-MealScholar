@@ -2989,7 +2989,8 @@ function dropSheets() {
     panelRestore = false;
     els.panel.close();
   }
-  window.MealScholarInstall?.close?.(true);
+  // At boot the first screen replaces only the loading screen: the Home Screen sheet from ?install=1 stays.
+  if (document.body.dataset.screen !== "boot") window.MealScholarInstall?.close?.(true);
 }
 
 /** Leave the app for one of the account screens. */
