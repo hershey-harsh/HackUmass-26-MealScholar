@@ -2833,7 +2833,7 @@ async function openMealFrom(button) {
   await withBusy(button, async () => {
     try {
       const result = await api(`/api/meals/${encodeURIComponent(id)}`);
-      await photoReady(result.photo_url);
+      await photoReady(serverUrl(result.photo_url));
       if (epoch === state.epoch) openLogged(result); // never into someone else's session
     } catch (err) {
       if (err.signedOut || epoch !== state.epoch) return;
