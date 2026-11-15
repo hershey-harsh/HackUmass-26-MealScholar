@@ -265,7 +265,6 @@ main:focus,
 .sheet-error,
 .question__error,
 .toast,
-.dash-head__greeting,
 .field-error,
 .form-error,
 .notice,
@@ -580,10 +579,6 @@ main:focus,
   height: 26px;
 }
 
-.snap--bar {
-  display: none;
-}
-
 .snap:active:not(:disabled) {
   transform: scale(0.96);
 }
@@ -598,10 +593,6 @@ main:focus,
   .snap:hover:not(:disabled) {
     background: var(--ink-hover);
   }
-}
-
-.topnav {
-  display: none;
 }
 
 /* ------------------------------------------------------------------- layout */
@@ -704,14 +695,6 @@ body:not([data-screen="auth"]) #auth {
   font-size: 0.8125rem;
   line-height: 1.6;
   color: var(--ink-2);
-}
-
-/* Footer links keep the sentence's line spacing but answer taps across a 44px band. */
-.footer a {
-  display: inline-block;
-  padding-block: 12px;
-  margin-block: -12px;
-  border-radius: 6px;
 }
 
 body[data-screen="auth"] .footer {
@@ -831,12 +814,6 @@ body[data-screen="auth"] .footer {
   background: var(--surface-2);
 }
 
-.btn--ghost {
-  padding-inline: 14px;
-  text-decoration: underline;
-  text-decoration-color: var(--line-strong);
-}
-
 .btn--block {
   width: 100%;
 }
@@ -864,10 +841,6 @@ body[data-screen="auth"] .footer {
   .btn--soft:hover:not(:disabled) {
     border-color: var(--line-hover);
     background: var(--surface);
-  }
-
-  .btn--ghost:hover:not(:disabled) {
-    background: var(--wash);
   }
 }
 
@@ -1182,12 +1155,6 @@ body[data-screen="auth"] .footer {
 }
 
 /* ------------------------------------------------------------------ capture */
-
-.capture__main {
-  display: grid;
-  gap: 16px;
-  min-width: 0;
-}
 
 .viewfinder {
   position: relative;
@@ -2317,34 +2284,6 @@ body[data-screen="auth"] .footer {
   padding: 8px 4px 4px;
 }
 
-.dash-head__greeting {
-  font-size: 1.0625rem;
-  color: var(--ink-2);
-}
-
-.dash-head__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.dash-head__titles {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.dash-head__date {
-  font-size: 0.9375rem;
-  color: var(--ink-2);
-}
-
-.dash-head__date:empty {
-  display: none;
-}
-
 /* Previous day, next day and a way back to today. */
 .datenav {
   display: flex;
@@ -2369,25 +2308,8 @@ body[data-screen="auth"] .footer {
   cursor: not-allowed;
 }
 
-.datenav__today {
-  min-height: 44px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--line), 0 1px 2px rgba(28, 28, 28, 0.04);
-  color: var(--ink);
-  font: 500 0.9375rem / 1 var(--font-sans);
-  cursor: pointer;
-  animation: pop-in var(--dur-2) var(--ease-out);
-}
-
 @media (hover: hover) {
   .datenav__btn:hover:not(:disabled) {
-    background: var(--surface-2);
-  }
-
-  .datenav__today:hover {
     background: var(--surface-2);
   }
 }
@@ -2599,17 +2521,6 @@ body[data-screen="auth"] .footer {
   text-align: right;
 }
 
-.stat__dv--none {
-  grid-column: 1 / -1;
-  font-family: var(--font-sans);
-  font-size: 0.8125rem;
-  text-align: left;
-}
-
-.stats__note {
-  padding: 2px 4px 0;
-}
-
 @container stats (min-width: 20rem) {
   .stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2634,14 +2545,8 @@ body[data-screen="auth"] .footer {
     text-align: left;
   }
 
-  .stat__dv,
-  .stat__dv--none {
+  .stat__dv {
     text-align: left;
-  }
-
-  .stat__dv--none {
-    grid-column: auto;
-    margin-top: auto;
   }
 
   .stat .band {
@@ -3180,27 +3085,7 @@ body[data-screen="auth"] .footer {
   animation-delay: calc(var(--i, 0) * 45ms + 320ms);
 }
 
-.wk__avg {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 2px 12px;
-  margin: 8px 8px 0;
-  padding: 12px 0 10px;
-  border-top: 1px solid var(--line);
-}
-
-.wk__avg-label {
-  font-size: 0.875rem;
-  color: var(--ink-2);
-}
-
-.wk__avg-value .value strong {
-  font-size: 1.0625rem;
-}
-
-/* Under the average, what the plate means; it shows only when a day has one. */
+/* Under the chart, what the plate means; it shows only when a day has one. */
 .wk__key {
   display: flex;
   flex-basis: 100%;
@@ -3215,18 +3100,6 @@ body[data-screen="auth"] .footer {
   width: 16px;
   height: 16px;
   stroke-width: 2;
-}
-
-.wk__avg .sk--line {
-  width: 60%;
-  margin-block: 4px;
-}
-
-/* Some days didn't load: no average (it would leave them out), and a way to try again. */
-.wk__avg--error {
-  display: grid;
-  justify-items: start;
-  gap: 10px;
 }
 
 .wk__error {
@@ -3469,17 +3342,6 @@ body[data-screen="auth"] .footer {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.auth-badge {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  margin-bottom: 6px;
-  border-radius: 50%;
-  background: var(--warm);
-  color: var(--ink);
 }
 
 .form {
@@ -4123,41 +3985,6 @@ body[data-screen="auth"] .toast {
     padding-inline: 32px;
   }
 
-  .topnav {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    margin-left: 20px;
-    padding: 4px;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    background: var(--surface);
-  }
-
-  .topnav .tab {
-    min-height: 44px;
-    padding-inline: 18px 20px;
-    gap: 7px;
-  }
-
-  .topnav .tab .icon {
-    width: 20px;
-    height: 20px;
-  }
-
-  .snap--bar {
-    display: inline-flex;
-    min-height: 44px;
-    padding: 0 20px 0 16px;
-    border-radius: 999px;
-    font: 500 0.9375rem / 1 var(--font-sans);
-  }
-
-  .snap--bar .icon {
-    width: 20px;
-    height: 20px;
-  }
-
   .topbar__end {
     gap: 10px;
   }
@@ -4198,10 +4025,6 @@ body[data-screen="auth"] .toast {
   .dash-head {
     gap: 4px;
     padding-top: 12px;
-  }
-
-  .dash-head__row {
-    align-items: center;
   }
 
   .dash-grid {
@@ -4706,41 +4529,6 @@ html.install-open {
   border-radius: 999px;
   background: var(--ink);
   transition: width var(--dur-3) var(--ease-out);
-}
-
-.score__note {
-  font-size: 0.875rem;
-  color: var(--ink-2);
-}
-
-.score__foot {
-  display: grid;
-  gap: 10px;
-}
-
-.score__parts {
-  display: grid;
-}
-
-.score__part {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  align-items: baseline;
-  gap: 10px;
-  padding: 8px 0;
-  border-top: 1px solid var(--line);
-  font-size: 0.875rem;
-}
-
-.score__part-pct {
-  color: var(--ink-2);
-  font: 400 0.8125rem / 1.3 var(--font-mono);
-}
-
-.score__part-pts {
-  min-width: 3.25rem;
-  text-align: right;
-  font: 500 0.875rem / 1.3 var(--font-mono);
 }
 
 /* ---- a folded section: nutrient goals, more places, how the score works, a menu's meals */
@@ -5782,32 +5570,10 @@ body[data-screen="onboard"] .toast {
     padding: 0 4px;
   }
 
-  body[data-prefs="on"] .dash-head__greeting {
-    font-size: 0.875rem;
-    line-height: 1.35;
-  }
-
-  /* The day arrows keep their place beside the title; with larger text the date wraps instead. */
-  body[data-prefs="on"] .dash-head__row {
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 8px;
-  }
-
-  body[data-prefs="on"] .dash-head__titles {
-    gap: 1px;
-  }
-
   body[data-prefs="on"] .dash-head .view-title {
     font-size: 1.75rem;
     line-height: 1.1;
     letter-spacing: -0.025em;
-  }
-
-  body[data-prefs="on"] .dash-head__date {
-    font-size: 0.875rem;
-    line-height: 1.3;
-    text-wrap: balance;
   }
 
   body[data-prefs="on"] :is(.dash, .dash-grid) {
@@ -5913,38 +5679,6 @@ body[data-screen="onboard"] .toast {
   body[data-prefs="on"] .score__bar {
     height: 8px;
   }
-
-  body[data-prefs="on"] .score__foot {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px 12px;
-  }
-
-  body[data-prefs="on"] .score__note {
-    flex: 1 1 9rem;
-    font-size: 0.75rem;
-    line-height: 1.35;
-  }
-
-  body[data-prefs="on"] .score__how {
-    flex: 0 0 auto;
-  }
-
-  body[data-prefs="on"] .score__how[open] {
-    flex-basis: 100%;
-  }
-
-  body[data-prefs="on"] .score__how > summary {
-    min-height: 44px;
-    padding: 0 10px 0 12px;
-    font-size: 0.875rem;
-  }
-
-  body[data-prefs="on"] .score__how > summary::after {
-    margin-left: 8px;
-  }
 }
 
 /* Laptops: the sketch. The week strip on top. The dashboard is exactly the window's height, so the
@@ -5955,22 +5689,6 @@ body[data-screen="onboard"] .toast {
 @media (min-width: 64em) {
   body[data-prefs="on"] {
     --pin-top: calc(var(--bar-h) + var(--safe-top) + 16px);
-  }
-
-  body[data-prefs="on"] .dash-head__greeting {
-    display: none;
-  }
-
-  /* Title left, day arrows right, and the week strip centered on the page between them. */
-  /* The sidebar narrows this row at 1024: the date keeps one line and the strip gives way. */
-  body[data-prefs="on"] .dash-head__row {
-    display: grid;
-    grid-template-columns: minmax(max-content, 1fr) minmax(0, 35rem) minmax(max-content, 1fr);
-    gap: 20px;
-  }
-
-  body[data-prefs="on"] .dash-head__date {
-    white-space: nowrap;
   }
 
   body[data-prefs="on"] .strip {
@@ -6061,12 +5779,6 @@ body[data-screen="onboard"] .toast {
     margin: -6px -10px;
     padding: 6px 10px 8px;
     overflow-y: auto;
-  }
-
-  body[data-prefs="on"] .dash-grid > .dash-col--mid > .footer {
-    max-width: none;
-    margin: 0;
-    padding: 0 4px 8px;
   }
 
   /* The side column only ever scrolls in a window too short for the card's head and five rows;
@@ -6181,39 +5893,6 @@ body[data-screen="onboard"] .toast {
     font-size: 2.25rem;
   }
 
-  /* The note and "How it's scored" share a row while it's closed; open, it takes the full width. */
-  body[data-prefs="on"] .score__foot {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px 12px;
-  }
-
-  body[data-prefs="on"] .score__note {
-    flex: 1 1 6.5rem;
-    font-size: 0.8125rem;
-    line-height: 1.35;
-  }
-
-  body[data-prefs="on"] .score__how {
-    flex: 0 0 auto;
-  }
-
-  body[data-prefs="on"] .score__how[open] {
-    flex-basis: 100%;
-  }
-
-  body[data-prefs="on"] .score__how > summary {
-    min-height: 44px;
-    padding: 0 12px 0 14px;
-    font-size: 0.875rem;
-  }
-
-  body[data-prefs="on"] .score__how > summary::after {
-    margin-left: 10px;
-  }
-
   /* and the tiles, three to a row with less padding; each keeps its range. */
   body[data-prefs="on"] .dash-col--main .stats-block {
     gap: 8px;
@@ -6254,11 +5933,6 @@ body[data-screen="onboard"] .toast {
 
   body[data-prefs="on"] .dash-col--main .stat--mini .stat__value strong {
     font-size: 1.25rem;
-  }
-
-  body[data-prefs="on"] .dash-col--main .stats__note {
-    font-size: 0.8125rem;
-    line-height: 1.45;
   }
 
   body[data-prefs="on"] .dash-empty {
@@ -6334,10 +6008,6 @@ body[data-screen="onboard"] .toast {
 
   body[data-prefs="on"] .dash-col--main :is(.stats-block, .stats) {
     gap: 6px;
-  }
-
-  body[data-prefs="on"] .dash-col--main .stats__note {
-    line-height: 1.35;
   }
 }
 
@@ -6516,10 +6186,6 @@ body[data-screen="onboard"] .toast {
     height: 12px;
   }
 
-  body[data-prefs="on"] .score__note {
-    font-size: 0.875rem;
-  }
-
   body[data-prefs="on"] .dash-col--main :is(.stats-block, .stats) {
     gap: 16px;
   }
@@ -6551,10 +6217,6 @@ body[data-screen="onboard"] .toast {
 
   body[data-prefs="on"] .dash-col--main :is(.stat__range, .stat__dv) {
     font-size: 0.875rem;
-  }
-
-  body[data-prefs="on"] .dash-col--main .stats__note {
-    font-size: 0.9375rem;
   }
 }
 
@@ -6787,17 +6449,6 @@ body:not([data-dining="on"]) .tab[data-view="menu"] {
   font-size: 1.75rem;
   line-height: 1.1;
   letter-spacing: -0.025em;
-}
-
-.page-head__sub {
-  color: var(--ink-2);
-  font-size: 0.9375rem;
-  line-height: 1.4;
-  text-wrap: balance;
-}
-
-.page-head__sub:empty {
-  display: none;
 }
 
 /* ---- Today on phones: the day, then the recent scans; the upcoming meal lives on Menu */
@@ -7086,12 +6737,6 @@ body:not([data-dining="on"]) .tab[data-view="menu"] {
 
 .hall-chip__near {
   display: inline-flex;
-}
-
-.hall-chip--edit {
-  border-style: dashed;
-  background: transparent;
-  color: var(--ink-2);
 }
 
 @media (hover: hover) {
@@ -7456,10 +7101,6 @@ body[data-drop="on"]::after {
     line-height: 1.05;
   }
 
-  .page-head__sub {
-    font-size: 1.0625rem;
-  }
-
   .menu-view,
   .week-view {
     gap: 20px;
@@ -7765,8 +7406,7 @@ body[data-drop="on"]::after {
   gap: 4px;
 }
 
-.datenav__btn,
-.datenav__today {
+.datenav__btn {
   background: none;
   box-shadow: inset 0 0 0 1px var(--hair);
 }
@@ -7847,11 +7487,6 @@ body[data-drop="on"]::after {
     padding-left: 4px;
     border-left: 0;
   }
-}
-
-.today .stats__note {
-  padding-top: 10px;
-  font-size: 0.8125rem;
 }
 
 /* ---- Recently uploaded: rows, not cards */
@@ -8565,10 +8200,6 @@ body .recent .recent-card {
 .swipe__dot[aria-current="true"]::before {
   width: 20px;
   background: var(--ink);
-}
-
-.swipe .stats__note {
-  padding-top: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
