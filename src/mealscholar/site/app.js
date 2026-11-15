@@ -660,6 +660,9 @@ async function analyze(file) {
   const current = () => epoch === state.epoch;
   const controller = new AbortController();
   analysis = { controller, photoUrl };
+  // A photo this browser can't draw (HEIC outside Safari) leaves the frame plain, not a broken image.
+  els.previewImg.hidden = false;
+  els.previewImg.onerror = () => (els.previewImg.hidden = true);
   els.previewImg.src = photoUrl;
   state.analyzing = true;
   setViewfinder("analyzing");
@@ -697,7 +700,10 @@ async function analyze(file) {
       return;
     }
     setStatus("");
-    state.slots.analyze = { result, photoUrl, nearest: null };
+    // A photo this browser can't draw (HEIC outside Safari) shows as the server's stored JPEG.
+    const drawn = !(els.previewImg.complete && !els.previewImg.naturalWidth);
+    if (!drawn) URL.revokeObjectURL(photoUrl);
+    state.slots.analyze = { result, photoUrl: drawn ? photoUrl : null, nearest: null };
     state.scroll.analyze = 0;
     // With the campus menus connected, the same coordinates also name the nearest dining hall, once.
     if (coords && placeName(result.context) && diningOn()) noteNearest(coords, state.slots.analyze);
