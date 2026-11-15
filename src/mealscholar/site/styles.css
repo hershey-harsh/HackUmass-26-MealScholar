@@ -6282,6 +6282,8 @@ body[data-screen="onboard"] .toast {
   body[data-prefs="on"] .dash-col--side .upcoming {
     flex: none;
     max-height: 100%;
+    overflow-y: auto;
+    scroll-padding-block: 6px;
   }
 
   body[data-prefs="on"] .dash-col--side .dishes {
