@@ -1024,6 +1024,9 @@ const QUICK_STOP = new Set([
 const QUICK_DRINKS = /^(milk|soda|pop|cola|coke|tea|coffee|juice|latte|lemonade|drink|smoothie|shake)$/i;
 // Words no option holds: "or can't you tell?", "or something else?" aren't options.
 const QUICK_NOT = /^(i|you|we|can't|cannot|can|tell|know|sure|unsure|else|something|other|neither|idk)$/i;
+// A count on its own ("both slices or one?") leaves the first option unclear: no buttons, just the field.
+const QUICK_COUNT = /^(one|two|three|four|half|both|all|none)$/i;
+const titleCase = (w) => /^[A-Z][\w'’&-]*$/.test(w);
 
 /** The options of a question that ends in "A or B?", each capitalised: "Is the cola diet or regular?"
     gives Diet and Regular, "Is that whole or skim milk?" Whole milk and Skim milk, "Is the milk
@@ -1036,7 +1039,8 @@ function quickAnswers(question) {
   const bare = (w) => w.toLowerCase().replace(/[.,;:!]+$/, "");
   let last = words(found[2]);
   while (last.length > 1 && QUICK_ARTICLES.has(bare(last[0]))) last.shift();
-  if (!last.length || last.length > 3) return [];
+  if (!last.length || last.length > 4) return [];
+  if (last.length === 1 && QUICK_COUNT.test(bare(last[0]))) return [];
   // "whole, 2%" (or "diet or regular") before the last "or": a list, every part but the first an
   // option as written.
   const parts = found[1].replace(/,\s*$/, "").split(/\s*,\s*(?:or\s+)?|\s+or\s+/i);
@@ -1046,8 +1050,13 @@ function quickAnswers(question) {
   // past a word like "is" or "the" (or a colon); a drink word takes the word before it along.
   const head = words(parts[0]);
   const first = [];
-  for (let i = head.length - 1; i >= 0 && first.length < (listed[0] ?? last).length; i--) {
+  // A menu dish keeps its whole name ("the Chicken Tikka Masala or the Butter Chicken?"): capitalised
+  // words reach back to the article, up to four.
+  const dish = titleCase(head[head.length - 1] ?? "");
+  const room = dish ? 4 : (listed[0] ?? last).length;
+  for (let i = head.length - 1; i >= 0 && first.length < room; i--) {
     if (QUICK_STOP.has(bare(head[i])) || /:$/.test(head[i])) break;
+    if (dish && !titleCase(head[i])) break;
     first.unshift(head[i]);
   }
   if (first.length === 1 && QUICK_DRINKS.test(bare(first[0])) && head.length >= 2) {

@@ -347,7 +347,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <li class="why__item"><span class="why__num" aria-hidden="true">01</span><h3>Estimates, not fake precision</h3><p>It works out how much of each food is there from the photo. Every amount is an estimate, and you can set one yourself if you know it.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">02</span><h3>The AI never makes up nutrients</h3><p>The AI names the foods and works out how much is there. The nutrients come from real data and plain arithmetic.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">03</span><h3>Campus menu first</h3><p>Food from the dining halls is checked against the campus menu and its own nutrition facts: 2,236 dishes, refreshed every hour.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">04</span><h3>One question, at most</h3><p>If it can’t tell a drink from the photo, like diet or regular, it asks you one thing, then recomputes.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">04</span><h3>One question, at most</h3><p>If something that changes the numbers isn’t clear from the photo, like diet or regular, it asks you one quick thing, then recomputes.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">05</span><h3>No weighing</h3><p>You just take the photo. It works out the amounts itself, and you can swap a food if it got one wrong.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">06</span><h3>Today and weekly views</h3><p>Every meal with the day’s calories and nutrients. Weeks run Sunday to Saturday, and you can page back to earlier ones.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">07</span><h3>USDA as a backup</h3><p>Anything that isn’t on the campus menu is matched to USDA FoodData Central’s 13,648 foods.</p></li>
@@ -403,9 +403,9 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <div class="step__text">
           <span class="step__num">03</span>
           <h3>One question, if needed</h3>
-          <p>It only asks about a drink it can’t judge from the photo, like diet or regular. Food gets its best estimate, and you can fix it. This plate needed none.</p>
+          <p>Only when the answer changes the numbers and you can tell at a glance: usually a drink, like diet or regular, sometimes which of two dishes it is. Never how it was cooked. This plate needed none.</p>
         </div>
-        <div class="mock" role="img" aria-label="The question step for this photo: none was needed, because there was no drink to ask about.">
+        <div class="mock" role="img" aria-label="The question step for this photo: none was needed, because nothing that changes the numbers was unclear.">
           <div class="mini mini--q">
             <span class="mini__label">One question</span>
             <span class="mini__q">None needed for this plate.</span>
@@ -481,7 +481,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
             <video src="/app/media/one-question-4x5.mp4" poster="/app/media/one-question-4x5.jpg" width="720" height="900" muted loop playsinline controls preload="none" aria-label="Screen recording: the app reads a photo of ramen and a cola, asks whether the dark soda is regular or diet, Diet is typed in, and the meal goes from 649 to 553 kcal"></video>
           </div>
           <h3>One question</h3>
-          <p>When a drink could be diet or regular, it asks once and recomputes. Here, Diet took the meal from 649 to 553 kcal.</p>
+          <p>When something like diet or regular changes the numbers, it asks once and recomputes. Here, Diet took the meal from 649 to 553 kcal.</p>
         </li>
         <li class="gallery__item" data-video="snap-to-nutrients">
           <div class="gallery__frame">
