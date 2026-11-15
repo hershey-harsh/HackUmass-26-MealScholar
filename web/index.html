@@ -274,7 +274,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
 
         <article class="fan-card" data-slide aria-roledescription="slide" aria-label="7 of 7: On your Home Screen">
           <div class="fan-card__vis fv-home fv-home--video" aria-hidden="true">
-            <video src="/app/media/add-to-home-screen.mp4" poster="/app/media/add-to-home-screen.jpg" width="624" height="780" muted loop playsinline preload="none" data-autoplay></video>
+            <img src="img/home-screen-added.jpg" width="624" height="780" alt="" loading="lazy" decoding="async">
             <span class="fv-home__step"><svg><use href="#i-share"/></svg>Share, then Add to Home Screen</span>
           </div>
           <div class="fan-card__body">
@@ -451,53 +451,55 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
 
   <!-- Videos -->
   <section class="section" id="videos" aria-labelledby="videos-title">
-    <div class="split">
-    <div class="split__text split__text--stick">
-      <p class="eyebrow">Screen recordings</p>
-      <h2 id="videos-title" class="h2">See it in action</h2>
-      <p class="section-sub">Short recordings of the real app: adding it to your Home Screen, a photo becoming nutrients, the one question, and the day’s totals.</p>
-      <div class="head-actions">
-        <a class="pill-link" href="/app/">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
-        <div class="rail-ctrl" data-rail-controls="video-rail">
-          <button type="button" class="round-btn" data-dir="-1" aria-label="Previous video"><svg aria-hidden="true"><use href="#i-chev-l"/></svg></button>
-          <button type="button" class="round-btn" data-dir="1" aria-label="Next video"><svg aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+    <div class="section-head section-head--split">
+      <div>
+        <p class="eyebrow">Screen recordings</p>
+        <h2 id="videos-title" class="h2">See it in action</h2>
+      </div>
+      <div>
+        <p class="section-sub">Short recordings of the real app: adding it to your Home Screen, the one question, a photo becoming nutrients, and the day’s totals.</p>
+        <div class="head-actions">
+          <a class="pill-link" href="/app/">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          <div class="rail-ctrl" data-rail-controls="video-rail">
+            <button type="button" class="round-btn" data-dir="-1" aria-label="Previous video"><svg aria-hidden="true"><use href="#i-chev-l"/></svg></button>
+            <button type="button" class="round-btn" data-dir="1" aria-label="Next video"><svg aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+          </div>
         </div>
       </div>
     </div>
-    <div class="split__visual">
-    <div class="rail rail--videos" id="video-rail" data-rail role="region" aria-label="Screen recordings, scroll sideways" tabindex="0">
-      <div class="videos">
-        <figure class="video-card video-card--portrait" data-video="add-to-home-screen">
-          <div class="video-frame">
+    <div class="rail rail--gallery" id="video-rail" data-rail role="region" aria-label="Screen recordings" tabindex="0">
+      <ul class="gallery">
+        <li class="gallery__item" data-video="add-to-home-screen">
+          <div class="gallery__frame">
             <video src="/app/media/add-to-home-screen.mp4" poster="/app/media/add-to-home-screen.jpg" width="624" height="780" muted loop playsinline controls preload="none" aria-label="Screen recording: in Safari, Share, then Add to Home Screen, then Add, and MealScholar appears on the Home Screen"></video>
           </div>
-          <figcaption><h3>Add it to your Home Screen</h3><p>In Safari: Share, then Add to Home Screen, then Add. It opens like an app.</p></figcaption>
-        </figure>
-        <figure class="video-card" data-video="snap-to-nutrients">
-          <div class="video-frame">
-            <!-- To add the recording, replace the next line with: <video src="videos/snap-to-nutrients.mp4" poster="videos/snap-to-nutrients.jpg" controls playsinline preload="none"></video> -->
-            <div class="video-ph video-ph--a"><span class="chip chip--soon">Coming soon</span><span class="video-ph__idx" aria-hidden="true">02 / 04</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+          <h3>Add it to your Home Screen</h3>
+          <p>In Safari: Share, then Add to Home Screen, then Add. It opens like an app.</p>
+        </li>
+        <li class="gallery__item" data-video="one-question">
+          <div class="gallery__frame">
+            <video src="/app/media/one-question-4x5.mp4" poster="/app/media/one-question-4x5.jpg" width="720" height="900" muted loop playsinline controls preload="none" aria-label="Screen recording: the app reads a photo of ramen and a cola, asks whether the dark soda is regular or diet, Diet is typed in, and the meal goes from 649 to 553 kcal"></video>
           </div>
-          <figcaption><h3>Snap to nutrients</h3><p>One photo becomes foods, grams and nutrients.</p></figcaption>
-        </figure>
-        <figure class="video-card" data-video="one-question">
-          <div class="video-frame">
-            <video src="/app/media/one-question.mp4" poster="/app/media/one-question.jpg" width="1280" height="720" muted loop playsinline controls preload="none" aria-label="Screen recording: the app reads a photo of ramen and a cola, asks whether the dark soda is regular or diet, Diet is typed in, and the meal goes from 649 to 553 kcal"></video>
+          <h3>One question</h3>
+          <p>When a drink could be diet or regular, it asks once and recomputes. Here, Diet took the meal from 649 to 553 kcal.</p>
+        </li>
+        <li class="gallery__item" data-video="snap-to-nutrients">
+          <div class="gallery__frame">
+            <div class="video-ph video-ph--a"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
           </div>
-          <figcaption><h3>One question</h3><p>When a drink could be diet or regular, it asks once and recomputes. Here, Diet took the meal from 649 to 553 kcal.</p></figcaption>
-        </figure>
-        <figure class="video-card" data-video="fix-and-today">
-          <div class="video-frame">
-            <!-- To add the recording, replace the next line with: <video src="videos/fix-and-today.mp4" poster="videos/fix-and-today.jpg" controls playsinline preload="none"></video> -->
-            <div class="video-ph video-ph--c"><span class="chip chip--soon">Coming soon</span><span class="video-ph__idx" aria-hidden="true">04 / 04</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+          <h3>Snap to nutrients</h3>
+          <p>One photo becomes foods, grams and nutrients.</p>
+        </li>
+        <li class="gallery__item" data-video="fix-and-today">
+          <div class="gallery__frame">
+            <div class="video-ph video-ph--c"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
           </div>
-          <figcaption><h3>Check it, then see today</h3><p>Swap a food if it got one wrong, then check the day’s totals.</p></figcaption>
-        </figure>
-      </div>
+          <h3>Check it, then see today</h3>
+          <p>Swap a food if it got one wrong, then check the day’s totals.</p>
+        </li>
+      </ul>
     </div>
     <div class="rail-dots" data-rail-dots="video-rail" aria-hidden="true"></div>
-    </div>
-    </div>
   </section>
 
   <!-- Nutrients -->
@@ -572,11 +574,12 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
     <!-- Two real dinners from Worcester, November 14, as the app read them (likely values). -->
     <div class="plates">
       <div class="plates__head">
-        <h3 class="plates__title">Two more real plates from Worcester</h3>
-        <p class="plates__sub">Photos from dinner on November 14, run through the app. A dish on the menu uses its own label. Anything the menu doesn’t have comes from USDA.</p>
+        <h3 class="plates__title">Two real examples</h3>
+        <p class="plates__sub">Photos from dinner at Worcester on November 14, run through the app. A dish on the menu uses its own label. Anything the menu doesn’t have comes from USDA.</p>
       </div>
       <ol class="plates__list">
         <li class="plate">
+          <p class="plate__kind">Worcester example</p>
           <img class="plate__img" src="img/plate-cake.jpg" width="360" height="270" alt="A square of coconut key lime cake on a small white plate, with chopsticks across it." loading="lazy" decoding="async">
           <div class="plate__top">
             <h4 class="plate__name">Coconut Key Lime Cake</h4>
@@ -588,6 +591,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           <p class="plate__note"><b>All from the menu.</b> Worcester’s label says 193&nbsp;kcal per 2&nbsp;oz, and the photo shows about 57&nbsp;g.</p>
         </li>
         <li class="plate">
+          <p class="plate__kind plate__kind--usda">USDA backup example</p>
           <img class="plate__img" src="img/plate-yogurt.jpg" width="640" height="480" alt="A white bowl of strawberry yogurt topped with granola, with a spoon in it." loading="lazy" decoding="async">
           <div class="plate__top">
             <h4 class="plate__name">Strawberry yogurt and granola</h4>
