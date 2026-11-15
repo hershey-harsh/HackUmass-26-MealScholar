@@ -1538,15 +1538,17 @@ body[data-screen="auth"] .footer {
   text-wrap: pretty;
 }
 
+/* On a new result each box locks on in turn: it settles onto its food from a little larger, then its
+   number pops in. A box can be pointed at (or tapped): it lights up with its food's name, and its
+   food card below lights up with it. */
 .box {
   position: absolute;
   border: 2px solid var(--on-panel);
   border-radius: 8px;
   box-shadow: 0 0 0 1px rgba(28, 28, 28, 0.35), inset 0 0 0 1px rgba(28, 28, 28, 0.2);
   opacity: 0;
-  pointer-events: none;
-  animation: fade-in var(--dur-3) var(--ease-out) forwards;
-  animation-delay: calc(var(--i, 0) * 90ms + 250ms);
+  animation: box-in 480ms var(--ease-out) forwards;
+  animation-delay: calc(var(--i, 0) * 120ms + 200ms);
   transition: box-shadow var(--dur-1) linear, opacity var(--dur-2) linear;
 }
 
@@ -1565,6 +1567,38 @@ body[data-screen="auth"] .footer {
   color: var(--on-ink);
   font: 600 0.75rem / 1 var(--font-mono);
   box-shadow: 0 0 0 1.5px var(--on-ink);
+  animation: pin-in 420ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 120ms + 380ms);
+}
+
+.shot.is-waiting :is(.box, .box__n) {
+  animation-play-state: paused;
+}
+
+/* The food's name beside its number while the box is lit. */
+.box__tag {
+  position: absolute;
+  top: 4px;
+  left: 30px;
+  max-width: max(7rem, calc(100% - 38px));
+  overflow: hidden;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font: 500 0.75rem / 1.333 var(--font-sans);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  box-shadow: 0 0 0 1.5px var(--on-ink);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity var(--dur-1) linear, transform var(--dur-2) var(--ease-out);
+  pointer-events: none;
+}
+
+.box.is-active .box__tag {
+  opacity: 1;
+  transform: none;
 }
 
 .boxes[data-active] .box:not(.is-active) {
@@ -1616,6 +1650,7 @@ body[data-screen="auth"] .footer {
 
 /* The meal's calories: a dark panel, range first, the one dark block on the screen. */
 .total {
+  position: relative;
   display: grid;
   gap: 10px;
   margin-top: 14px;
@@ -1631,6 +1666,7 @@ body[data-screen="auth"] .footer {
 
 /* The likely number leads, the range sits under it: the same shape as the Today panel. */
 .total__value {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -1638,6 +1674,55 @@ body[data-screen="auth"] .footer {
   font: 300 3.5rem / 0.95 var(--font-sans);
   letter-spacing: -0.04em;
   font-variant-numeric: lining-nums proportional-nums;
+}
+
+/* Right after an answer changes the calories: the old number rolls away as the new one comes in
+   (down for fewer calories, up for more), and a ring pulses out from the panel once. */
+.total__was {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* --fx-wait: how long the page takes to scroll the total into view first (app.js revealTotal). */
+.total.is-down .total__was {
+  animation: roll-out-down 520ms var(--ease-out) calc(var(--fx-wait, 0ms) + 160ms) backwards;
+}
+
+.total.is-down .total__num {
+  animation: roll-in-down 640ms var(--ease-out) calc(var(--fx-wait, 0ms) + 220ms) backwards;
+}
+
+.total.is-up .total__was {
+  animation: roll-out-up 520ms var(--ease-out) calc(var(--fx-wait, 0ms) + 160ms) backwards;
+}
+
+.total.is-up .total__num {
+  animation: roll-in-up 640ms var(--ease-out) calc(var(--fx-wait, 0ms) + 220ms) backwards;
+}
+
+/* The unit steps aside while the old number (wider or narrower) rolls past it, and the band moves
+   with the number. */
+.total.is-roll .total__unit {
+  animation: fade-in 240ms linear calc(var(--fx-wait, 0ms) + 380ms) backwards;
+}
+
+.total.is-changed .band__range,
+.total.is-changed .band__tick {
+  transition-delay: calc(var(--fx-wait, 0ms) + 160ms);
+}
+
+.total.is-changed::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 2px var(--ink);
+  opacity: 0;
+  pointer-events: none;
+  animation: total-ping 900ms var(--ease-out) calc(var(--fx-wait, 0ms) + 200ms);
 }
 
 .total__unit {
@@ -1698,6 +1783,24 @@ body[data-screen="auth"] .footer {
   color: var(--ink);
 }
 
+.answered:focus {
+  outline: none;
+}
+
+/* "Was 233 kcal, now 143 kcal after you answered “Diet”." */
+.answered--shift {
+  font-size: 0.9375rem;
+}
+
+.answered--shift strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.answered.is-new {
+  animation: rise-in var(--dur-3) var(--ease-out) calc(var(--fx-wait, 0ms) + 420ms) backwards;
+}
+
 /* Question */
 .question {
   display: grid;
@@ -1715,14 +1818,87 @@ body[data-screen="auth"] .footer {
   text-wrap: pretty;
 }
 
+/* The eyebrow, with "Not now" at the far end (its 44px target overlaps the gap, not the layout). */
+.question__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-block: -12px -10px;
+}
+
+.question__head .question__skip {
+  margin-right: -4px;
+  font-size: 0.9375rem;
+  text-decoration-color: var(--line-strong);
+}
+
+.question__head .question__skip:disabled {
+  color: var(--label);
+  text-decoration-color: var(--line);
+  cursor: not-allowed;
+}
+
 .question__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
 }
 
-.question__row .field {
+/* One-tap answers ("Diet", "Regular"): outlined options that fill with ink when pointed at or picked. */
+.question__picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Equal shares of the row, never narrower than the word itself; a long option takes a row of its own. */
+.question__pick {
+  flex: 1 1 7rem;
+  max-width: 15rem;
+  min-height: 52px;
+  padding-inline: 18px;
+  border-color: var(--line-strong);
+  background: var(--surface);
+  font-size: 1.0625rem;
+  white-space: nowrap;
+}
+
+.question__pick[aria-busy="true"] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.question__pick:disabled:not([aria-busy="true"]) {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--label);
+}
+
+@media (hover: hover) {
+  .question__pick:hover:not(:disabled):not([aria-busy="true"]) {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--on-ink);
+  }
+}
+
+/* With options above it, the text field is the quieter way: a label and a rule set it apart. */
+.question--picks .question__row {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.question__label {
   grid-column: 1 / -1;
+  margin-bottom: -2px;
+}
+
+.question__status {
+  font-size: 0.9375rem;
+  color: var(--ink-2);
 }
 
 .question__error,
@@ -1732,6 +1908,7 @@ body[data-screen="auth"] .footer {
   color: var(--danger);
 }
 
+.question__status:empty,
 .question__error:empty,
 .sheet-error:empty {
   display: none;
@@ -1837,6 +2014,9 @@ body[data-screen="auth"] .footer {
   grid-column: 1 / -1;
 }
 
+/* Where the numbers come from: a tag (the hall's own label, filled; USDA, outlined), then the dish
+   or USDA food, and under it the details. On a phone the text runs on after the tag; with room, it
+   hangs in a column beside it. */
 .item__match {
   font-size: 0.875rem;
   line-height: 1.45;
@@ -1844,17 +2024,69 @@ body[data-screen="auth"] .footer {
   overflow-wrap: anywhere;
 }
 
-.item__src {
-  margin-right: 3px;
+.item__desc {
   color: var(--ink);
-  font: 600 0.75rem / 1 var(--font-sans);
-  letter-spacing: 0.12em;
 }
 
+.item__why,
 .item__id {
   display: block;
   margin-top: 2px;
+}
+
+.item__id {
   font: 400 0.78125rem / 1.4 var(--font-mono);
+}
+
+@container result (min-width: 560px) {
+  .item__match:not(.is-missing) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    gap: 2px 10px;
+  }
+
+  .item__match .src {
+    margin-right: 0;
+  }
+
+  .item__match:not(.is-missing) :is(.item__why, .item__id) {
+    grid-column: 2;
+    margin-top: 0;
+  }
+}
+
+.src {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  margin-right: 8px;
+  padding: 1px 9px 1px 8px;
+  vertical-align: 1px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  color: var(--ink);
+  font: 600 0.75rem / 1.2 var(--font-sans);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.src .icon {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.2;
+}
+
+.src--label {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+
+.src--usda {
+  padding-inline: 9px;
+  border-color: var(--line-strong);
+  letter-spacing: 0.08em;
 }
 
 /* No USDA match yet: an empty slot to fill, so a dashed outline rather than an alarm. */
@@ -2063,7 +2295,7 @@ body[data-screen="auth"] .footer {
   padding-top: 6px;
 }
 
-.result.is-settled :is(.item, .question, .box) {
+.result.is-settled :is(.item, .question, .box, .box__n) {
   animation: none;
   opacity: 1;
 }
@@ -3821,14 +4053,6 @@ body[data-screen="auth"] .toast {
     font-size: 2.5rem;
   }
 
-  .question__row {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-  }
-
-  .question__row .field {
-    grid-column: auto;
-  }
-
   .result__foot {
     display: flex;
     flex-wrap: wrap;
@@ -4178,6 +4402,41 @@ body[data-screen="auth"] .toast {
 
 @keyframes sk-pulse {
   50% { opacity: 0.5; }
+}
+
+@keyframes box-in {
+  from { opacity: 0; transform: scale(1.14); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes pin-in {
+  from { opacity: 0; transform: scale(0.3); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes roll-out-down {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(0.5em); }
+}
+
+@keyframes roll-in-down {
+  from { opacity: 0; transform: translateY(-0.5em); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes roll-out-up {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-0.5em); }
+}
+
+@keyframes roll-in-up {
+  from { opacity: 0; transform: translateY(0.5em); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes total-ping {
+  from { opacity: 0.85; transform: none; }
+  to { opacity: 0; transform: scale(1.035, 1.08); }
 }
 
 @media (prefers-reduced-motion: reduce) {

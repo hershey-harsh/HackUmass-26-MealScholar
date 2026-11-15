@@ -807,12 +807,28 @@ function markOpenMeal() {
 /** `enter` plays the entrance; `switch` shows a meal you come back to, still; `update` animates changes. */
 function renderResult(mode = "update", { focus } = {}) {
   const previous = mode === "update" ? snapshotBands(els.result) : new Map();
+  const y = window.scrollY;
   els.result.innerHTML = resultHtml(state.shown);
+  // Safari jumps to the top when the focused heading leaves with the old content; an update stays put.
+  if (mode === "update" && window.scrollY !== y) window.scrollTo(0, y);
+  answerFx = null; // the change after an answer plays once
   placeTools();
   els.result.classList.toggle("is-settled", mode !== "enter"); // entrance animations play once per meal
+  if (mode === "enter") holdBoxes();
   if (mode === "switch") placeBands(els.result);
   else animateBands(els.result, previous);
   if (focus) $(focus, els.result)?.focus();
+}
+
+/** The boxes' entrance waits for the photo to load, so it plays over the picture, not before it. */
+function holdBoxes() {
+  const img = $(".shot__img img", els.result);
+  if (!img || img.complete) return;
+  const shot = img.closest(".shot");
+  const go = () => shot.classList.remove("is-waiting");
+  shot.classList.add("is-waiting");
+  img.addEventListener("load", go, { once: true });
+  img.addEventListener("error", go, { once: true });
 }
 
 /** "Today", "Yesterday" or the weekday of the day on show, for buttons that lead back to it. */
@@ -880,6 +896,36 @@ function deleteAskHtml(photo = false) {
     </div>`;
 }
 
+// ---- After an answer: the meal's calories before and after, under its total
+// Kept per meal for this session, and shown while the total is still what the answer made it (a
+// later fix to an amount or a food shows the plain line again).
+const answerShifts = new Map(); // meal id -> { before, after }: energy_kcal ranges
+let answerFx = null; // the meal whose next render plays the change, once, right after the answer
+
+const sameRange = (a, b) => Boolean(a && b) && ["low", "likely", "high"].every((k) => Math.abs(a[k] - b[k]) < 1e-6);
+
+/** "233 kcal"; with ranges on "204–264 kcal", one number when low and high agree. */
+function kcalText(range, ranges) {
+  const [low, likely, high] = [amount(range.low, "kcal"), amount(range.likely, "kcal"), amount(range.high, "kcal")];
+  return `${ranges && low !== high ? `${low}${TO}${high}` : likely}&nbsp;kcal`;
+}
+
+/** The change an answer made to this meal's calories, while its total still shows it. */
+function answerShift(result) {
+  const shift = result.answer && result.id != null ? answerShifts.get(result.id) : null;
+  return shift?.before && sameRange(shift.after, result.totals.energy_kcal) ? shift : null;
+}
+
+function answeredHtml(result, shift, ranges) {
+  const said = `“${esc(result.answer)}”`;
+  if (!shift) {
+    return `<p class="answered" tabindex="-1">${icon("check")}<span>You said: ${said}. The foods and ${ranges ? "ranges" : "numbers"} below include it.</span></p>`;
+  }
+  const [was, now] = [kcalText(shift.before, ranges), kcalText(result.totals.energy_kcal, ranges)];
+  const change = was === now ? `<span class="nowrap">Still ${now}</span>` : `<span class="nowrap">Was ${was},</span> <span class="nowrap">now ${now}</span>`;
+  return `<p class="answered answered--shift${answerFx === result.id ? " is-new" : ""}" tabindex="-1">${icon("check")}<span><strong>${change}</strong> after you answered ${said}.</span></p>`;
+}
+
 function totalHtml(result, photoUrl) {
   const kcal = result.totals.energy_kcal;
   if (!result.items.length) {
@@ -887,9 +933,8 @@ function totalHtml(result, photoUrl) {
   }
   const noPhoto = photoUrl ? "" : '<p class="answered">No photo was saved with this meal.</p>';
   const ranges = rangesOn();
-  const answered = result.answer
-    ? `<p class="answered">${icon("check")}<span>You said: “${esc(result.answer)}”. The foods and ${ranges ? "ranges" : "numbers"} below include it.</span></p>`
-    : "";
+  const shift = answerShift(result);
+  const answered = result.answer ? answeredHtml(result, shift, ranges) : "";
   if (!kcal) {
     return `
       <div class="total">
@@ -900,28 +945,57 @@ function totalHtml(result, photoUrl) {
   const [low, likely, high] = [amount(kcal.low, "kcal"), amount(kcal.likely, "kcal"), amount(kcal.high, "kcal")];
   const exact = low === high;
   const weighable = result.items.some((r) => r.match && !isExact(itemGrams(r.item)));
+  // Right after an answer the total marks the change: the old number rolls away as the new one
+  // comes in (down for fewer calories, up for more) and a ring pulses out from the panel.
+  const fx = Boolean(shift) && answerFx === result.id && !reducedMotion.matches;
+  const was = fx ? amount(shift.before.likely, "kcal") : likely;
+  const roll = fx && was !== likely;
+  const fxClass = fx ? ` is-changed${roll ? ` is-roll is-${shift.before.likely > kcal.likely ? "down" : "up"}` : ""}` : "";
   // The likely number leads and the range (when ranges are on) sits under it, the same shape as
   // the Today panel.
   const rangeLine = exact
     ? "Every counted food has a set amount, so this is one number."
     : `Most likely, in a range of <strong>${low}${TO}${high}&nbsp;kcal</strong>`;
   return `
-    <div class="total">
+    <div class="total${fxClass}">
       <p class="eyebrow">Calories, this meal</p>
-      <p class="total__value"><span class="total__num">${likely}</span><span class="total__unit">kcal</span>${exact || !ranges ? "" : '<span class="visually-hidden">, most likely</span>'}</p>
+      <p class="total__value"><span class="total__num">${likely}</span>${roll ? `<span class="total__was" aria-hidden="true">${was}</span>` : ""}<span class="total__unit">kcal</span>${exact || !ranges ? "" : '<span class="visually-hidden">, most likely</span>'}</p>
       ${ranges ? `<p class="total__range">${rangeLine}</p>` : ""}
       ${bandHtml("total-kcal", kcal, { dark: true })}
       ${weighable ? `<p class="total__likely">Know an amount? Set it to ${ranges ? "narrow the range" : "update the numbers"}.</p>` : ""}
     </div>${answered}${noPhoto}`;
 }
 
+/** After an answer, scroll the total and the line under it into view, unless they already are
+    (clear of the top bar and, on phones, the tab bar: the root's scroll-padding). True when it
+    scrolls, so the change can wait for it. */
+function revealTotal() {
+  const total = $(".total", els.result);
+  if (!total) return false;
+  const top = total.getBoundingClientRect().top;
+  const bottom = ($(".answered", els.result) ?? total).getBoundingClientRect().bottom;
+  const root = getComputedStyle(document.documentElement);
+  const padTop = parseFloat(root.scrollPaddingTop) || 0;
+  const padBottom = parseFloat(root.scrollPaddingBottom) || 0;
+  const room = window.innerHeight - padTop - padBottom;
+  if (top >= padTop && bottom <= padTop + room) return false;
+  const delta = bottom - top < room ? top - padTop - (room - (bottom - top)) / 2 : top - padTop;
+  window.scrollBy({ top: delta, behavior: reducedMotion.matches ? "auto" : "smooth" });
+  return true;
+}
+
 function photoHtml(result, photoUrl) {
+  // A smaller box sits above a larger one it overlaps, so each can be pointed at.
+  const area = (b) => (b ? Math.abs((b[2] - b[0]) * (b[3] - b[1])) : 0);
+  const byArea = result.items.map((r, i) => [area(r.item.box_2d), i]).sort((a, b) => b[0] - a[0]);
+  const layer = new Map(byArea.map(([, i], rank) => [i, rank + 1]));
   const boxes = result.items
     .map((r, i) => {
       const b = r.item.box_2d;
       if (!b) return "";
       const [ymin, xmin, ymax, xmax] = b.map((v) => Math.max(0, Math.min(1000, v)) / 10);
-      return `<span class="box" data-index="${i}" style="--i:${i};top:${ymin}%;left:${xmin}%;width:${xmax - xmin}%;height:${ymax - ymin}%"><span class="box__n">${i + 1}</span></span>`;
+      const name = r.source === "campus" && r.dish ? r.dish.name : r.item.name;
+      return `<span class="box" data-index="${i}" style="--i:${i};z-index:${layer.get(i)};top:${ymin}%;left:${xmin}%;width:${xmax - xmin}%;height:${ymax - ymin}%"><span class="box__n">${i + 1}</span><span class="box__tag">${esc(capitalize(name))}</span></span>`;
     })
     .join("");
   const caption =
@@ -938,18 +1012,87 @@ function photoHtml(result, photoUrl) {
     </figure>`;
 }
 
+// ---- One-tap answers for an either-or question ("Is the cola diet or regular?": Diet, Regular)
+
+const QUICK_ARTICLES = new Set(["a", "an", "the"]);
+// Words an option never reaches back past: "Is that whole or skim milk?" gives "whole", not "that whole".
+const QUICK_STOP = new Set([
+  ...QUICK_ARTICLES, "is", "it", "it's", "its", "that", "this", "these", "those", "your", "you", "was", "were", "are",
+  "be", "do", "does", "did", "have", "has", "had", "with", "without", "of", "in", "on", "for", "to", "and", "or",
+  "any", "some", "get", "got", "say", "said", "count", "log",
+]);
+const QUICK_DRINKS = /^(milk|soda|pop|cola|coke|tea|coffee|juice|latte|lemonade|drink|smoothie|shake)$/i;
+// Words no option holds: "or can't you tell?", "or something else?" aren't options.
+const QUICK_NOT = /^(i|you|we|can't|cannot|can|tell|know|sure|unsure|else|something|other|neither|idk)$/i;
+
+/** The options of a question that ends in "A or B?", each capitalised: "Is the cola diet or regular?"
+    gives Diet and Regular, "Is that whole or skim milk?" Whole milk and Skim milk, "Is the milk
+    whole, 2% or skim?" all three. None when the ending doesn't read as two to four short options;
+    the text field is always there too. */
+function quickAnswers(question) {
+  const found = String(question ?? "").trim().match(/^(.*\S)\s+or\s+([^?,;:]+?)\s*\?$/i);
+  if (!found) return [];
+  const words = (s) => s.split(/\s+/).filter(Boolean);
+  const bare = (w) => w.toLowerCase().replace(/[.,;:!]+$/, "");
+  let last = words(found[2]);
+  while (last.length > 1 && QUICK_ARTICLES.has(bare(last[0]))) last.shift();
+  if (!last.length || last.length > 3) return [];
+  // "whole, 2%" (or "diet or regular") before the last "or": a list, every part but the first an
+  // option as written.
+  const parts = found[1].replace(/,\s*$/, "").split(/\s*,\s*(?:or\s+)?|\s+or\s+/i);
+  const listed = parts.slice(1).map(words);
+  if (listed.some((ws) => !ws.length || ws.length > 3)) return [];
+  // The first option: the words just before it, as many as the next option has, never reaching back
+  // past a word like "is" or "the" (or a colon); a drink word takes the word before it along.
+  const head = words(parts[0]);
+  const first = [];
+  for (let i = head.length - 1; i >= 0 && first.length < (listed[0] ?? last).length; i--) {
+    if (QUICK_STOP.has(bare(head[i])) || /:$/.test(head[i])) break;
+    first.unshift(head[i]);
+  }
+  if (first.length === 1 && QUICK_DRINKS.test(bare(first[0])) && head.length >= 2) {
+    const before = head[head.length - 2];
+    if (!QUICK_STOP.has(bare(before)) && !QUICK_DRINKS.test(bare(before)) && !/[:,]$/.test(before)) first.unshift(before);
+  }
+  if (!first.length) return [];
+  if (!listed.length) {
+    // "whole or skim milk": the drink belongs to both; "sweetened or not": not sweetened; "a diet
+    // soda or a regular one": regular soda.
+    const shared = last[last.length - 1];
+    if (last.length === first.length + 1 && QUICK_DRINKS.test(bare(shared)) && !first.some((w) => bare(w) === bare(shared))) first.push(shared);
+    if (last.length === 1 && bare(last[0]) === "not") last = ["not", ...first];
+    if (bare(last[last.length - 1]) === "one" && first.length > 1 && last.length === first.length) last[last.length - 1] = first[first.length - 1];
+  }
+  const all = [first, ...listed, last];
+  if (all.some((ws) => ws.some((w) => (QUICK_STOP.has(bare(w)) && bare(w) !== "not") || QUICK_NOT.test(bare(w))))) return [];
+  const options = all.map((ws) => capitalize(ws.join(" ").replace(/[.,;:!]+$/, "")));
+  const keys = new Set(options.map((o) => o.toLowerCase()));
+  const plain = options.every((o) => o.length > 0 && o.length <= 24 && !/[?"“”()]/.test(o));
+  return plain && keys.size === options.length && options.length <= 4 ? options : [];
+}
+
 function questionHtml(result) {
   if (!result.question || result.id == null || state.dismissedQuestion === result.id) return "";
+  const picks = quickAnswers(result.question);
+  const quick = picks.length
+    ? `<div class="question__picks" role="group" aria-labelledby="question-text">${picks
+        .map((p) => `<button class="btn question__pick" type="button" data-action="quick-answer" data-answer="${esc(p)}">${esc(p)}</button>`)
+        .join("")}</div>`
+    : "";
   return `
-    <form class="question" data-form="answer" aria-labelledby="question-text">
-      <p class="eyebrow">${rangesOn() ? "One answer narrows the range" : "One quick answer"}</p>
-      <p id="question-text" class="question__text">${esc(result.question)}</p>
-      <div class="question__row">
-        <label class="visually-hidden" for="answer">Your answer</label>
-        <input id="answer" class="field" name="answer" type="text" required maxlength="500" autocomplete="off" enterkeyhint="send" placeholder="e.g. fried in oil">
-        <button class="btn btn--primary" type="submit">Answer</button>
-        <button class="btn btn--ghost" type="button" data-action="dismiss-question">Not now</button>
+    <form class="question${picks.length ? " question--picks" : ""}" data-form="answer" aria-labelledby="question-text">
+      <div class="question__head">
+        <p class="eyebrow">${rangesOn() ? "One answer narrows the range" : "One quick answer"}</p>
+        <button class="link-btn link-btn--quiet question__skip" type="button" data-action="dismiss-question">Not now</button>
       </div>
+      <p id="question-text" class="question__text">${esc(result.question)}</p>
+      ${quick}
+      <div class="question__row">
+        <label class="${picks.length ? "field-label question__label" : "visually-hidden"}" for="answer">${picks.length ? "Or in your own words" : "Your answer"}</label>
+        <input id="answer" class="field" name="answer" type="text" required maxlength="500" autocomplete="off" enterkeyhint="send" placeholder="e.g. diet">
+        <button class="btn ${picks.length ? "btn--secondary" : "btn--primary"}" type="submit">Answer</button>
+      </div>
+      <p class="question__status" role="status"></p>
       <p class="question__error" role="alert"></p>
     </form>`;
 }
@@ -967,7 +1110,7 @@ function itemsHtml(result) {
         <p class="eyebrow">${result.items.length} found</p>
       </div>
       ${menuSourceHtml(result)}
-      <ol class="items">${result.items.map((r, i) => itemHtml(r, i, gramsScale)).join("")}</ol>
+      <ol class="items">${result.items.map((r, i) => itemHtml(r, i, gramsScale, result)).join("")}</ol>
     </section>`;
 }
 
@@ -1140,7 +1283,35 @@ async function rematchMeal(form) {
   });
 }
 
-function itemHtml(r, i, gramsScale) {
+// ---- Where each food's numbers come from: the dining hall's own label, or USDA
+
+/** "Worcester" for "Worcester Dining Commons": the hall's name in a few words. */
+const hallShort = (name) => String(name ?? "").replace(/\s+Dining Commons$/i, "").trim();
+
+/** The server's note on a food the model named as a menu dish but counted from USDA
+    (pipeline._campus_item), and that food's reason in a few words. */
+function menuFallback(r, result) {
+  if (r.source === "campus" || !r.item.menu_item) return null;
+  const note = result.notes.find((n) => n.startsWith(`'${r.item.name}' is on the menu as ${r.item.menu_item} (`)) ?? null;
+  const reason = /didn't fit/.test(note ?? "")
+    ? "but its label didn’t fit this amount"
+    : /no serving count/.test(note ?? "")
+    ? "but its servings couldn’t be counted from the photo"
+    : "but counted from USDA";
+  const menu = result.menu?.location_name ? `${hallShort(result.menu.location_name)}’s menu` : "the menu";
+  return { note, text: `On ${menu} as ${r.item.menu_item}, ${reason}.` };
+}
+
+/** The source tag that leads a food's match line: the hall's label (filled) or USDA (outlined). */
+function sourceHtml(dish) {
+  if (dish) {
+    const hall = hallShort(dish.location_name) || "Dining hall";
+    return `<span class="src src--label">${icon("fork")}${esc(hall)} label<span class="visually-hidden">:</span></span>`;
+  }
+  return '<span class="src src--usda">USDA<span class="visually-hidden">:</span></span>';
+}
+
+function itemHtml(r, i, gramsScale, result) {
   const { item, match } = r;
   const range = itemGrams(item);
   const weighed = isExact(range);
@@ -1158,11 +1329,15 @@ function itemHtml(r, i, gramsScale) {
       ? rangeHtml(kcal, "kcal", undefined, { stack: true })
       : '<span class="value__none">No energy data</span>'
     : '<span class="chip chip--alert">Not counted</span>';
+  // The hall's label: its serving (the dish is the food's name above). A dish the hall lists but whose
+  // label didn't fit says so, under the USDA food it's counted as.
+  const fallback = menuFallback(r, result);
+  const why = fallback ? `<span class="item__why">${SEP}${esc(fallback.text)}</span>` : "";
   const matchLine = dish
-    ? `<p class="item__match"><span class="item__src">Menu<span class="visually-hidden">:</span></span> ${esc(dish.location_name)}’s ${esc(dish.name)}${dish.serving_size ? `, label per ${esc(dish.serving_size)}` : ""}<span class="item__id">${SEP}${esc(servedText(dish))}${item.name !== dish.name ? ` · what the photo shows: ${esc(item.name)}` : ""}</span></p>`
+    ? `<p class="item__match">${sourceHtml(dish)}<span class="item__desc">${dish.serving_size ? `${esc(dish.serving_size.toLowerCase())} per serving` : esc(dish.name)}</span><span class="item__id">${SEP}${esc(servedText(dish))}${item.name !== dish.name ? ` · what the photo shows: ${esc(item.name)}` : ""}</span></p>`
     : match
-    ? `<p class="item__match"><span class="item__src">USDA<span class="visually-hidden">:</span></span> ${esc(match.description)}<span class="item__id">${SEP}${esc(match.data_type)} #${esc(match.fdc_id)}</span></p>`
-    : `<p class="item__match is-missing">No close USDA match, so this food isn't in the totals yet. Pick one to count it.</p>`;
+    ? `<p class="item__match">${sourceHtml(null)}<span class="item__desc">${esc(match.description)}</span>${why}<span class="item__id">${SEP}${esc(match.data_type)} #${esc(match.fdc_id)}</span></p>`
+    : `<p class="item__match is-missing">No close USDA match, so this food isn't in the totals yet. Pick one to count it.${why}</p>`;
   return `
     <li class="item card" data-index="${i}" style="--i:${i}">
       <div class="item__head">
@@ -1239,7 +1414,9 @@ function microDetailsHtml(rows) {
 }
 
 function notesHtml(result) {
-  const notes = [...result.context.notes, ...result.notes];
+  // A food's own menu note already shows on its match line.
+  const shown = new Set(result.items.map((r) => menuFallback(r, result)?.note).filter(Boolean));
+  const notes = [...result.context.notes, ...result.notes.filter((n) => !shown.has(n))];
   if (!notes.length) return "";
   return `
     <section class="block" aria-labelledby="notes-title">
@@ -1310,7 +1487,17 @@ async function deleteMeal(button) {
   });
 }
 
+// A tap on a box on the photo lights it up with its food's name (and its food card); another tap, or
+// a tap elsewhere, lets go. A mouse does the same by pointing (pointerover below).
+let lastPointer = "mouse";
+els.result.addEventListener("pointerdown", (event) => (lastPointer = event.pointerType), { passive: true });
+
 els.result.addEventListener("click", (event) => {
+  if (lastPointer !== "mouse" && !state.open) {
+    const box = event.target.closest(".box");
+    if (box) return highlight(box.classList.contains("is-active") ? null : box.dataset.index);
+    if ($(".boxes[data-active]", els.result)) highlight(null);
+  }
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const index = Number(button.closest("[data-index]")?.dataset.index);
@@ -1329,6 +1516,9 @@ els.result.addEventListener("click", (event) => {
         leaveCapture({ focus: true });
       }
       syncHistory();
+      break;
+    case "quick-answer":
+      answerQuestion(button.closest("form"), button.dataset.answer ?? "", button);
       break;
     case "dismiss-question":
       state.dismissedQuestion = shownMeal().id;
@@ -1362,32 +1552,69 @@ els.result.addEventListener("click", (event) => {
   }
 });
 
-els.result.addEventListener("submit", async (event) => {
+els.result.addEventListener("submit", (event) => {
   event.preventDefault();
   const form = event.target;
   if (form.dataset.form !== "answer") return;
-  const button = $('button[type="submit"]', form);
-  const answer = String(new FormData(form).get("answer")).trim();
-  const id = shownMeal()?.id;
-  const epoch = state.epoch;
-  if (!answer || id == null) return;
-  await withBusy(button, async () => {
-    try {
-      const result = await api(`/api/meals/${id}/answer`, { method: "POST", ...jsonBody({ answer }) });
-      if (epoch !== state.epoch) return; // signed out meanwhile
-      updateMeal(result, { focus: "#result-title" });
-      toast(`Thanks. The ${rangesOn() ? "ranges" : "numbers"} now include your answer.`);
-    } catch (err) {
-      if (form.isConnected && !err.signedOut) $(".question__error", form).textContent = err.message;
-    }
-  });
+  answerQuestion(form, String(new FormData(form).get("answer")).trim(), $('button[type="submit"]', form));
 });
 
-// The plate's matching box lights up with its food card under a mouse or keyboard focus. Touch skips
-// it: a finger scrolling the list would otherwise flash a selection ring on every card it crosses.
+/** While an answer is recomputed: the button that sent it spins (and keeps focus), the rest of the
+    question waits, and a status line says what's happening. */
+function questionBusy(form, button, on) {
+  form.toggleAttribute("data-busy", on);
+  for (const other of $$("button", form)) {
+    if (other !== button) other.disabled = on;
+  }
+  for (const name of ["aria-busy", "aria-disabled"]) {
+    if (on) button.setAttribute(name, "true");
+    else button.removeAttribute(name);
+  }
+  const field = $("#answer", form);
+  if (field) field.readOnly = on;
+  $(".question__status", form).textContent = on ? `Updating the ${rangesOn() ? "ranges" : "numbers"} with your answer…` : "";
+}
+
+/** POST /api/meals/{id}/answer: the model reads the photo again with the answer and every number is
+    recomputed. The total then shows what changed (answerShifts) and comes into view. */
+async function answerQuestion(form, answer, button) {
+  const meal = shownMeal();
+  const id = meal?.id;
+  const epoch = state.epoch;
+  if (!answer || id == null || !button || form.hasAttribute("data-busy")) return;
+  const before = meal.totals.energy_kcal ?? null;
+  $(".question__error", form).textContent = "";
+  questionBusy(form, button, true);
+  try {
+    const result = await api(`/api/meals/${id}/answer`, { method: "POST", ...jsonBody({ answer }) });
+    if (epoch !== state.epoch) return; // signed out meanwhile
+    answerShifts.set(id, { before, after: result.totals.energy_kcal ?? null });
+    const onScreen = shownMeal()?.id === id && !els.result.hidden;
+    if (onScreen) answerFx = id;
+    updateMeal(result);
+    if (onScreen) {
+      // The change plays once the total is in view.
+      if (revealTotal()) $(".meal-card__body", els.result)?.style.setProperty("--fx-wait", "380ms");
+      $(".answered", els.result)?.focus({ preventScroll: true });
+    } else {
+      toast(`Your answer is in. The ${rangesOn() ? "ranges" : "numbers"} now include it.`);
+    }
+  } catch (err) {
+    if (!form.isConnected || err.signedOut) return;
+    questionBusy(form, button, false);
+    $(".question__error", form).textContent = err.message;
+    button.focus({ preventScroll: true });
+  } finally {
+    if (form.isConnected && form.hasAttribute("data-busy")) questionBusy(form, button, false);
+  }
+}
+
+// A food card and its box on the plate light up together, under the mouse (on either one) or the
+// keyboard's focus (on the card). Touch skips the cards: a finger scrolling the list would otherwise
+// flash a selection ring on every card it crosses (a tap on a box lights it instead).
 els.result.addEventListener("pointerover", (event) => {
   if (event.pointerType !== "mouse" || state.open) return;
-  highlight(event.target.closest(".item")?.dataset.index ?? null);
+  highlight(event.target.closest(".item, .box")?.dataset.index ?? null);
 });
 els.result.addEventListener("pointerleave", (event) => {
   if (event.pointerType === "mouse" && !state.open) highlight(null);
@@ -2842,6 +3069,8 @@ function resetData() {
   state.open = null;
   state.openedMeal = null;
   state.dismissedQuestion = null;
+  answerShifts.clear();
+  answerFx = null;
   state.day = null;
   state.todayKey = null;
   state.microOpen = true;
@@ -4634,7 +4863,7 @@ function openCam(button) {
         <figcaption class="cam__caption"><span class="busy busy--${hall.level}"><span class="busy__dot" aria-hidden="true"></span><span class="busy__level">${BUSY_TEXT[hall.level]}</span><span class="busy__meta"><span aria-hidden="true">· </span>${esc(hall.people)} ${hall.people === 1 ? "person" : "people"} in view</span></span></figcaption>
       </figure>
       ${cam.live ? `<a class="btn btn--soft cam__live" href="${esc(cam.live)}" target="_blank" rel="noopener">Watch the live cam${icon("arrow")}<span class="visually-hidden"> (opens YouTube in a new tab)</span></a>` : ""}
-      <p class="note cam__note">The model counts people and identifies no one. Only the latest 16 seconds are kept.</p>`,
+      <p class="note cam__note">It’s UMass Dining’s own public live stream: MealScholar only counts the people in view, identifies no one, and replaces each clip every few minutes.</p>`,
   });
   els.panel.dataset.cam = String(hall.location_id);
   const video = $(".cam__video", els.panelBody);
