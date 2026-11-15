@@ -5939,18 +5939,19 @@ function renderMenuPanel(menu, mealKey) {
   const avoid = new Set(state.prefs.avoid_allergens);
   const diets = state.prefs.diets;
   const meals = Array.isArray(menu.meals) ? menu.meals.filter((m) => m && Array.isArray(m.categories)) : [];
+  const shown = []; // each listed dish's marks, so the legend names what the rows show
   const row = (item) => {
     const allergens = Array.isArray(item.allergens) ? item.allergens : [];
     const itemDiets = Array.isArray(item.diets) ? item.diets : [];
-    return dishRowHtml({
-      name: item.name,
-      calories: item.calories,
+    const marks = {
       fav: favorites.has(dishKey(item.name)),
       avoid: allergens.some((a) => avoid.has(a)),
       off: diets.length > 0 && !diets.every((d) => itemDiets.includes(d)),
       avoided: allergens.filter((a) => avoid.has(a)),
       kinds: dietKinds(item),
-    });
+    };
+    shown.push(marks);
+    return dishRowHtml({ name: item.name, calories: item.calories, ...marks });
   };
   const sections = meals
     .map((meal, i) => {
@@ -5975,7 +5976,7 @@ function renderMenuPanel(menu, mealKey) {
     })
     .join("");
   const date = typeof menu.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(menu.date) ? parseDay(menu.date) : null;
-  const legend = dishLegendHtml(favorites.size > 0, avoid.size > 0, diets.length > 0);
+  const legend = dishLegendHtml(shown.some((m) => m.fav), shown.some((m) => m.avoid), shown.some((m) => m.off), shown.map((m) => m.kinds));
   setPanelContent({
     kicker: date ? dayFormat.format(date) : "Menu",
     title: menu.location?.name ?? "Menu",
