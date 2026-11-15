@@ -427,7 +427,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <h2 id="videos-title" class="h2">More than a calorie counter</h2>
       </div>
       <div>
-        <p class="section-sub">Short recordings of the real app: the one question, favorite dishes with menu alerts, finding your nearest hall, and any day’s menu.</p>
+        <p class="section-sub">Short recordings and screens from the real app: the one question, favorite dishes with menu alerts, finding your nearest hall, any day’s menu, your week and your day.</p>
         <div class="head-actions">
           <a class="pill-link" href="/app/">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
           <div class="rail-ctrl" data-rail-controls="video-rail">
@@ -463,8 +463,8 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         </li>
         <li class="gallery__item" data-video="nearest-hall">
           <div class="gallery__frame">
-            <button type="button" class="vplay" data-video-src="/app/media/gallery-nearest-hall.mp4?v=2" data-video-w="720" data-video-h="900" data-video-label="Screen recording: in Settings, Find my nearest hall uses the phone’s location once and picks Worcester, with a link to change it if that’s wrong">
-              <img src="/app/media/gallery-nearest-hall.jpg?v=2" width="720" height="900" alt="" loading="lazy" decoding="async">
+            <button type="button" class="vplay" data-video-src="/app/media/gallery-nearest-hall.mp4?v=3" data-video-w="720" data-video-h="900" data-video-label="Screen recording: in Settings, Find my nearest hall uses the phone’s location once and picks Worcester, with a link to change it if that’s wrong">
+              <img src="/app/media/gallery-nearest-hall.jpg?v=3" width="720" height="900" alt="" loading="lazy" decoding="async">
               <span class="vplay__btn" aria-hidden="true"><svg><use href="#i-play"/></svg></span>
               <span class="sr-only">Play the recording: find your nearest hall</span>
             </button>
@@ -472,12 +472,26 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           <h3>Find your nearest hall</h3>
           <p>One tap picks the dining hall closest to you. Your location is used once, only for that, and isn’t kept or sent anywhere else.</p>
         </li>
-        <li class="gallery__item" data-video="any-day-menu">
-          <div class="gallery__frame">
-            <div class="video-ph video-ph--b"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
+        <li class="gallery__item">
+          <div class="gallery__frame gallery__frame--shot">
+            <img src="img/app-menu.jpg" width="390" height="488" alt="The Menu tab on an iPhone: Worcester’s breakfast today with arrows to other days, the hall chips, and how busy the hall is right now" loading="lazy" decoding="async">
           </div>
           <h3>Any day’s menu</h3>
           <p>Step through each dining hall’s menu, from last week to as far ahead as it’s posted.</p>
+        </li>
+        <li class="gallery__item">
+          <div class="gallery__frame gallery__frame--shot">
+            <img src="img/app-week.jpg" width="390" height="488" alt="The Week tab on an iPhone: calories by day for November 15 to 21, with today’s 849 and its range" loading="lazy" decoding="async">
+          </div>
+          <h3>Your week</h3>
+          <p>Calories by day and each day’s vitamins and minerals, all as ranges.</p>
+        </li>
+        <li class="gallery__item">
+          <div class="gallery__frame gallery__frame--shot">
+            <img src="img/app-today.jpg" width="390" height="488" alt="Today on an iPhone: 849 kcal, most likely, in a range of 740 to 976, with protein, carbs and fat as ranges" loading="lazy" decoding="async">
+          </div>
+          <h3>Your day</h3>
+          <p>Calories and macros as a likely number and a range. A goal shows only if you set one.</p>
         </li>
       </ul>
     </div>

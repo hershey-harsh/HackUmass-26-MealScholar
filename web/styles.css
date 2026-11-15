@@ -2132,7 +2132,7 @@ html:not(.js) .rail-ctrl { display: none; }
 .rail--gallery + .rail-dots { margin-top: 2px; }
 @media (min-width: 900px) {
   .rail--gallery { margin-inline: 0; overflow: visible; scroll-snap-type: none; border-radius: 0; }
-  .gallery { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; width: auto; padding: 0; }
+  .gallery { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; width: auto; padding: 0; }
 }
 
 /* ---- A real scan and where it works, the first section: a big recording that loads only when
@@ -2218,3 +2218,9 @@ html:not(.js) .rail-ctrl { display: none; }
   .flow__step--out .flow__n, .flow__step--out .flow__d { color: inherit; opacity: .78; }
 }
 #how { padding-block: calc(var(--pad-y) * .7); }
+
+/* Real app screens beside the recordings: the screen fills its 4:5 frame from the top. Three to a row
+   from 900px, so the three recordings sit above the three screens. */
+.gallery__frame > img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.gallery__frame--shot { background: var(--surface-2); }
+@media (min-width: 900px) { #videos .gallery { max-width: 980px; margin-inline: auto; } }
