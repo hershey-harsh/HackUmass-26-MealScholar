@@ -2,12 +2,16 @@ import io
 import logging
 import struct
 import zlib
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 from test_metadata import IPHONE_HEIC, heic
 
+import mealscholar.web
+from mealscholar.auth import AuthService, RateLimiter, Rule
+from mealscholar.auth_store import MemoryAuthStore
 from mealscholar.config import load_settings
 from mealscholar.dining import Dining
 from mealscholar.insights import SCORE_MINUS, SCORE_PLUS
@@ -20,17 +24,17 @@ class FailingVision:
     def __init__(self, exc: Exception | None = None) -> None:
         self.exc = exc
 
-    def analyze(self, jpeg, context):
+    def analyze(self, jpeg, context, menu_names=()):
         raise self.exc or AssertionError("the photo should have been refused before Gemini")
 
-    def refine(self, analysis, question, answer):
+    def refine(self, analysis, question, answer, menu_names=()):
         raise AssertionError("not used")
 
 
 class DisplayCaseVision:
     """What Gemini said for plastic display food (#49): dishes and a question, but not a meal."""
 
-    def analyze(self, jpeg, context):
+    def analyze(self, jpeg, context, menu_names=()):
         crepe = FoodItem(
             name="crepe",
             fdc_query="Crepe, plain",
@@ -44,14 +48,19 @@ class DisplayCaseVision:
         question = "Which of these items from the display case are you eating?"
         return MealAnalysis(is_food=False, items=[crepe], scale_reference=None, question=question)
 
-    def refine(self, analysis, question, answer):
+    def refine(self, analysis, question, answer, menu_names=()):
         raise AssertionError("not used")
 
 
 class CampusVision:
-    """Gemini with Worcester's menu in the prompt: the rice is the listed Jasmine Rice."""
+    """Gemini with Worcester's menu in the prompt: the rice is the listed Jasmine Rice. Remembers
+    the dishes it was allowed to name, call by call."""
 
-    def analyze(self, jpeg, context):
+    def __init__(self):
+        self.menu_names = []
+
+    def analyze(self, jpeg, context, menu_names=()):
+        self.menu_names.append(list(menu_names))
         rice = FoodItem(
             name="white rice",
             fdc_query="Rice, white, cooked",
@@ -65,14 +74,14 @@ class CampusVision:
         )
         return MealAnalysis(is_food=True, items=[rice], scale_reference=None, question=None)
 
-    def refine(self, analysis, question, answer):
+    def refine(self, analysis, question, answer, menu_names=()):
         raise AssertionError("not used")
 
 
 class SliceVision:
     """Gemini with the menu in the prompt: one or two slices of the listed Cheese Pizza."""
 
-    def analyze(self, jpeg, context):
+    def analyze(self, jpeg, context, menu_names=()):
         pizza = FoodItem(
             name="pizza slice",
             fdc_query="Pizza, cheese, from restaurant or fast food, thin crust",
@@ -89,7 +98,7 @@ class SliceVision:
         )
         return MealAnalysis(is_food=True, items=[pizza], scale_reference=None, question=None)
 
-    def refine(self, analysis, question, answer):
+    def refine(self, analysis, question, answer, menu_names=()):
         raise AssertionError("not used")
 
 
@@ -131,7 +140,15 @@ class MenuSource:
             docs.append(menu_doc("Cheese Pizza", "d2", "1 Slice", 212, pizza, day))
         return docs
 
+    def menu_items_between(self, location_ids, start, end):
+        first, last = date.fromisoformat(start), date.fromisoformat(end)
+        days = [first + timedelta(days=n) for n in range((last - first).days + 1)]
+        return [doc for i in location_ids for day in days for doc in self.menu_items(i, day.isoformat())]
+
     def dishes(self, pattern, limit):
+        return []
+
+    def catalog(self, location_ids, limit):
         return []
 
 
@@ -308,7 +325,11 @@ def test_campus_match_is_in_the_api_reply(home):
     assert rice["nutrients"]["energy_kcal"]["low"] < rice["nutrients"]["energy_kcal"]["high"]
     assert (meal["menu"]["location_id"], meal["menu"]["location_name"]) == (1, "Worcester Dining Commons")
     assert meal["menu"]["dishes"] == 1 and meal["name"] == "white rice"
-    assert any(n.startswith("Campus menu: Worcester Dining Commons, ") for n in meal["notes"])
+    # No EXIF time: the menus of the days up to the upload's, which the reply names. Every day here
+    # serves the same rice, so only the guessed day's was shown.
+    assert meal["menu"]["certain"] is False and meal["menu"]["start"] == meal["menu"]["end"] == meal["menu"]["date"]
+    assert rice["dish"]["date"] == meal["menu"]["date"] and rice["dish"]["meal"] == "lunch"
+    assert any(n.startswith("The photo had no date, so it was matched against Worcester") for n in meal["notes"])
     assert app.get(f"/api/meals/{meal['id']}").json() == meal
 
     assert app.post("/api/meals?location_id=0", content=jpeg()).status_code == 422
@@ -372,3 +393,130 @@ def test_lat_lon_alone_never_matches(home):
     meal = res.json()
     assert all(r["source"] == "usda" and r["dish"] is None for r in meal["items"])
     assert meal["menu"] is None and not any("Campus" in n for n in meal["notes"])
+
+
+# --- POST /api/meals/{id}/menu: the user names the hall and day, the stored photo is matched again -----
+
+
+def https(app, ip="testclient") -> TestClient:
+    return TestClient(app, base_url="https://testserver", client=(ip, 50000), raise_server_exceptions=False)
+
+
+def test_rematch_runs_the_stored_photo_against_the_named_hall_and_day(home):
+    vision = CampusVision()
+    app = client(home, vision, dining=Dining(MenuSource(pizza=True)))
+    meal = app.post("/api/meals?location_id=1&taken_at=2026-11-14T15:33:00-05:00", content=jpeg()).json()
+    assert meal["menu"]["certain"] is False and meal["context"]["time_source"] == "device"
+
+    res = app.post(f"/api/meals/{meal['id']}/menu", json={"location_id": 1, "date": "2026-11-11", "meal": "dinner"})
+    assert res.status_code == 200
+    fixed = res.json()
+    assert (fixed["id"], fixed["photo_url"], fixed["context"]) == (meal["id"], meal["photo_url"], meal["context"])
+    assert fixed["menu"] == {
+        "location_id": 1,
+        "location_name": "Worcester Dining Commons",
+        "date": "2026-11-11",
+        "dishes": 2,
+        "meal": "dinner",
+        "certain": True,
+        "start": None,
+        "end": None,
+    }
+    (rice,) = fixed["items"]
+    assert (rice["source"], rice["dish"]["date"], rice["dish"]["meal"]) == ("campus", "2026-11-11", "lunch")
+    assert vision.menu_names[-1] == ["Jasmine Rice", "Cheese Pizza"]
+    assert app.get(f"/api/meals/{meal['id']}").json() == fixed  # saved under the same id
+    assert len(app.get("/api/days/2026-11-14").json()["meals"]) == 1  # not a second meal
+
+    # Hall only: the meal's own time decides, as when it was logged (no date on it, so the window).
+    hall_only = app.post(f"/api/meals/{meal['id']}/menu", json={"location_id": 1}).json()
+    assert hall_only["menu"]["certain"] is False
+
+
+def test_rematch_refusals(home):
+    vision = CampusVision()
+    app = client(home, vision, dining=Dining(MenuSource()))
+    meal = app.post("/api/meals", content=jpeg()).json()
+    url = f"/api/meals/{meal['id']}/menu"
+    calls = len(vision.menu_names)
+
+    for body, status in (
+        ({"location_id": 0}, 422),
+        ({"location_id": 1, "meal": "brunch"}, 422),
+        ({"location_id": 1, "date": "11/14/2026"}, 422),
+        ({"location_id": 9}, 404),
+    ):
+        assert app.post(url, json=body).status_code == status, body
+    assert app.post("/api/meals/999/menu", json={"location_id": 1}).json() == {"detail": "No meal #999."}
+
+    (home / "photos" / "local" / f"{meal['id']}.jpg").unlink()  # a meal whose photo wasn't kept
+    res = app.post(url, json={"location_id": 1})
+    assert (res.status_code, res.json()["detail"]) == (409, f"Meal #{meal['id']} has no saved photo to match again.")
+    assert len(vision.menu_names) == calls  # none of them reached Gemini
+
+    no_menus = client(home, CampusVision(), dining=None)
+    other = no_menus.post("/api/meals", content=jpeg()).json()
+    assert no_menus.post(f"/api/meals/{other['id']}/menu", json={"location_id": 1}).status_code == 503
+
+
+def test_rematch_is_only_for_the_owner_and_counts_against_the_analysis_limit(home, monkeypatch):
+    monkeypatch.setattr(mealscholar.web, "ANALYSIS_PER_USER", Rule("analysis-user", 2, 600))
+    settings = load_settings({"MEALSCHOLAR_HOME": str(home)})
+    auth = AuthService.from_settings(settings, store=MemoryAuthStore())
+    vision = CampusVision()
+    app = create_app(settings, vision=vision, auth=auth, dining=Dining(MenuSource()))
+    app.state.auth.limiter = RateLimiter()
+    sam, alex = https(app, "198.51.100.1"), https(app, "198.51.100.2")
+    for who, email in ((sam, "sam@example.com"), (alex, "alex@example.com")):
+        res = who.post("/api/auth/register", json={"email": email, "password": "correct horse battery"})
+        assert res.status_code == 201
+    meal = sam.post("/api/meals", content=jpeg(), headers={"Content-Type": "image/jpeg"}).json()
+    url = f"/api/meals/{meal['id']}/menu"
+
+    res = alex.post(url, json={"location_id": 1})
+    assert (res.status_code, res.json()) == (404, {"detail": f"No meal #{meal['id']}."})  # as for no meal at all
+    assert https(app).post(url, json={"location_id": 1}).status_code == 401  # signed out
+
+    assert sam.post(url, json={"location_id": 1, "date": "2026-11-13"}).status_code == 200  # the 2nd analysis
+    limited = sam.post(url, json={"location_id": 1, "date": "2026-11-13"})
+    assert limited.status_code == 429 and int(limited.headers["Retry-After"]) > 0
+    assert len(vision.menu_names) == 2  # the refusal never called the model
+
+
+class GoneVision(CampusVision):
+    """The first look finds the rice; a second finds no meal."""
+
+    def analyze(self, jpeg, context, menu_names=()):
+        if self.menu_names:
+            self.menu_names.append(list(menu_names))
+            return MealAnalysis(is_food=False, items=[], scale_reference=None, question=None)
+        return super().analyze(jpeg, context, menu_names)
+
+
+class FlakyMenuSource(MenuSource):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.down = False
+
+    def menu_items(self, location_id, day):
+        if self.down:
+            from pymongo.errors import ServerSelectionTimeoutError
+
+            raise ServerSelectionTimeoutError("down")
+        return super().menu_items(location_id, day)
+
+
+def test_rematch_never_replaces_a_logged_meal_with_nothing(home):
+    app = client(home, GoneVision(), dining=Dining(MenuSource()))
+    meal = app.post("/api/meals?location_id=1&taken_at=2026-11-14T15:33:00-05:00", content=jpeg()).json()
+    res = app.post(f"/api/meals/{meal['id']}/menu", json={"location_id": 1, "date": "2026-11-13"})
+    assert res.status_code == 422
+    assert app.get(f"/api/meals/{meal['id']}").json() == meal
+
+    source = FlakyMenuSource()
+    app = client(home, CampusVision(), dining=Dining(source))
+    meal = app.post("/api/meals?location_id=1&taken_at=2026-11-14T15:33:00-05:00", content=jpeg()).json()
+    source.down = True  # the hall list is cached, the day's menu can't be read
+    res = app.post(f"/api/meals/{meal['id']}/menu", json={"location_id": 1, "date": "2026-11-12"})
+    assert res.status_code == 503
+    assert app.get(f"/api/meals/{meal['id']}").json() == meal

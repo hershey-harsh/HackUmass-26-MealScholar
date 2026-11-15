@@ -962,8 +962,178 @@ function itemsHtml(result) {
         <h2 id="foods-title" class="section-title" tabindex="-1">Foods</h2>
         <p class="eyebrow">${result.items.length} found</p>
       </div>
+      ${menuSourceHtml(result)}
       <ol class="items">${result.items.map((r, i) => itemHtml(r, i, gramsScale)).join("")}</ol>
     </section>`;
+}
+
+// ---- Which UMass Dining menu the foods were matched against, and the way to correct it
+
+const MEAL_WORD = { breakfast: "breakfast", lunch: "lunch", dinner: "dinner", late_night: "late night", grab_n_go: "Grab ’n Go", daily_offerings: "daily offerings" };
+const menuDayFormat = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" });
+const monthDayFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+
+/** "2026-11-15" as that local day (not UTC midnight, which is the evening before here). */
+const isoDay = (key) => parseDay(key);
+
+/** "Nov 10 to 28", or "Nov 28 to Dec 3" across a month. */
+function dayRangeText(start, end) {
+  const [a, b] = [isoDay(start), isoDay(end)];
+  if (start === end) return monthDayFormat.format(a);
+  return a.getMonth() === b.getMonth() ? `${monthDayFormat.format(a)} to ${b.getDate()}` : `${monthDayFormat.format(a)} to ${monthDayFormat.format(b)}`;
+}
+
+/** "lunch · Sun, Nov 15" for a matched dish; "past menus" for one the hall served before. */
+function servedText(dish) {
+  if (!dish.date) return "from its past menus";
+  return [MEAL_WORD[dish.meal] ?? dish.meal, menuDayFormat.format(isoDay(dish.date))].filter(Boolean).join(" · ");
+}
+
+/** A logged meal with a kept photo can be matched again, while the menus are connected. */
+const canRematch = (result) => result.id != null && Boolean(result.photo_url) && diningOn();
+
+function menuSourceHtml(result) {
+  const m = result.menu;
+  const fix = canRematch(result);
+  const button = (label) =>
+    `<button class="link-btn menu-src__change" type="button" data-action="menu" aria-haspopup="dialog">${label}<span class="visually-hidden">: the dining hall and day</span></button>`;
+  if (!m) {
+    return fix ? `<div class="menu-src menu-src--none"><p class="menu-src__text">Ate at a dining hall?</p>${button("Match it to the menu")}</div>` : "";
+  }
+  const hall = `<strong>${esc(m.location_name)}</strong>`;
+  let text;
+  if (m.certain) {
+    // The day and the range stay whole ("Sat, Nov 14", never "Sat," then "Nov 14" on the next line).
+    const day = `<span class="nowrap">${esc(menuDayFormat.format(isoDay(m.date)))}</span>`;
+    const parts = [hall, m.meal ? esc(capitalize(MEAL_WORD[m.meal] ?? m.meal)) : null, day].filter(Boolean);
+    text = m.dishes ? `From UMass Dining: ${parts.join(" · ")}` : `No UMass Dining menu for ${hall} on ${day}`;
+  } else if (m.start && m.end) {
+    text = `Photo had no date: matched against ${hall} menus, <span class="nowrap">${esc(dayRangeText(m.start, m.end))}</span>`;
+  } else {
+    text = m.dishes ? `Photo had no date: matched against dishes ${hall} has served` : `No UMass Dining menus for ${hall} near this day`;
+  }
+  return `
+    <div class="menu-src${m.certain ? "" : " menu-src--unsure"}">
+      <span class="menu-src__icon" aria-hidden="true">${icon("fork")}</span>
+      <p class="menu-src__text">${text}</p>
+      ${fix ? button("Change") : ""}
+    </div>`;
+}
+
+/** The halls to pick from: the meal's own, the user's, then the dining commons; each once. */
+function rematchHalls(meal) {
+  const locations = state.dining?.locations ?? [];
+  const ids = [
+    meal.menu?.location_id,
+    ...(state.prefs?.dining_halls ?? []),
+    ...locations.filter((l) => l.is_dining_commons === true).map((l) => l.id),
+  ].filter(Number.isInteger);
+  // The legend already says "Dining hall": "Worcester", not four chips that each end in "Dining Commons".
+  const short = (name) => name.replace(/\s+Dining Commons$/i, "");
+  return [...new Set(ids)].map((id) => ({ id, name: short(id === meal.menu?.location_id ? meal.menu.location_name : hallNameById(id) ?? `Hall ${id}`) }));
+}
+
+/** Today first, then back a week, never before the first menu the meal was matched against;
+    the meal's own day and menu day stay on the list. */
+function rematchDays(meal) {
+  const today = localDate();
+  const floor = meal.menu && !meal.menu.certain && meal.menu.start ? meal.menu.start : null;
+  const days = [];
+  for (let n = 0; n < 8; n++) {
+    const key = shiftDay(today, -n);
+    if (floor && key < floor) break;
+    days.push(key);
+  }
+  for (const key of [mealDay(meal), meal.menu?.certain ? meal.menu.date : null]) {
+    if (key && key <= today && !days.includes(key)) days.push(key);
+  }
+  return days;
+}
+
+function dayChipLabel(key) {
+  const today = localDate();
+  if (key === today) return "Today";
+  if (key === shiftDay(today, -1)) return "Yesterday";
+  return menuDayFormat.format(isoDay(key));
+}
+
+function choiceHtml(name, value, label, checked) {
+  return `<label class="menu-pick"><input class="menu-pick__input" type="radio" name="${name}" value="${esc(value)}"${checked ? " checked" : ""}><span class="menu-pick__label">${esc(label)}</span></label>`;
+}
+
+function menuSheetHtml(meal) {
+  const m = meal.menu;
+  const halls = rematchHalls(meal);
+  const hall = m?.location_id ?? halls[0]?.id;
+  const day = m?.certain ? m.date : "";
+  const mealKey = m?.certain && m.meal && ["breakfast", "lunch", "dinner", "late_night"].includes(m.meal) ? m.meal : "";
+  const meals = [["", "Any meal"], ["breakfast", "Breakfast"], ["lunch", "Lunch"], ["dinner", "Dinner"], ["late_night", "Late night"]];
+  return `
+    <form class="rematch" data-form="menu">
+      <fieldset class="rematch__group">
+        <legend class="field-label">Dining hall</legend>
+        <div class="rematch__choices">${halls.map((h) => choiceHtml("hall", h.id, h.name, h.id === hall)).join("")}</div>
+      </fieldset>
+      <fieldset class="rematch__group">
+        <legend class="field-label">Day</legend>
+        <div class="rematch__choices">
+          ${rematchDays(meal).map((key) => choiceHtml("day", key, dayChipLabel(key), key === day)).join("")}
+          ${choiceHtml("day", "", "Not sure", !day)}
+        </div>
+      </fieldset>
+      <fieldset class="rematch__group">
+        <legend class="field-label">Meal <span class="rematch__optional">optional</span></legend>
+        <div class="rematch__choices">${meals.map(([key, label]) => choiceHtml("meal", key, label, key === mealKey)).join("")}</div>
+      </fieldset>
+      <p class="sheet-hint">MealScholar reads your photo again against that menu, which takes a few seconds. Not sure of the day? It checks the menus around the photo’s date.</p>
+      <p class="sheet-error" role="alert"></p>
+      <button class="btn btn--primary btn--block rematch__submit" type="submit">${icon("check")}<span data-label>Match to this menu</span></button>
+    </form>`;
+}
+
+function openMenuSheet() {
+  const meal = shownMeal();
+  if (!meal || !canRematch(meal)) return;
+  clearTimeout(closeTimer);
+  els.sheet.classList.remove("is-closing");
+  els.sheet.style.transform = "";
+  sheetMessage = "";
+  state.open = { index: null, kind: "menu", id: meal.id };
+  els.sheet.dataset.kind = "menu";
+  els.sheetKicker.textContent = "UMass Dining menu";
+  els.sheetTitle.textContent = "Where and when was this?";
+  els.sheetBody.innerHTML = menuSheetHtml(meal);
+  document.documentElement.classList.add("has-sheet");
+  if (!els.sheet.open) els.sheet.showModal();
+  els.sheetTitle.focus();
+}
+
+/** POST /api/meals/{id}/menu: the stored photo, analyzed again against the hall and day picked. */
+async function rematchMeal(form) {
+  const data = new FormData(form);
+  const body = { location_id: Number(data.get("hall")) };
+  if (data.get("day")) body.date = String(data.get("day"));
+  if (data.get("meal")) body.meal = String(data.get("meal"));
+  const id = state.open?.id;
+  const epoch = state.epoch;
+  const button = $('button[type="submit"]', form);
+  const label = $("[data-label]", button);
+  const error = $(".sheet-error", form);
+  if (id == null || !Number.isInteger(body.location_id)) return;
+  error.textContent = "";
+  await withBusy(button, async () => {
+    label.textContent = "Matching…";
+    try {
+      const result = await api(`/api/meals/${id}/menu`, { method: "POST", ...jsonBody(body) });
+      if (epoch !== state.epoch) return; // signed out meanwhile
+      updateMeal(result);
+      closeSheet({ message: result.menu ? `Matched against the ${result.menu.location_name} menu.` : "Matched again." });
+    } catch (err) {
+      if (error.isConnected && !err.signedOut) error.textContent = err.message;
+    } finally {
+      if (label.isConnected) label.textContent = "Match to this menu";
+    }
+  });
 }
 
 function itemHtml(r, i, gramsScale) {
@@ -985,7 +1155,7 @@ function itemHtml(r, i, gramsScale) {
       : '<span class="value__none">No energy data</span>'
     : '<span class="chip chip--alert">Not counted</span>';
   const matchLine = dish
-    ? `<p class="item__match"><span class="item__src">Menu<span class="visually-hidden">:</span></span> ${esc(dish.location_name)}’s ${esc(dish.name)}${dish.serving_size ? `, label per ${esc(dish.serving_size)}` : ""}<span class="item__id">${SEP}what the photo shows: ${esc(item.name)}</span></p>`
+    ? `<p class="item__match"><span class="item__src">Menu<span class="visually-hidden">:</span></span> ${esc(dish.location_name)}’s ${esc(dish.name)}${dish.serving_size ? `, label per ${esc(dish.serving_size)}` : ""}<span class="item__id">${SEP}${esc(servedText(dish))}${item.name !== dish.name ? ` · what the photo shows: ${esc(item.name)}` : ""}</span></p>`
     : match
     ? `<p class="item__match"><span class="item__src">USDA<span class="visually-hidden">:</span></span> ${esc(match.description)}<span class="item__id">${SEP}${esc(match.data_type)} #${esc(match.fdc_id)}</span></p>`
     : `<p class="item__match is-missing">No close USDA match, so this food isn't in the totals yet. Pick one to count it.</p>`;
@@ -1179,6 +1349,9 @@ els.result.addEventListener("click", (event) => {
     case "food":
       openSheet(button.dataset.action, index);
       break;
+    case "menu":
+      openMenuSheet();
+      break;
     case "settings":
       openSettings(button.dataset.section, button);
       break;
@@ -1282,7 +1455,8 @@ els.sheet.addEventListener("close", () => {
   state.open = null;
   els.sheetBody.innerHTML = "";
   highlight(null);
-  if (open && restoreFocus) $(`[data-action="${open.kind}"][data-index="${open.index}"]`, els.result)?.focus();
+  const opener = open?.index == null ? `[data-action="${open?.kind}"]` : `[data-action="${open.kind}"][data-index="${open.index}"]`;
+  if (open && restoreFocus) $(opener, els.result)?.focus();
   restoreFocus = true;
   if (sheetMessage) toast(sheetMessage);
   sheetMessage = "";
@@ -1349,6 +1523,7 @@ els.sheet.addEventListener("click", (event) => {
 els.sheet.addEventListener("submit", (event) => {
   event.preventDefault();
   const form = event.target;
+  if (form.dataset.form === "menu" && state.open) return rematchMeal(form);
   if (form.dataset.form !== "weigh" || !state.open) return;
   const value = Number(new FormData(form).get("grams"));
   correct(state.open.index, { grams: Math.round(value) }, $('button[type="submit"]', form), "weigh");

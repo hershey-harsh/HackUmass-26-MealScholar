@@ -1,12 +1,13 @@
+import logging
 import math
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pytest
-from PIL import Image
+from PIL import ExifTags, Image
 
 from mealscholar.campus import serving_grams
 from mealscholar.diary import Diary
-from mealscholar.dining import DiningUnavailable, DishFacts
+from mealscholar.dining import CATALOG_MEAL, DiningUnavailable, DishFacts
 from mealscholar.insights import SCORE_MINUS, SCORE_PLUS, SUGARS_DV_G, health_score, summarize_days
 from mealscholar.nutrients import NUTRIENTS
 from mealscholar.pipeline import BadCorrection, UnknownFood, Workflow, correct, meal_name
@@ -36,9 +37,10 @@ def item(name, query, low, likely, high, *, method="unknown", hidden_fat=False, 
     )
 
 
-def dish(name, serving, kcal, *, meal="lunch", protein=5.0, carbs=20.0, fat=5.0, score=4, **more):
+def dish(name, serving, kcal, *, meal="lunch", protein=5.0, carbs=20.0, fat=5.0, score=4, day=None, **more):
     per_serving = {"energy_kcal": kcal, "protein_g": protein, "carbs_g": carbs, "fat_g": fat, **more}
     return DishFacts(
+        date=day,
         dish_id=f"d-{name.lower().replace(' ', '-')}",
         name=name,
         meal=meal,
@@ -55,13 +57,16 @@ class FakeVision:
         self.analysis = analysis
         self.context = None
         self.refined_with = None
+        self.menu_names = None
 
-    def analyze(self, jpeg, context):
+    def analyze(self, jpeg, context, menu_names=()):
         self.context = context
+        self.menu_names = list(menu_names)
         return self.analysis
 
-    def refine(self, analysis, question, answer):
+    def refine(self, analysis, question, answer, menu_names=()):
         self.refined_with = (question, answer)
+        self.menu_names = list(menu_names)
         rice = analysis.items[0].model_copy(update={"hidden_fat_likely": True})
         return analysis.model_copy(update={"items": [rice, *analysis.items[1:]]})
 
@@ -71,14 +76,26 @@ class FakeMenus:
 
     names = {1: WORCESTER, 2: BERKSHIRE}
 
-    def __init__(self, facts):
+    def __init__(self, facts, past=None):
         self.facts = facts  # {(location_id, day): [DishFacts]}
+        self.past = past or {}  # {location_id: [DishFacts]}, the hall's past dishes
         self.down = False
+        self.between = []
 
     def dishes_on(self, location_id, day):
         if self.down:
             raise DiningUnavailable("MongoDB is down")
-        return tuple(self.facts.get((location_id, day), ()))
+        return tuple(dish.model_copy(update={"date": day}) for dish in self.facts.get((location_id, day), ()))
+
+    def dishes_between(self, location_id, start, end):
+        if self.down:
+            raise DiningUnavailable("MongoDB is down")
+        self.between.append((location_id, start, end))
+        days = sorted(day for hall, day in self.facts if hall == location_id and start <= day <= end)
+        return tuple(dish for day in days for dish in self.dishes_on(location_id, day))
+
+    def served_before(self, location_id):
+        return tuple(dish.model_copy(update={"meal": CATALOG_MEAL}) for dish in self.past.get(location_id, ()))
 
     def location_name(self, location_id):
         if self.down:
@@ -126,11 +143,23 @@ def one(food_item, question=None):
     return MealAnalysis(is_food=True, items=[food_item], scale_reference=None, question=question)
 
 
-def analyze(food_db, analysis, meal_photo, *, menus=None, location_id=None, device_time=None):
+def stamp(path, when):
+    """Give the photo an EXIF capture time, as a camera does (its date is then certain), or with
+    `when` None take it away, as a screenshot or an AirDropped photo has none."""
+    img = Image.open(path)
+    img.load()
+    exif = Image.Exif()
+    if when is not None:
+        exif.get_ifd(ExifTags.IFD.Exif)[ExifTags.Base.DateTimeOriginal] = when.strftime("%Y:%m:%d %H:%M:%S")
+    img.save(path, exif=exif)
+
+
+def analyze(food_db, analysis, meal_photo, *, menus=None, location_id=None, device_time=None, dated=True):
+    """`dated`: the photo carries the time in EXIF (a camera photo); otherwise only the device sends it."""
+    at = device_time or datetime(2026, 11, 13, 12, 30)
+    stamp(meal_photo, at if dated else None)
     workflow = Workflow(vision=FakeVision(analysis), foods=food_db, menus=menus)
-    result = workflow.analyze(
-        meal_photo, device_time=device_time or datetime(2026, 11, 13, 12, 30), location_id=location_id
-    )
+    result = workflow.analyze(meal_photo, device_time=at, location_id=location_id)
     return workflow, result
 
 
@@ -243,7 +272,9 @@ def test_menu_dish_with_a_weight_serving_uses_its_label_and_usda_micros(food_db,
     assert (rice.dish.name, rice.dish.serving_size, rice.dish.serving_grams) == ("Jasmine Rice", "4 OZ", 113.4)
     assert (rice.dish.healthfulness_score, rice.dish.meal, rice.dish.location_name) == (5, "lunch", WORCESTER)
     assert rice.dish.per_serving["energy_kcal"] == 186
-    assert result.menu == MenuRef(location_id=1, location_name=WORCESTER, date=LUNCH_DAY, dishes=7)
+    assert result.menu == MenuRef(location_id=1, location_name=WORCESTER, date=LUNCH_DAY, dishes=7, meal="lunch")
+    assert (result.menu.certain, result.menu.start, result.menu.end) == (True, None, None)
+    assert (rice.dish.date, rice.dish.location_id) == (LUNCH_DAY, 1)  # where the numbers come from
     assert result.name == "white rice, pizza slice and mystery sauce"
     assert f"Campus menu: {WORCESTER}, 2026-11-13." in result.notes
     assert result.totals["energy_kcal"].likely == pytest.approx(per_gram * 200 + 266 * 1.2)
@@ -310,11 +341,13 @@ def test_servings_zero_or_missing_fall_back_with_a_note(food_db, meal_photo, cam
 
 def test_menu_item_null_never_matches_by_name(food_db, meal_photo, campus):
     query = "Egg omelet or scrambled egg, with cheese, made with oil"
-    for menu_item, source in ((None, "usda"), ("Scrambled Egg", "campus"), ("Chicken Piccata", "usda")):
+    for menu_item, source in ((None, "usda"), ("scrambled  eggs", "campus"), ("Chicken Piccata", "usda")):
         egg = item("scrambled egg", query, 80, 100, 120, menu_item=menu_item)
         _, result = analyze(food_db, one(egg), meal_photo, menus=campus, location_id=1)
         assert result.items[0].source == source, menu_item
         assert (result.items[0].dish is None) == (source == "usda")
+        # Only the listed spelling is kept: a name that isn't listed never reaches the result.
+        assert result.items[0].item.menu_item == ("Scrambled Eggs" if source == "campus" else None)
     assert result.items[0].match.fdc_id == 19
 
 
@@ -346,6 +379,10 @@ def test_hall_problems_are_notes_not_errors(food_db, analysis, meal_photo, campu
     _, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=2)
     assert f"No campus menu for {BERKSHIRE} on 2026-11-13; USDA used." in result.notes
     assert result.menu == MenuRef(location_id=2, location_name=BERKSHIRE, date=LUNCH_DAY, dishes=0)
+
+    _, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=2, dated=False)
+    assert f"The photo had no date and {BERKSHIRE} has no campus menus near 2026-11-13; USDA used." in result.notes
+    assert (result.menu.dishes, result.menu.certain, result.menu.start) == (0, False, None)
 
     campus.down = True
     _, result = analyze(food_db, analysis, meal_photo, menus=campus, location_id=1)
@@ -386,13 +423,28 @@ def listed_meals(prompt, menus):
     """How many dishes of each meal the prompt lists."""
     by_name = {d.name: d.meal for d in menus.facts[(1, LUNCH_DAY)]}
     names = [line[2:].split(" (serving:")[0] for line in prompt.splitlines() if line.startswith("- ")]
-    assert len(names) == MENU_NAMES
+    assert len(names) == SMALL_CAP
     counts = {meal: sum(1 for name in names if by_name[name] == meal) for meal in set(by_name.values())}
     return {meal: count for meal, count in counts.items() if count}
 
 
-def test_the_meal_on_now_is_listed_whole_when_the_day_outgrows_the_prompt(food_db, meal_photo):
+SMALL_CAP = 100
+"""A cap under a real day's size, so the order decides what is cut."""
+
+
+def test_a_whole_day_is_listed_and_the_names_are_the_enum(food_db, meal_photo):
+    menus = full_day()
+    workflow, result = analyze(
+        food_db, one(item("rice", "Rice, white, cooked", 1, 2, 3)), meal_photo, menus=menus, location_id=1
+    )
+    assert MENU_NAMES >= 171 and result.menu.dishes == 171
+    assert len(workflow.vision.menu_names) == 171 and workflow.vision.menu_names[0] == "Lunch dish 0"
+    assert workflow.vision.context.count("\n- ") == 171
+
+
+def test_the_meal_on_now_is_listed_whole_when_the_day_outgrows_the_prompt(food_db, meal_photo, monkeypatch):
     """16:45 is slot 'snack' but dinner by the dining hours; 21:30 is slot 'dinner' but late night."""
+    monkeypatch.setattr("mealscholar.pipeline.MENU_NAMES", SMALL_CAP)
     menus = full_day()
     pizza = item(
         "pizza slice",
@@ -408,7 +460,7 @@ def test_the_meal_on_now_is_listed_whole_when_the_day_outgrows_the_prompt(food_d
     assert result.context.meal_slot == "snack"
     assert listed_meals(workflow.vision.context, menus) == {"dinner": 64, "grab_n_go": 17, "lunch": 19}
     assert workflow.vision.context.splitlines()[2] == "- Dinner dish 0 (serving: 4 OZ)"
-    assert (result.items[0].source, result.items[0].dish.meal, result.menu.dishes) == ("campus", "dinner", 171)
+    assert (result.items[0].source, result.items[0].dish.meal, result.menu.dishes) == ("campus", "dinner", SMALL_CAP)
 
     sticks = item(
         "mozzarella sticks", "Cheese, mozzarella", 100, 120, 150, menu_item="Mozzarella Sticks", servings=(1, 1, 1)
@@ -432,7 +484,7 @@ def test_prompt_lists_the_meals_dishes_first_and_the_date(food_db, analysis, mea
     assert prompt.startswith("Photo taken Fri 2026-11-13 12:30 local time (lunch).")
     assert f"Today's menu at {WORCESTER}, dishes for this meal first:" in prompt
     assert prompt.index("- Cheese Pizza (serving: 1 Slice)") < prompt.index("- Pad Thai (serving: 8 OZ)")
-    assert "set menu_item to that exact name" in prompt
+    assert "set menu_item" not in prompt and "exactly as written" in prompt
 
 
 def test_answer_rematches_against_the_same_menu(food_db, analysis, meal_photo, campus):
@@ -599,3 +651,209 @@ def test_health_score_pct_falls_back_to_totals_over_daily_value():
     assert by_key["sodium_mg"].pct == 200 and by_key["sodium_mg"].points == -10  # 2 x 2300 mg
     assert by_key["sugars_g"].pct == 100 * 25 / SUGARS_DV_G and by_key["sugars_g"].points == 0
     assert health.score == 0  # 6.25 - 10 clamps at 0
+
+
+# --- the right menus for the photo: one day when its date is certain, the days around it if not -----
+
+NOV = {d: date(2026, 11, d) for d in range(1, 31)}
+SCREENSHOT_TIME = datetime(2026, 11, 14, 15, 33)  # the file's time: the photo carries no date
+
+
+@pytest.fixture
+def pho_week():
+    """Worcester as on the real menus: pho on the 11th (dinner) and the 15th, ramen bars on the 14th,
+    and a past dish only the catalog knows."""
+    broth = dict(protein=4, carbs=6, fat=1)
+    return FakeMenus(
+        {
+            (1, NOV[11]): [dish("Chicken Pho Broth (Fish)", "12 OZL", 60, meal="dinner", **broth)],
+            (1, NOV[14]): [
+                dish("Tantanmen Ramen Bar", "1 EACH", 640, protein=28, carbs=70, fat=26),
+                dish("Hard Boiled Egg", "1 EACH", 70, protein=6, carbs=1, fat=5),
+                dish("Chicken Shoyu Ramen Bar (Fish, Shellfish)", "1 EACH", 560, meal="dinner"),
+            ],
+            (1, NOV[15]): [
+                dish("Chicken Pho Broth (Fish)", "12 OZL", 60, **broth),
+                dish("Pho Noodles", "4 OZ", 190, protein=3, carbs=43, fat=0),
+                dish("Chicken for Pho", "3 OZ", 140, meal="dinner", protein=25, carbs=0, fat=4),
+            ],
+            (1, NOV[30]): [dish("Turkey Dinner", "8 OZ", 500)],  # outside the window
+        },
+        past={1: [dish("Cheese Pizza", "1 Slice", 212), dish("Pho Noodles", "4 OZ", 190)]},
+    )
+
+
+def pho_bowl(menu_item="Chicken Pho Broth (Fish)", servings=(1, 1.5, 2)):
+    return one(item("pho broth", "Soup, pho, with meat", 350, 450, 550, menu_item=menu_item, servings=servings))
+
+
+def test_a_photo_without_a_date_is_matched_against_the_days_around_it(food_db, meal_photo, pho_week):
+    workflow, result = analyze(
+        food_db, pho_bowl(), meal_photo, menus=pho_week, location_id=1, device_time=SCREENSHOT_TIME, dated=False
+    )
+    assert result.context.time_source == "device"
+    # The 14 days before and the photo's day, never a later one: the file's time is when it was
+    # saved or sent, so the meal was eaten by then and tomorrow's menu can't be on the plate.
+    assert pho_week.between == [(1, NOV[14] - timedelta(days=14), NOV[14])]
+    # The guessed day's lunch, the rest of that day, the days before nearest first, then past dishes.
+    assert workflow.vision.menu_names == [
+        "Tantanmen Ramen Bar",
+        "Hard Boiled Egg",
+        "Chicken Shoyu Ramen Bar (Fish, Shellfish)",
+        "Chicken Pho Broth (Fish)",  # the 11th's dinner; the 15th's pho hadn't been served yet
+        "Cheese Pizza",
+        "Pho Noodles",
+    ]
+    assert result.menu == MenuRef(
+        location_id=1,
+        location_name=WORCESTER,
+        date=NOV[14],
+        dishes=6,
+        certain=False,
+        start=NOV[11],
+        end=NOV[14],
+    )
+    assert (
+        f"The photo had no date, so it was matched against {WORCESTER}'s menus from 2026-11-11 to 2026-11-14, "
+        "2026-11-14 first."
+    ) in result.notes
+    prompt = workflow.vision.context
+    assert f"The photo has no date, so these are dishes {WORCESTER} served from Wed Nov 11 to Sat Nov 14" in prompt
+    (pho,) = result.items
+    assert (pho.source, pho.item.menu_item, pho.item.name) == ("campus", "Chicken Pho Broth (Fish)", "pho broth")
+    # Where its numbers come from: the hall, the day and the meal the dish was served.
+    assert (pho.dish.location_name, pho.dish.date, pho.dish.meal) == (WORCESTER, NOV[11], "dinner")
+    assert pho.nutrients["energy_kcal"].low < pho.nutrients["energy_kcal"].high  # still a range
+
+
+def test_a_dated_photo_is_matched_against_that_days_menu_only(food_db, meal_photo, pho_week):
+    """With the EXIF date the 14th's menu is the list: pho isn't on it, so the bowl is named from the
+    photo with USDA numbers, never pushed onto the ramen bar."""
+    workflow, result = analyze(
+        food_db, pho_bowl(), meal_photo, menus=pho_week, location_id=1, device_time=SCREENSHOT_TIME
+    )
+    assert result.context.time_source == "exif" and pho_week.between == []
+    assert workflow.vision.menu_names == [
+        "Tantanmen Ramen Bar",
+        "Hard Boiled Egg",
+        "Chicken Shoyu Ramen Bar (Fish, Shellfish)",
+    ]
+    assert (result.menu.certain, result.menu.date, result.menu.meal, result.menu.dishes) == (True, NOV[14], "lunch", 3)
+    (pho,) = result.items
+    assert (pho.source, pho.dish, pho.item.menu_item, pho.item.servings_likely) == ("usda", None, None, None)
+    assert pho.item.name == "pho broth"
+
+
+def test_a_name_that_isnt_listed_never_reaches_the_result(food_db, meal_photo, pho_week):
+    for made_up in ("Tantanmen Ramen", "Chicken Pho", "Turkey Dinner"):  # near names, and a dish outside the window
+        _, result = analyze(
+            food_db,
+            pho_bowl(made_up),
+            meal_photo,
+            menus=pho_week,
+            location_id=1,
+            device_time=SCREENSHOT_TIME,
+            dated=False,
+        )
+        (pho,) = result.items
+        assert (pho.source, pho.dish, pho.item.menu_item, pho.item.servings_low) == ("usda", None, None, None)
+        assert result.model_dump_json().count(made_up) == 0, made_up
+
+    # Without a hall nothing is listed, so a name the model makes up goes too.
+    _, result = analyze(food_db, pho_bowl("Pho Noodles"), meal_photo, menus=pho_week, location_id=None)
+    assert result.items[0].item.menu_item is None and result.menu is None
+
+
+def test_rematch_takes_the_hall_and_day_the_user_names_as_certain(food_db, meal_photo, pho_week):
+    workflow, result = analyze(
+        food_db, pho_bowl(), meal_photo, menus=pho_week, location_id=1, device_time=SCREENSHOT_TIME, dated=False
+    )
+    logged = result.model_copy(update={"id": 5, "photo_url": "/api/meals/5/photo?v=abc", "answer": "big bowl"})
+
+    fixed = workflow.rematch(logged, meal_photo, location_id=1, day=NOV[15], meal="dinner")
+    assert (fixed.id, fixed.photo_url, fixed.answer) == (5, "/api/meals/5/photo?v=abc", None)
+    assert fixed.context == result.context  # the meal's own time stays
+    assert workflow.vision.menu_names == ["Chicken for Pho", "Chicken Pho Broth (Fish)", "Pho Noodles"]  # dinner first
+    assert fixed.menu == MenuRef(location_id=1, location_name=WORCESTER, date=NOV[15], dishes=3, meal="dinner")
+    assert f"Campus menu: {WORCESTER}, 2026-11-15." in fixed.notes
+    (pho,) = fixed.items
+    assert (pho.source, pho.dish.date, pho.dish.meal) == ("campus", NOV[15], "lunch")
+
+    # Without a day the meal's own time decides, as when it was logged: no date, so the window.
+    again = workflow.rematch(logged, meal_photo, location_id=1)
+    assert (again.menu.certain, again.menu.start, again.menu.end) == (False, NOV[11], NOV[14])
+    # A meal without a day: the window still, that meal first on each day.
+    dinner = workflow.rematch(logged, meal_photo, location_id=1, meal="dinner")
+    assert (dinner.menu.certain, dinner.menu.meal) == (False, "dinner")
+    assert workflow.vision.menu_names[:2] == ["Chicken Shoyu Ramen Bar (Fish, Shellfish)", "Tantanmen Ramen Bar"]
+
+
+def test_an_answer_rereads_the_same_days_and_keeps_the_closed_set(food_db, meal_photo, pho_week):
+    bowl = pho_bowl().model_copy(update={"question": "Is this the Chicken Pho or the Tantanmen Ramen?"})
+    workflow, result = analyze(
+        food_db, bowl, meal_photo, menus=pho_week, location_id=1, device_time=SCREENSHOT_TIME, dated=False
+    )
+    answered = workflow.answer(result, "the pho")
+    assert answered.menu == result.menu and answered.items[0].dish.name == "Chicken Pho Broth (Fish)"
+    assert workflow.vision.menu_names[:2] == ["Tantanmen Ramen Bar", "Hard Boiled Egg"]  # the refine gets the list
+    assert len(pho_week.between) == 2
+
+
+def test_each_analysis_with_a_hall_logs_one_line(food_db, meal_photo, pho_week, caplog):
+    with caplog.at_level(logging.INFO, logger="mealscholar.pipeline"):
+        analyze(
+            food_db, pho_bowl(), meal_photo, menus=pho_week, location_id=1, device_time=SCREENSHOT_TIME, dated=False
+        )
+        analyze(food_db, pho_bowl(), meal_photo, menus=pho_week, location_id=1, device_time=SCREENSHOT_TIME)
+        analyze(food_db, pho_bowl(), meal_photo, menus=pho_week, location_id=None)
+    assert [r.getMessage() for r in caplog.records if r.name == "mealscholar.pipeline"] == [
+        "menu match: hall=1 window=2026-11-11..2026-11-14 guess=2026-11-14 candidates=6 enum=yes matched=1/1",
+        "menu match: hall=1 day=2026-11-14 candidates=3 enum=yes matched=0/1",
+    ]
+
+
+def test_meals_logged_before_the_provenance_fields_still_read():
+    """Diary rows from before: a menu was one day's, so certain; a dish carried its menu's date."""
+    old = MenuRef.model_validate({"location_id": 1, "location_name": WORCESTER, "date": "2026-11-13", "dishes": 7})
+    assert (old.certain, old.meal, old.start, old.end) == (True, None, None, None)
+
+
+def test_the_window_names_only_the_days_the_model_was_shown(food_db, meal_photo):
+    """A busy hall fills MENU_NAMES from the nearest days, so start is the oldest day listed, not
+    the oldest day read."""
+    busy = FakeMenus(
+        {
+            (1, NOV[14]): [dish(f"Lunch Dish {n}", "1 EACH", 100) for n in range(MENU_NAMES - 50)],
+            (1, NOV[13]): [dish(f"Dinner Dish {n}", "1 EACH", 100, meal="dinner") for n in range(100)],
+            (1, NOV[5]): [dish("Old Dish", "1 EACH", 100)],
+        }
+    )
+    _, result = analyze(
+        food_db, pho_bowl(None, None), meal_photo, menus=busy, location_id=1, device_time=SCREENSHOT_TIME, dated=False
+    )
+    assert (result.menu.dishes, result.menu.start, result.menu.end) == (MENU_NAMES, NOV[13], NOV[14])
+
+
+@pytest.mark.parametrize("when", [datetime(1, 1, 1, 0, 30), datetime(1, 1, 5, 12)])
+def test_a_device_time_at_the_start_of_the_calendar_falls_back_to_usda(food_db, meal_photo, pho_week, when):
+    """taken_at is the client's: year 1 can't go back WINDOW_DAYS, which used to answer 500."""
+    _, result = analyze(food_db, pho_bowl(), meal_photo, menus=pho_week, location_id=1, device_time=when, dated=False)
+    assert result.menu is None and result.items[0].source == "usda"
+    assert any(note.startswith("No campus menu near") for note in result.notes)
+    # The other end never reads a later day, so it has the past dishes, as any day without a menu.
+    late = datetime(9999, 12, 31, 23)
+    _, result = analyze(food_db, pho_bowl(), meal_photo, menus=pho_week, location_id=1, device_time=late, dated=False)
+    assert (result.menu.certain, result.menu.start) == (False, None)
+
+
+def test_rematch_never_replaces_a_meal_when_the_menus_cant_be_read(food_db, meal_photo, pho_week):
+    workflow, result = analyze(
+        food_db, pho_bowl(), meal_photo, menus=pho_week, location_id=1, device_time=SCREENSHOT_TIME, dated=False
+    )
+    logged = result.model_copy(update={"id": 5})
+    pho_week.down = True
+    with pytest.raises(DiningUnavailable):
+        workflow.rematch(logged, meal_photo, location_id=1, day=NOV[11])
+    pho_week.down = False
+    with pytest.raises(DiningUnavailable, match="No dining location 9"):
+        workflow.rematch(logged, meal_photo, location_id=9)

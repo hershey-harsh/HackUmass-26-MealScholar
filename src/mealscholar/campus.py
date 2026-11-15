@@ -10,8 +10,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from datetime import time
-from difflib import SequenceMatcher
+from datetime import date, time
 from typing import TYPE_CHECKING
 
 from .prefs import dish_key
@@ -57,17 +56,19 @@ def _quantity(text: str) -> float:
 MINUTES_A_DAY = 24 * 60
 
 
-def meal_order(at: time) -> tuple[str, ...]:
+def meal_order(at: time, first: str | None = None) -> tuple[str, ...]:
     """Every meal in dining.MEALS, in the order their dishes are listed for a photo taken at
     `at`: the meal on by dining.MEAL_HOURS, or the nearest one when none is (16:05 is still
     lunch, 00:30 is late night), then the meals without set hours, which are as likely at any
     time, then the other timed meals, nearest first. The clock decides, not the photo's meal
     slot: dinner starts at 16:30 while the slot stays 'snack' until 17:00, and late night at
-    21:00 while the slot stays 'dinner' until 22:00."""
+    21:00 while the slot stays 'dinner' until 22:00. `first`, a meal the user named, goes before
+    all of them."""
     from .dining import ALL_DAY_MEALS, MEAL_HOURS  # dining imports this module, so not at the top
 
     timed = sorted(MEAL_HOURS, key=lambda meal: minutes_away(at, *MEAL_HOURS[meal]))  # ties: MEALS order
-    return (timed[0], *ALL_DAY_MEALS, *timed[1:])
+    order = (timed[0], *ALL_DAY_MEALS, *timed[1:])
+    return order if first is None else (first, *(meal for meal in order if meal != first))
 
 
 def minutes_away(at: time, start: time, end: time) -> int:
@@ -79,44 +80,54 @@ def minutes_away(at: time, start: time, end: time) -> int:
     return min((opens - now) % MINUTES_A_DAY, (now - closes) % MINUTES_A_DAY)
 
 
-def candidates(facts: Sequence[DishFacts], at: time) -> list[DishFacts]:
-    """The dishes to match a photo taken at `at` against, meal by meal in meal_order(at), each
-    in menu order. A dish served at several meals is listed once, at the first of them. The
-    prompt shows only the first vision.MENU_NAMES, so the meal on now is always listed whole."""
-    rank = {meal: n for n, meal in enumerate(meal_order(at))}
+def candidates(facts: Sequence[DishFacts], at: time, first: str | None = None) -> list[DishFacts]:
+    """The dishes to match a photo taken at `at` against, meal by meal in meal_order(at, first),
+    each in menu order. A dish served at several meals is listed once, at the first of them. The
+    model sees only the first vision.MENU_NAMES, so the meal on now is always listed whole."""
+    rank = {meal: n for n, meal in enumerate(meal_order(at, first))}
     chosen: dict[str, DishFacts] = {}
     for dish in sorted(facts, key=lambda dish: rank.get(dish.meal, len(rank))):  # stable: menu order within a meal
         chosen.setdefault(dish_key(dish.name), dish)
     return list(chosen.values())
 
 
+def window_candidates(facts: Sequence[DishFacts], day: date, at: time, first: str | None = None) -> list[DishFacts]:
+    """The dishes to match a photo against when its date isn't known: `facts` from several days
+    (dining.Dining.dishes_between) and the hall's past dishes (no date, last). The guessed `day`
+    comes first, meal by meal as candidates() orders one day, then the other days nearest first
+    (the day before ahead of the day after, as a photo is uploaded after it was taken), then the
+    past dishes. Each dish once, where it first comes, keeping the day and meal it was served.
+    `first`, a meal the user named, leads each day as in candidates()."""
+    rank = {meal: n for n, meal in enumerate(meal_order(at, first))}
+
+    def order(dish: DishFacts) -> tuple[int, bool, int]:
+        if dish.date is None:
+            return (1 << 30, False, 0)  # past menus, in their own order (most often served first)
+        away = (dish.date - day).days
+        return (abs(away), away > 0, rank.get(dish.meal, len(rank)))
+
+    chosen: dict[str, DishFacts] = {}
+    for dish in sorted(facts, key=order):  # stable: menu order within a meal
+        chosen.setdefault(dish_key(dish.name), dish)
+    return list(chosen.values())
+
+
 # --- the dish the model named ----------------------------------------------------
 
-MATCH_RATIO = 0.85
-"""How alike the model's menu_item and a listed name must be (difflib ratio of their dish keys)
-when no key matches exactly: spelling drift such as 'Scrambled Egg' for 'Scrambled Eggs' (0.96)
-passes, another dish such as 'Chicken Piccata' for 'Chicken Piccata Pizza' (0.83) doesn't."""
 MIN_MENU_ITEM = 3
 """Characters in a menu_item; anything shorter can't name a dish."""
 
 
 def find_dish(menu_item: str | None, facts: Sequence[DishFacts]) -> DishFacts | None:
-    """The listed dish the model named as menu_item: by dish key, else the closest name at
-    MATCH_RATIO or better, the first listed when tied. None when it named nothing, or nothing
-    listed is close. The item's own name is never matched: once the model has seen the list, its
-    menu_item is the only signal ('egg' would hit 'Eggs' at 0.86 while 'mac and cheese' misses
-    'Mac & Cheese' at 0.85)."""
+    """The listed dish the model named as menu_item, by its exact name (dish_key: case, spaces and
+    curly quotes don't count), the first listed when two share it. None when it named nothing or a
+    name that isn't listed: a near name is another dish ('Chicken Piccata' is not 'Chicken Piccata
+    Pizza'), so an unknown name never reaches the result. The item's own name is never matched:
+    once the model has seen the list, its menu_item is the only signal."""
     wanted = dish_key(menu_item) if menu_item else ""
     if len(wanted) < MIN_MENU_ITEM:
         return None
-    for dish in facts:
-        if dish_key(dish.name) == wanted:
-            return dish
-    scored = [(SequenceMatcher(None, wanted, dish_key(dish.name)).ratio(), dish) for dish in facts]
-    if not scored:
-        return None
-    ratio, dish = max(scored, key=lambda scored: scored[0])  # the first of equals
-    return dish if ratio >= MATCH_RATIO else None
+    return next((dish for dish in facts if dish_key(dish.name) == wanted), None)
 
 
 # --- the label scaled to the plate -----------------------------------------------

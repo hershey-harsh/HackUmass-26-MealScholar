@@ -6,6 +6,7 @@ of its photo without metadata (photos.py), deleted with the meal; the upload its
 
 from __future__ import annotations
 
+import datetime as dt
 import io
 import logging
 from collections.abc import Iterator
@@ -97,6 +98,21 @@ class Correction(BaseModel):
     servings: float | None = Field(default=None, gt=0, le=50)
     """How many of the campus dish's listed serving ('1 Slice'); only for an item with a `dish`."""
     fdc_id: int | None = None
+
+
+MealKey = Literal["breakfast", "lunch", "dinner", "late_night", "grab_n_go", "daily_offerings"]
+"""dining.MEALS."""
+
+
+class MenuChoice(BaseModel):
+    """Where and when a logged meal was eaten, as the user says (POST /api/meals/{id}/menu)."""
+
+    location_id: int = Field(ge=1, le=MAX_LOCATION_ID)
+    date: dt.date | None = None
+    """The day of the menu, taken as certain. None: the meal's own time decides, as when it was
+    logged (its EXIF day, or the days around it)."""
+    meal: MealKey | None = None
+    """The meal whose dishes come first; the rest of the day's are still matched."""
 
 
 class Erased(BaseModel):
@@ -354,6 +370,36 @@ def create_app(
             if not result.question:
                 raise HTTPException(409, "This meal has no open question.")
             return diary.save(workflow(foods).answer(result, body.answer.strip()))
+
+    @app.post("/api/meals/{meal_id}/menu")
+    def rematch(meal_id: int, body: MenuChoice, owner: DiaryOwner, client: RequestClient) -> MealResult:
+        """Match a logged meal against the dining hall, day and meal the user names: its stored
+        photo is analyzed again (Gemini, so it counts against the analysis limit) with that hall's
+        dishes, `date` taken as certain. The meal keeps its id, time and photo; a question it had
+        answered goes. 404 unless it's yours or for an unknown location, 409 when no photo is
+        kept with it, 422 (meal unchanged) when no food is found this time, 503 without the dining
+        menus or when they can't be read (meal unchanged)."""
+        _limit_analysis(auth.limiter, owner, client)
+        with stores(owner) as (foods, diary):
+            result = logged(diary, meal_id)
+            path = photos.path(owner, meal_id)
+            if result.photo_url is None or not path.is_file():
+                raise HTTPException(409, f"Meal #{meal_id} has no saved photo to match again.")
+            if dining is None:
+                raise HTTPException(503, "Dining menus aren't connected.")
+            if body.location_id not in dining.location_ids():
+                raise HTTPException(404, f"No dining location {body.location_id}.")
+            fresh = workflow(foods).rematch(
+                result,
+                path,
+                location_id=body.location_id,
+                day=body.date,
+                meal=body.meal,
+                usual_portions=diary.usual_portions(),
+            )
+            if not fresh.items:  # the model found no meal this time: keep the one that's logged
+                raise HTTPException(422, "No food found in the photo this time; the meal wasn't changed.")
+            return diary.save(fresh)
 
     @app.patch("/api/meals/{meal_id}/items/{index}")
     def fix(meal_id: int, index: int, body: Correction, owner: DiaryOwner) -> MealResult:
