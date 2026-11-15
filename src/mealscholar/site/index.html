@@ -184,7 +184,14 @@
     <section id="menu" class="view menu-view" aria-labelledby="menu-title">
       <header class="page-head">
         <p class="page-head__label">Dining</p>
-        <h1 id="menu-title" class="view-title" tabindex="-1">Menu</h1>
+        <div class="dash-head__line">
+          <h1 id="menu-title" class="view-title" tabindex="-1">Menu</h1>
+          <div id="menu-days" class="datenav menunav" role="group" aria-label="Choose a day">
+            <button id="menu-prev" class="icon-btn datenav__btn" type="button" data-menu-day="prev" aria-label="Previous day" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-left"/></svg></button>
+            <span id="menu-day" class="menunav__day" aria-live="polite">Today</span>
+            <button id="menu-next" class="icon-btn datenav__btn" type="button" data-menu-day="next" aria-label="Next day" disabled><svg class="icon" aria-hidden="true" focusable="false"><use href="#i-chevron-right"/></svg></button>
+          </div>
+        </div>
         <div class="intro">
           <p id="menu-sub" class="intro__text">The next meal at your dining halls, dish by dish.</p>
           <div id="menu-actions" class="intro__actions"></div>

@@ -81,6 +81,8 @@ MEAL_HOURS: dict[str, tuple[time, time]] = {
     "late_night": (time(21), time(23, 59)),
 }
 ALL_DAY_MEALS = ("grab_n_go", "daily_offerings")
+MENU_DAYS_BACK = timedelta(days=7)
+"""How far back GET /api/dining/locations lists a location's dates with a menu."""
 END_OF_DAY = time(23, 59)
 
 _MEAL_RANK = {key: rank for rank, key in enumerate(MEALS)}
@@ -108,6 +110,8 @@ class LocationInfo(_Frozen):
     has_prices: bool
     next_date: date
     """The first date, today or later, with a menu."""
+    dates: tuple[date, ...] = ()
+    """Every date with a menu from MENU_DAYS_BACK ago on, in order: the days the app's Menu tab steps through."""
 
 
 class Item(_Frozen):
@@ -407,6 +411,7 @@ class Dining:
                 is_dining_commons=location.is_dining_commons,
                 has_prices=location.has_prices,
                 next_date=upcoming[0],
+                dates=tuple(day for day in location.dates if day >= today - MENU_DAYS_BACK),
             )
             for location in self.locations()
             if (upcoming := [day for day in location.dates if day >= today])

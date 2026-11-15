@@ -361,6 +361,7 @@ def test_locations_with_a_menu_today_or_later(make_app, clock):
             "is_dining_commons": True,
             "has_prices": False,
             "next_date": "2026-11-15",
+            "dates": ["2026-11-15"],
         },
         {
             "id": 1,
@@ -369,6 +370,7 @@ def test_locations_with_a_menu_today_or_later(make_app, clock):
             "is_dining_commons": True,
             "has_prices": False,
             "next_date": "2026-11-14",
+            "dates": ["2026-11-13", "2026-11-14", "2026-11-15"],
         },
         {
             "id": 7,
@@ -377,10 +379,18 @@ def test_locations_with_a_menu_today_or_later(make_app, clock):
             "is_dining_commons": False,
             "has_prices": True,
             "next_date": "2026-11-15",
+            "dates": ["2026-11-13", "2026-11-15", "2026-11-16"],
         },
     ]
     clock.at(9, day=NEXT_DAY)
     assert [loc["id"] for loc in client.get("/api/dining/locations").json()] == [7]
+
+
+def test_locations_list_their_days_with_a_menu_from_a_week_back(clock):
+    week_back = TODAY - timedelta(days=7)
+    hall = dict(LOCATIONS[0], dates_available=dates(week_back - timedelta(days=1), week_back, TODAY, NEXT_DAY))
+    [info] = Dining(FakeDining(locations=[hall]), clock=clock).open_locations()
+    assert info.dates == (week_back, TODAY, NEXT_DAY)
 
 
 def test_menu_for_a_day(make_app):
