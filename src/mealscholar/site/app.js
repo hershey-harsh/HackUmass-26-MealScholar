@@ -4404,21 +4404,36 @@ async function setupPrefs() {
   return true;
 }
 
+/** The halls with a menu. A failure that may pass (a restart, a blip) is tried once more; if that fails
+    too, or the server has no menus at all, the dining parts stay off. */
 async function loadDining() {
   const epoch = state.epoch;
-  try {
-    const locations = await api("/api/dining/locations");
-    if (epoch !== state.epoch) return;
-    const usable = Array.isArray(locations) ? locations.filter((l) => l && Number.isInteger(l.id) && typeof l.name === "string") : [];
-    state.dining = { locations: usable };
-  } catch {
-    if (epoch !== state.epoch) return;
-    state.dining = false; // 503: the menus aren't connected; any other failure reads the same for now
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const locations = await api("/api/dining/locations");
+      if (epoch !== state.epoch) return;
+      const usable = Array.isArray(locations) ? locations.filter((l) => l && Number.isInteger(l.id) && typeof l.name === "string") : [];
+      state.dining = { locations: usable };
+    } catch (err) {
+      if (epoch !== state.epoch) return;
+      if (attempt === 0 && !diningGone(err)) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        if (epoch !== state.epoch) return;
+        continue;
+      }
+      state.dining = false;
+    }
+    break;
   }
   updatePrefsUi();
 }
 
-/** The menus went away mid-session (a 503): the dining parts fold away. */
+/** dining.py's 503 when the server has no menus at all. Its other 503 ("aren't available right now. Try
+    again in a minute.") passes, so it reads like any other failure: shown where it happened, tried again. */
+const DINING_NOT_CONNECTED = "Dining menus aren't connected.";
+const diningGone = (err) => err?.status === 503 && err.message === DINING_NOT_CONNECTED;
+
+/** The menus went away mid-session (a 503 that says so): the dining parts fold away. */
 function diningLost() {
   if (!state.dining) return;
   state.dining = false;
@@ -4483,7 +4498,7 @@ async function loadAlerts() {
     state.alerts = Array.isArray(alerts) ? alerts.filter((a) => a && typeof a.name === "string") : [];
   } catch (err) {
     if (epoch !== state.epoch) return;
-    if (err.status === 503) return diningLost();
+    if (diningGone(err)) return diningLost();
   }
   updateBell();
   if (els.panel.open && els.panel.dataset.kind === "alerts") renderAlertsPanel({ refocus: false });
@@ -4513,7 +4528,7 @@ async function fetchNearest(lat, lon) {
     state.nearest = near;
     return near;
   } catch (err) {
-    if (err.status === 503) diningLost();
+    if (diningGone(err)) diningLost();
     return null;
   }
 }
@@ -4640,7 +4655,7 @@ async function fetchUpcoming(seq) {
     state.upcoming = { meal, note, locationId, at: Date.now() };
   } catch (err) {
     if (seq !== upcomingSeq || epoch !== state.epoch || err.signedOut) return;
-    if (err.status === 503) return diningLost();
+    if (diningGone(err)) return diningLost();
     state.upcoming = { error: err, note, locationId, at: Date.now() };
   }
   const refocus = els.dashSide.contains(document.activeElement) || (held && document.activeElement === document.body);
@@ -4878,7 +4893,8 @@ function ensureBusy() {
     })
     .catch((err) => {
       busyNow.at = Date.now();
-      if (err.status === 503 || err.status === 404) busyNow.off = true; // no hall cams on this server
+      // No hall cams on this server; any other failure (a passing 503 too) is tried again in a minute.
+      if (err.status === 404 || (err.status === 503 && err.message === "Hall cams aren't connected on this server.")) busyNow.off = true;
     })
     .finally(() => {
       busyNow.pending = null;
@@ -5000,7 +5016,7 @@ async function ensureMenus({ refresh = false } = {}) {
         entry = meal && Array.isArray(meal.items) ? { meal } : { error: new Error("That menu came back in a shape this app can't read.") };
       } catch (err) {
         if (err.signedOut) return;
-        if (err.status === 503) return diningLost();
+        if (diningGone(err)) return diningLost();
         entry = { error: err };
       } finally {
         loading.delete(id);
@@ -5181,7 +5197,7 @@ async function ensureMenuDay() {
     entry = menu && Array.isArray(menu.meals) ? { menu } : { error: new Error("That menu came back in a shape this app can't read.") };
   } catch (err) {
     if (err.signedOut) return menus.days.delete(key);
-    if (err.status === 503) return diningLost();
+    if (diningGone(err)) return diningLost();
     entry = err.status === 404 ? { menu: { date: day, meals: [] } } : { error: err };
   }
   if (epoch !== state.epoch || seq !== menus.seq) return;
@@ -5903,7 +5919,7 @@ async function openMenu({ location, date, mealKey }) {
     renderMenuPanel(menu, mealKey);
   } catch (err) {
     if (!els.panel.open || err.signedOut) return;
-    if (err.status === 503) diningLost();
+    if (diningGone(err)) diningLost();
     setPanelContent({
       kicker: "Menu",
       title: "Couldn't load the menu",
@@ -6261,7 +6277,7 @@ async function searchDishes(input) {
     count.textContent = dishes.length ? `${dishes.length} dish${dishes.length === 1 ? "" : "es"} found.` : "Nothing on the campus menus matches that.";
   } catch (err) {
     if (seq !== dishSeq || !list.isConnected || err.signedOut) return;
-    if (err.status === 503) diningLost();
+    if (diningGone(err)) diningLost();
     list.innerHTML = `<li class="options__empty is-error">${esc(err.message)}</li>`;
     count.textContent = err.message;
   }
