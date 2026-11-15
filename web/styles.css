@@ -2128,9 +2128,9 @@ html:not(.js) .rail-ctrl { display: none; }
   .gallery { grid-auto-flow: row; grid-auto-columns: auto; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; width: auto; padding: 0; }
 }
 
-/* ---- A real scan and where it works, at the end of Why: a big recording that loads only when
+/* ---- A real scan and where it works, the first section: a big recording that loads only when
    played (4:5 on phones, 4:3 from 700px), and the platforms under it, beside it from 1100px. */
-.scan { display: grid; gap: 32px; margin-top: clamp(64px, 9vw, 120px); }
+.scan { display: grid; gap: 32px; }
 .scan__stage { min-width: 0; margin: 0; }
 .scan__frame { position: relative; overflow: hidden; aspect-ratio: 4 / 5; border-radius: 22px; background: #121214; }
 .scan__frame > video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -2146,9 +2146,22 @@ html:not(.js) .rail-ctrl { display: none; }
 .where__text p + p { margin-top: 4px; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
 .where__tag { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px; background: var(--ink); color: var(--surface); font: 500 11px/1 var(--mono); letter-spacing: .02em; }
 .where__tag--soon { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-2); }
+/* iPhone's how-to: a disclosure with the Home Screen recording, a poster until it's played. */
+.where__how { margin-top: 2px; }
+.where__how summary { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 14.5px; font-weight: 500; color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; list-style: none; border-radius: 6px; }
+.where__how summary::-webkit-details-marker { display: none; }
+.where__how summary::after { content: ""; width: 7px; height: 7px; margin-left: 2px; border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .2s cubic-bezier(.22, .9, .24, 1); }
+.where__how[open] summary::after { transform: translateY(1px) rotate(225deg); }
+@media (hover: hover) { .where__how summary:hover { text-decoration-thickness: 2px; } }
+.where__how summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.where__video { position: relative; overflow: hidden; width: min(100%, 240px); aspect-ratio: 4 / 5; margin-top: 6px; border-radius: 14px; background: #17171a; }
+.where__video > video { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+.where__video .vplay__btn { width: 52px; height: 52px; margin: -26px 0 0 -26px; }
+.where__video .vplay__btn svg { width: 20px; height: 20px; margin-left: 2px; }
+.where__text .where__steps { margin-top: 10px; font-size: 13.5px; }
 @media (min-width: 700px) { .scan__frame { aspect-ratio: 4 / 3; } }
 @media (min-width: 1100px) {
-  .scan { grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); align-items: center; gap: var(--split-gap); }
+  .scan { grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); align-items: start; gap: var(--split-gap); }
 }
 
 /* ---- Recordings start as their poster and a play button. app.js swaps in the video on a tap, so
@@ -2162,3 +2175,9 @@ html:not(.js) .rail-ctrl { display: none; }
 .vplay:focus-visible { outline: none; }
 .vplay:focus-visible .vplay__btn { box-shadow: 0 0 0 3px #141416, 0 0 0 6px #fff, 0 10px 30px rgba(0, 0, 0, .28); }
 @media (prefers-reduced-motion: reduce) { .vplay__btn { transition: none; } }
+
+/* ---- More features sits a little smaller than the sections around it: its head and its three
+   recordings share a narrower measure, still on the page's left edge. */
+@media (min-width: 900px) {
+  #videos .section-head, #videos .gallery { max-width: 1160px; }
+}

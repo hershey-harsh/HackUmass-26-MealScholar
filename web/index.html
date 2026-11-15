@@ -83,8 +83,9 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
 <header class="site-header">
   <div class="wrap header-inner">
     <nav class="nav-main" aria-label="Main">
-      <a href="#features">Features</a>
       <a href="#how">How it works</a>
+      <a href="#videos">Features</a>
+      <a href="#examples">Examples</a>
       <a href="#faq">FAQ</a>
     </nav>
     <a class="brand" href="#top" aria-label="MealScholar, back to top">
@@ -106,10 +107,10 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
       <summary aria-label="Menu"><span class="menu__icon" aria-hidden="true"><span></span><span></span></span></summary>
       <div class="menu__panel">
         <nav aria-label="Main">
-          <a href="#features">Features<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
-          <a href="#examples">Real examples<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
+          <a href="#scan">A real scan<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
           <a href="#how">How it works<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
-          <a href="#nutrients">What it tracks<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
+          <a href="#videos">Features<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
+          <a href="#examples">Real examples<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
           <a href="#faq">FAQ<svg aria-hidden="true"><use href="#i-chev-r"/></svg></a>
         </nav>
         <a class="cta cta--block" href="/app/">
@@ -136,12 +137,10 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
 
     <nav class="nav-chips" aria-label="Sections">
       <span class="nav-chips__label" aria-hidden="true">Jump to</span>
-      <a href="#features">Features</a>
-      <a href="#videos">More features</a>
-      <a href="#examples">Examples</a>
+      <a href="#scan">A real scan</a>
       <a href="#how">How it works</a>
-      <a href="#nutrients">Nutrients</a>
-      <a href="#umass">UMass</a>
+      <a href="#videos">Features</a>
+      <a href="#examples">Examples</a>
       <a href="#faq">FAQ</a>
     </nav>
 
@@ -237,7 +236,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
             <p class="fan-card__text">Every meal you logged, with the day’s calories and nutrients.</p>
             <div class="fan-card__btns">
               <a class="fan-btn fan-btn--fill" href="/app/">Open the app</a>
-              <a class="fan-btn" href="#phone">Learn more</a>
+              <a class="fan-btn" href="#scan">Learn more</a>
             </div>
           </div>
         </article>
@@ -255,7 +254,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
             <p class="fan-card__text">The main nine from the menu’s own facts or USDA. Vitamins and minerals are labeled as estimates.</p>
             <div class="fan-card__btns">
               <a class="fan-btn fan-btn--fill" href="/app/">Open the app</a>
-              <a class="fan-btn" href="#nutrients">Learn more</a>
+              <a class="fan-btn" href="#how">Learn more</a>
             </div>
           </div>
         </article>
@@ -271,7 +270,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
             <p class="fan-card__text">Dining hall food is checked against the menu, then USDA as a backup.</p>
             <div class="fan-card__btns">
               <a class="fan-btn fan-btn--fill" href="/app/">Open the app</a>
-              <a class="fan-btn" href="#data">Learn more</a>
+              <a class="fan-btn" href="#examples">Learn more</a>
             </div>
           </div>
         </article>
@@ -286,7 +285,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
             <p class="fan-card__text">It works in your phone’s browser. No app store download.</p>
             <div class="fan-card__btns">
               <a class="fan-btn fan-btn--fill" href="/app/">Open the app</a>
-              <a class="fan-btn" href="#phone">Learn more</a>
+              <a class="fan-btn" href="#scan">Learn more</a>
             </div>
           </div>
         </article>
@@ -305,61 +304,12 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
 
 <div class="wrap">
 
-  <!-- Why -->
-  <section class="section" id="features" aria-labelledby="why-title">
-    <div class="why">
-      <div class="why__intro">
-        <p class="eyebrow">Why MealScholar</p>
-        <h2 id="why-title" class="h2">Honest about what a photo can tell you</h2>
-        <p class="section-sub">Eight choices that keep the numbers honest and the app easy to check.</p>
-        <a class="pill-link" href="#how">See how it works<svg aria-hidden="true"><use href="#i-arrow-se"/></svg></a>
-      </div>
-      <div class="why__visual">
-        <div class="phone" role="img" aria-label="The app on a phone, showing the result for a brunch photo: 3 foods found. Omelet Station, about 210 grams, from Worcester's menu; Red Potato Home Fries, about 100 grams, from USDA because the menu's label didn't fit the amount; Homemade Guacamole, about 80 grams, from Worcester's menu. Calories: 795.">
-          <div class="phone__screen">
-            <div class="ps-status"><span>9:41</span><span class="ps-sig"><i></i><i></i><i></i><b></b></span></div>
-            <div class="ps-bar">
-              <svg class="ps-mark"><use href="#mark"/></svg>
-              <span class="ps-title">Brunch</span>
-              <span class="ps-ex">Example</span>
-            </div>
-            <div class="ps-photo ps-photo--real">
-              <img src="img/meal-omelette-640.jpg" alt="" width="640" height="400" decoding="async">
-              <span aria-hidden="true"><span class="ps-pin ps-pin--at" style="left:60%;top:72%">1</span><span class="ps-pin ps-pin--at" style="left:26%;top:48%">2</span><span class="ps-pin ps-pin--at" style="left:48%;top:20%">3</span></span>
-            </div>
-            <div class="ps-total">
-              <span class="ps-total__k">Calories</span>
-              <span class="ps-total__s">this meal</span>
-              <span class="ps-total__v">795<small>kcal</small></span>
-              <span class="ps-total__r">from the photo, no weighing</span>
-              <span class="band band--kcal band--dark"></span>
-            </div>
-            <div class="ps-card ps-foods">
-              <div class="ps-food"><span class="pin">1</span><span class="ps-food__nm">Omelet Station<span class="ps-food__src">Worcester menu</span></span><span class="ps-food__g"><b>~210 g</b></span></div>
-              <div class="ps-food"><span class="pin">2</span><span class="ps-food__nm">Red Potato Home Fries<span class="ps-food__src ps-food__src--usda">USDA, label didn’t fit</span></span><span class="ps-food__g"><b>~100 g</b></span></div>
-              <div class="ps-food"><span class="pin">3</span><span class="ps-food__nm">Homemade Guacamole<span class="ps-food__src">Worcester menu</span></span><span class="ps-food__g"><b>~80 g</b></span></div>
-            </div>
-          </div>
-        </div>
-        <div class="float float--q" aria-hidden="true">
-          <span class="float__label">From Worcester’s menu</span>
-          <span class="float__q">Omelet Station, 303 kcal per 5 oz</span>
-          <span class="opts"><span class="opt opt--on">about 1.5 servings</span></span>
-        </div>
-      </div>
-      <ol class="why__list">
-        <li class="why__item"><span class="why__num" aria-hidden="true">01</span><h3>Estimates, not fake precision</h3><p>It works out how much of each food is there from the photo. Every amount is an estimate, and you can set one yourself if you know it.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">02</span><h3>The AI never makes up nutrients</h3><p>The AI names the foods and works out how much is there. The nutrients come from real data and plain arithmetic.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">03</span><h3>Campus menu first</h3><p>Food from the dining halls is checked against the campus menu and its own nutrition facts: 2,236 dishes, refreshed every hour.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">04</span><h3>One question, at most</h3><p>If something that changes the numbers isn’t clear from the photo, like diet or regular, it asks you one quick thing, then recomputes.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">05</span><h3>No weighing</h3><p>You just take the photo. It works out the amounts itself, and you can swap a food if it got one wrong.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">06</span><h3>Today and weekly views</h3><p>Every meal with the day’s calories and nutrients. Weeks run Sunday to Saturday, and you can page back to earlier ones.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">07</span><h3>USDA as a backup</h3><p>Anything that isn’t on the campus menu is matched to USDA FoodData Central’s 13,648 foods.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">08</span><h3>Nothing to install</h3><p>It works in the browser on any phone or laptop. On iPhone, add it to your Home Screen if you like.</p></li>
-      </ol>
+  <!-- A real scan in the live app, and where MealScholar works. The recording loads only when played. -->
+  <section class="section" id="scan" aria-labelledby="scan-title">
+    <div class="section-head">
+      <p class="eyebrow">See it work</p>
+      <h2 id="scan-title" class="h2 h2--sm">A real scan in the live app</h2>
     </div>
-
-    <!-- A real scan in the live app, and where MealScholar works. The recording loads only when played. -->
     <div class="scan">
       <figure class="scan__stage">
         <div class="scan__frame">
@@ -369,7 +319,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
             <span class="sr-only">Play the recording of a real scan</span>
           </button>
         </div>
-        <figcaption class="scan__cap"><b>A real scan in the live app.</b> Snap a plate, see each food boxed, and get numbers from the hall’s own label or USDA.</figcaption>
+        <figcaption class="scan__cap">Snap a plate, see each food boxed, and get its numbers from the hall’s own label or USDA.</figcaption>
       </figure>
       <aside class="scan__side" aria-labelledby="where-title">
         <p class="eyebrow">Where it works</p>
@@ -377,7 +327,21 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <ul class="where">
           <li class="where__item">
             <span class="where__icon" aria-hidden="true"><svg><use href="#i-phone"/></svg></span>
-            <div class="where__text"><p class="where__k">iPhone<span class="where__tag">Available</span></p><p>Use it in Safari, or add it to your Home Screen so it opens like an app.</p></div>
+            <div class="where__text">
+              <p class="where__k">iPhone<span class="where__tag">Available</span></p>
+              <p>Use it in Safari, or add it to your Home Screen so it opens like an app.</p>
+              <details class="where__how">
+                <summary>See how to add it</summary>
+                <div class="where__video">
+                  <button type="button" class="vplay" data-video-src="/app/media/gallery-home-screen.mp4" data-video-w="720" data-video-h="900" data-video-label="Screen recording: in Safari, Share, then Add to Home Screen, then Add, and MealScholar appears on the Home Screen">
+                    <img src="/app/media/gallery-home-screen.jpg" width="720" height="900" alt="" loading="lazy" decoding="async">
+                    <span class="vplay__btn" aria-hidden="true"><svg><use href="#i-play"/></svg></span>
+                    <span class="sr-only">Play the recording: adding it to your Home Screen</span>
+                  </button>
+                </div>
+                <p class="where__steps">In Safari: Share, then Add to Home Screen, then Add.</p>
+              </details>
+            </div>
           </li>
           <li class="where__item">
             <span class="where__icon" aria-hidden="true"><svg><use href="#i-laptop"/></svg></span>
@@ -393,6 +357,99 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
     </div>
   </section>
 
+  <!-- How it works -->
+  <section class="section" id="how" aria-labelledby="how-title">
+    <div class="section-head section-head--split">
+      <div>
+        <p class="eyebrow">How it works</p>
+        <h2 id="how-title" class="h2">From photo to nutrients</h2>
+      </div>
+      <p class="section-sub">Five steps, shown with a real brunch photo.</p>
+    </div>
+    <ol class="steps">
+      <li class="step">
+        <div class="step__text">
+          <span class="step__num">01</span>
+          <h3>Snap your meal</h3>
+          <p>Take a photo of your plate. That’s all you do.</p>
+        </div>
+        <div class="mock" role="img" aria-label="Camera screen with a real photo: an omelet with home fries and guacamole on a white plate, and a button to take or choose a photo.">
+          <div class="vf">
+            <img src="img/meal-omelette-640.jpg" srcset="img/meal-omelette-640.jpg 640w, img/meal-omelette-1280.jpg 1280w" sizes="(max-width: 899px) 92vw, 640px" width="640" height="400" alt="" loading="lazy" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
+            <i class="vf__c vf__c--tl"></i><i class="vf__c vf__c--tr"></i><i class="vf__c vf__c--bl"></i><i class="vf__c vf__c--br"></i>
+          </div>
+          <div class="mini mini--bar">
+            <span class="shutter"></span>
+            <span class="mini__stack"><b>Take or choose a photo</b><small>No weighing</small></span>
+          </div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step__text">
+          <span class="step__num">02</span>
+          <h3>Foods and how much</h3>
+          <p>The AI names each food and works out how much is there, sized against the plate. No weighing.</p>
+        </div>
+        <div class="mock" role="img" aria-label="3 foods found: Omelet Station, about 210 grams, from Worcester's menu; Red Potato Home Fries, about 100 grams, from USDA because the menu's label didn't fit the amount; Homemade Guacamole, about 80 grams, from Worcester's menu. Sized against the dinner plate.">
+          <div class="mini mini--foods">
+            <div class="ml-head"><span>3 foods found</span><span>grams, from the photo</span></div>
+            <div class="ml-row"><span class="pin">1</span><span class="ml-n">Omelet Station<span class="src">Worcester menu</span></span><span class="ml-g">about <b>210</b> g</span><span class="band band--f1"></span></div>
+            <div class="ml-row"><span class="pin">2</span><span class="ml-n">Red Potato Home Fries<span class="src src--usda">USDA</span></span><span class="ml-g">about <b>100</b> g</span><span class="band band--f2"></span></div>
+            <div class="ml-row"><span class="pin">3</span><span class="ml-n">Homemade Guacamole<span class="src">Worcester menu</span></span><span class="ml-g">about <b>80</b> g</span><span class="band band--f3"></span></div>
+            <p class="ml-note">Sized against the dinner plate. The home fries are on the menu, but their label didn’t fit the amount, so USDA.</p>
+          </div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step__text">
+          <span class="step__num">03</span>
+          <h3>One question, if needed</h3>
+          <p>Only when the answer changes the numbers and you can tell at a glance: usually a drink, like diet or regular, sometimes which of two dishes it is. Never how it was cooked. This plate needed none.</p>
+        </div>
+        <div class="mock" role="img" aria-label="The question step for this photo: none was needed, because nothing that changes the numbers was unclear.">
+          <div class="mini mini--q">
+            <span class="mini__label">One question</span>
+            <span class="mini__q">None needed for this plate.</span>
+            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>Everything was clear</span></span>
+          </div>
+          <div class="toast"><svg><use href="#i-check"/></svg>Ready to log</div>
+        </div>
+      </li>
+      <li class="step step--wide">
+        <div class="step__text">
+          <span class="step__num">04</span>
+          <h3>Nutrients from the menu’s own facts</h3>
+          <p>If the food is on today’s campus menu, the nutrients come from the dining hall’s own nutrition facts. If it isn’t, or its label doesn’t fit what’s on the plate, they come from USDA FoodData Central. The AI never outputs nutrient numbers.</p>
+          <span class="dot-chip">Campus menu first&nbsp;· USDA as a backup</span>
+        </div>
+        <div class="mock mock--side" role="img" aria-label="Nutrients for this brunch: calories 795 kcal. Protein 35.4 grams, 71 percent of the Daily Value. Carbohydrate 42.8 grams, 16 percent. Worked example from Worcester's own label: the Omelet Station is 303 kcal per 5 ounce serving, and 210 grams is about 1.48 servings, so 449 kcal.">
+          <div class="mini mini--nutr">
+            <div class="mini__head"><span class="mini__label">Nutrients</span><span class="mini__label">Brunch</span></div>
+            <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>795</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">menu + USDA</small></div>
+            <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>35.4</b> g</span><span class="band band--prot"></span><small class="nrow__r">71% DV</small></div>
+            <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>42.8</b> g</span><span class="band band--carb"></span><small class="nrow__r">16% DV</small></div>
+          </div>
+          <div class="formula"><span class="formula__k">Omelet Station, Worcester’s label</span>210 g ÷ 5 oz serving × 303 kcal<b>= 449 kcal</b></div>
+        </div>
+      </li>
+      <li class="step step--fix">
+        <div class="step__text">
+          <span class="step__num">05</span>
+          <h3>Check it, log it</h3>
+          <p>If it got a food wrong, swap it with one tap. Then log it to your day.</p>
+        </div>
+        <div class="mock" role="img" aria-label="Check and log: Omelet Station, about 210 grams, estimated from the photo. It's on Worcester's menu, 303 kcal per 5 ounce serving, with a Swap button. Then Log to Today.">
+          <div class="mini mini--fix">
+            <div class="fx-head"><span class="pin">1</span><b>Omelet Station</b><span class="fx-chg"><span class="fx-new">~210 g</span></span></div>
+            <div class="fx-row"><span class="fx-k">Amount</span><span class="fx-food">About 210 g, estimated from the photo</span></div>
+            <div class="fx-row"><span class="fx-k">Match</span><span class="fx-food">On Worcester’s menu: Omelet Station, 303 kcal per 5 oz</span><span class="fx-swap">Swap</span></div>
+            <div class="fx-foot"><span class="fx-log">Log to Today</span><span class="fx-ok"><svg><use href="#i-check"/></svg>Added to today</span></div>
+          </div>
+        </div>
+      </li>
+    </ol>
+  </section>
+
   <!-- Other features: short recordings of the real app. Each one loads only when played. -->
   <section class="section" id="videos" aria-labelledby="videos-title">
     <div class="section-head section-head--split">
@@ -401,7 +458,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <h2 id="videos-title" class="h2">More than a calorie counter</h2>
       </div>
       <div>
-        <p class="section-sub">Short recordings of the real app: the one question, favorite dishes with menu alerts, and adding it to your Home Screen.</p>
+        <p class="section-sub">Short recordings of the real app: the one question, favorite dishes with menu alerts, and naming the place you ate.</p>
         <div class="head-actions">
           <a class="pill-link" href="/app/">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
           <div class="rail-ctrl" data-rail-controls="video-rail">
@@ -435,16 +492,12 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           <h3>Favorite a dish</h3>
           <p>Search the campus menus and add what you love. The bell tells you when it’s on at any dining hall this week.</p>
         </li>
-        <li class="gallery__item" data-video="add-to-home-screen">
+        <li class="gallery__item" data-video="name-the-place">
           <div class="gallery__frame">
-            <button type="button" class="vplay" data-video-src="/app/media/gallery-home-screen.mp4" data-video-w="720" data-video-h="900" data-video-label="Screen recording: in Safari, Share, then Add to Home Screen, then Add, and MealScholar appears on the Home Screen">
-              <img src="/app/media/gallery-home-screen.jpg" width="720" height="900" alt="" loading="lazy" decoding="async">
-              <span class="vplay__btn" aria-hidden="true"><svg><use href="#i-play"/></svg></span>
-              <span class="sr-only">Play the recording: add it to your Home Screen</span>
-            </button>
+            <div class="video-ph video-ph--c"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
           </div>
-          <h3>Add it to your Home Screen</h3>
-          <p>In Safari: Share, then Add to Home Screen, then Add. It opens like an app.</p>
+          <h3>Name the place</h3>
+          <p>Turn on location and each meal is saved with the name of where you ate, not your coordinates.</p>
         </li>
       </ul>
     </div>
@@ -456,7 +509,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
     <div class="section-head section-head--split">
       <div>
         <p class="eyebrow">Real examples</p>
-        <h2 id="examples-title" class="h2">Six real plates from the dining halls</h2>
+        <h2 id="examples-title" class="h2 h2--sm">Six real plates from the dining halls</h2>
       </div>
       <div>
         <p class="section-sub">Photos from Worcester and Berkshire, run through the live app. Every food shows where its numbers came from: the hall’s own label, or USDA when the menu doesn’t have it or the label doesn’t fit.</p>
@@ -578,97 +631,104 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
   </section>
 
 
-  <!-- How it works -->
-  <section class="section" id="how" aria-labelledby="how-title">
-    <div class="section-head section-head--split">
-      <div>
-        <p class="eyebrow">How it works</p>
-        <h2 id="how-title" class="h2">From photo to nutrients</h2>
+  <!-- FAQ -->
+  <section class="section" id="faq" aria-labelledby="faq-title">
+    <div class="faq">
+      <div class="faq__intro">
+        <p class="eyebrow">FAQ</p>
+        <h2 id="faq-title" class="h2">Questions, plainly answered</h2>
+        <a class="pill-link" href="/app/">Open the app<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
       </div>
-      <p class="section-sub">Five steps, shown with a real brunch photo.</p>
+      <div class="faq__list">
+        <details open>
+          <summary><span class="faq__n" aria-hidden="true">01</span><span class="faq__q">How does MealScholar estimate my meal?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>The AI looks at your photo, names each food and works out how much is there. It never outputs nutrient numbers. Those come from the campus menu’s nutrition facts when the food is on it, and from USDA FoodData Central otherwise.</p></div>
+        </details>
+        <details>
+          <summary><span class="faq__n" aria-hidden="true">02</span><span class="faq__q">How exact are the numbers?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>A photo can’t show exactly how much food is on the plate, so every amount is an estimate. If you know an amount, set it and the numbers follow.</p></div>
+        </details>
+        <details>
+          <summary><span class="faq__n" aria-hidden="true">03</span><span class="faq__q">Do I need to weigh my food?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>No. You just take the photo. It works out how much is on the plate by itself.</p></div>
+        </details>
+        <details>
+          <summary><span class="faq__n" aria-hidden="true">04</span><span class="faq__q">What if it gets a food wrong?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>Swap it for the right food with one tap, from the campus menu or USDA.</p></div>
+        </details>
+        <details>
+          <summary><span class="faq__n" aria-hidden="true">05</span><span class="faq__q">Do I need to download an app?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>No. It works in the browser on any phone or laptop. On iPhone you can add it to your Home Screen from Safari’s Share button. A Home Screen version for Android is coming soon.</p></div>
+        </details>
+        <details>
+          <summary><span class="faq__n" aria-hidden="true">06</span><span class="faq__q">Is this medical advice?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>No. MealScholar gives you information, not medical advice. Any goal is one you choose, and it never gives insulin or carb dosing advice.</p></div>
+        </details>
+        <details>
+          <summary><span class="faq__n" aria-hidden="true">07</span><span class="faq__q">Does it know the dining hall menus?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>Yes. It has every dining hall, café and food court menu on campus with nutrition facts, refreshed every hour.</p></div>
+        </details>
+      </div>
     </div>
-    <ol class="steps">
-      <li class="step">
-        <div class="step__text">
-          <span class="step__num">01</span>
-          <h3>Snap your meal</h3>
-          <p>Take a photo of your plate. That’s all you do.</p>
-        </div>
-        <div class="mock" role="img" aria-label="Camera screen with a real photo: an omelet with home fries and guacamole on a white plate, and a button to take or choose a photo.">
-          <div class="vf">
-            <img src="img/meal-omelette-640.jpg" srcset="img/meal-omelette-640.jpg 640w, img/meal-omelette-1280.jpg 1280w" sizes="(max-width: 899px) 92vw, 640px" width="640" height="400" alt="" loading="lazy" decoding="async" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">
-            <i class="vf__c vf__c--tl"></i><i class="vf__c vf__c--tr"></i><i class="vf__c vf__c--bl"></i><i class="vf__c vf__c--br"></i>
-          </div>
-          <div class="mini mini--bar">
-            <span class="shutter"></span>
-            <span class="mini__stack"><b>Take or choose a photo</b><small>No weighing</small></span>
-          </div>
-        </div>
-      </li>
-      <li class="step">
-        <div class="step__text">
-          <span class="step__num">02</span>
-          <h3>Foods and how much</h3>
-          <p>The AI names each food and works out how much is there, sized against the plate. No weighing.</p>
-        </div>
-        <div class="mock" role="img" aria-label="3 foods found: Omelet Station, about 210 grams, from Worcester's menu; Red Potato Home Fries, about 100 grams, from USDA because the menu's label didn't fit the amount; Homemade Guacamole, about 80 grams, from Worcester's menu. Sized against the dinner plate.">
-          <div class="mini mini--foods">
-            <div class="ml-head"><span>3 foods found</span><span>grams, from the photo</span></div>
-            <div class="ml-row"><span class="pin">1</span><span class="ml-n">Omelet Station<span class="src">Worcester menu</span></span><span class="ml-g">about <b>210</b> g</span><span class="band band--f1"></span></div>
-            <div class="ml-row"><span class="pin">2</span><span class="ml-n">Red Potato Home Fries<span class="src src--usda">USDA</span></span><span class="ml-g">about <b>100</b> g</span><span class="band band--f2"></span></div>
-            <div class="ml-row"><span class="pin">3</span><span class="ml-n">Homemade Guacamole<span class="src">Worcester menu</span></span><span class="ml-g">about <b>80</b> g</span><span class="band band--f3"></span></div>
-            <p class="ml-note">Sized against the dinner plate. The home fries are on the menu, but their label didn’t fit the amount, so USDA.</p>
-          </div>
-        </div>
-      </li>
-      <li class="step">
-        <div class="step__text">
-          <span class="step__num">03</span>
-          <h3>One question, if needed</h3>
-          <p>Only when the answer changes the numbers and you can tell at a glance: usually a drink, like diet or regular, sometimes which of two dishes it is. Never how it was cooked. This plate needed none.</p>
-        </div>
-        <div class="mock" role="img" aria-label="The question step for this photo: none was needed, because nothing that changes the numbers was unclear.">
-          <div class="mini mini--q">
-            <span class="mini__label">One question</span>
-            <span class="mini__q">None needed for this plate.</span>
-            <span class="opts"><span class="opt opt--on"><svg><use href="#i-check"/></svg>Everything was clear</span></span>
-          </div>
-          <div class="toast"><svg><use href="#i-check"/></svg>Ready to log</div>
-        </div>
-      </li>
-      <li class="step step--wide">
-        <div class="step__text">
-          <span class="step__num">04</span>
-          <h3>Nutrients from the menu’s own facts</h3>
-          <p>If the food is on today’s campus menu, the nutrients come from the dining hall’s own nutrition facts. If it isn’t, or its label doesn’t fit what’s on the plate, they come from USDA FoodData Central. The AI never outputs nutrient numbers.</p>
-          <span class="dot-chip">Campus menu first&nbsp;· USDA as a backup</span>
-        </div>
-        <div class="mock mock--side" role="img" aria-label="Nutrients for this brunch: calories 795 kcal. Protein 35.4 grams, 71 percent of the Daily Value. Carbohydrate 42.8 grams, 16 percent. Worked example from Worcester's own label: the Omelet Station is 303 kcal per 5 ounce serving, and 210 grams is about 1.48 servings, so 449 kcal.">
-          <div class="mini mini--nutr">
-            <div class="mini__head"><span class="mini__label">Nutrients</span><span class="mini__label">Brunch</span></div>
-            <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>795</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">menu + USDA</small></div>
-            <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>35.4</b> g</span><span class="band band--prot"></span><small class="nrow__r">71% DV</small></div>
-            <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>42.8</b> g</span><span class="band band--carb"></span><small class="nrow__r">16% DV</small></div>
-          </div>
-          <div class="formula"><span class="formula__k">Omelet Station, Worcester’s label</span>210 g ÷ 5 oz serving × 303 kcal<b>= 449 kcal</b></div>
-        </div>
-      </li>
-      <li class="step step--fix">
-        <div class="step__text">
-          <span class="step__num">05</span>
-          <h3>Check it, log it</h3>
-          <p>If it got a food wrong, swap it with one tap. Then log it to your day.</p>
-        </div>
-        <div class="mock" role="img" aria-label="Check and log: Omelet Station, about 210 grams, estimated from the photo. It's on Worcester's menu, 303 kcal per 5 ounce serving, with a Swap button. Then Log to Today.">
-          <div class="mini mini--fix">
-            <div class="fx-head"><span class="pin">1</span><b>Omelet Station</b><span class="fx-chg"><span class="fx-new">~210 g</span></span></div>
-            <div class="fx-row"><span class="fx-k">Amount</span><span class="fx-food">About 210 g, estimated from the photo</span></div>
-            <div class="fx-row"><span class="fx-k">Match</span><span class="fx-food">On Worcester’s menu: Omelet Station, 303 kcal per 5 oz</span><span class="fx-swap">Swap</span></div>
-            <div class="fx-foot"><span class="fx-log">Log to Today</span><span class="fx-ok"><svg><use href="#i-check"/></svg>Added to today</span></div>
+  </section>
+
+  <!-- Off the page for now (November 15). Each block is kept as it was: move one out of this
+       template, back into its place, to show it again. -->
+  <template data-parked>
+  <!-- Why -->
+  <section class="section" id="features" aria-labelledby="why-title">
+    <div class="why">
+      <div class="why__intro">
+        <p class="eyebrow">Why MealScholar</p>
+        <h2 id="why-title" class="h2">Honest about what a photo can tell you</h2>
+        <p class="section-sub">Eight choices that keep the numbers honest and the app easy to check.</p>
+        <a class="pill-link" href="#how">See how it works<svg aria-hidden="true"><use href="#i-arrow-se"/></svg></a>
+      </div>
+      <div class="why__visual">
+        <div class="phone" role="img" aria-label="The app on a phone, showing the result for a brunch photo: 3 foods found. Omelet Station, about 210 grams, from Worcester's menu; Red Potato Home Fries, about 100 grams, from USDA because the menu's label didn't fit the amount; Homemade Guacamole, about 80 grams, from Worcester's menu. Calories: 795.">
+          <div class="phone__screen">
+            <div class="ps-status"><span>9:41</span><span class="ps-sig"><i></i><i></i><i></i><b></b></span></div>
+            <div class="ps-bar">
+              <svg class="ps-mark"><use href="#mark"/></svg>
+              <span class="ps-title">Brunch</span>
+              <span class="ps-ex">Example</span>
+            </div>
+            <div class="ps-photo ps-photo--real">
+              <img src="img/meal-omelette-640.jpg" alt="" width="640" height="400" decoding="async">
+              <span aria-hidden="true"><span class="ps-pin ps-pin--at" style="left:60%;top:72%">1</span><span class="ps-pin ps-pin--at" style="left:26%;top:48%">2</span><span class="ps-pin ps-pin--at" style="left:48%;top:20%">3</span></span>
+            </div>
+            <div class="ps-total">
+              <span class="ps-total__k">Calories</span>
+              <span class="ps-total__s">this meal</span>
+              <span class="ps-total__v">795<small>kcal</small></span>
+              <span class="ps-total__r">from the photo, no weighing</span>
+              <span class="band band--kcal band--dark"></span>
+            </div>
+            <div class="ps-card ps-foods">
+              <div class="ps-food"><span class="pin">1</span><span class="ps-food__nm">Omelet Station<span class="ps-food__src">Worcester menu</span></span><span class="ps-food__g"><b>~210 g</b></span></div>
+              <div class="ps-food"><span class="pin">2</span><span class="ps-food__nm">Red Potato Home Fries<span class="ps-food__src ps-food__src--usda">USDA, label didn’t fit</span></span><span class="ps-food__g"><b>~100 g</b></span></div>
+              <div class="ps-food"><span class="pin">3</span><span class="ps-food__nm">Homemade Guacamole<span class="ps-food__src">Worcester menu</span></span><span class="ps-food__g"><b>~80 g</b></span></div>
+            </div>
           </div>
         </div>
-      </li>
-    </ol>
+        <div class="float float--q" aria-hidden="true">
+          <span class="float__label">From Worcester’s menu</span>
+          <span class="float__q">Omelet Station, 303 kcal per 5 oz</span>
+          <span class="opts"><span class="opt opt--on">about 1.5 servings</span></span>
+        </div>
+      </div>
+      <ol class="why__list">
+        <li class="why__item"><span class="why__num" aria-hidden="true">01</span><h3>Estimates, not fake precision</h3><p>It works out how much of each food is there from the photo. Every amount is an estimate, and you can set one yourself if you know it.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">02</span><h3>The AI never makes up nutrients</h3><p>The AI names the foods and works out how much is there. The nutrients come from real data and plain arithmetic.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">03</span><h3>Campus menu first</h3><p>Food from the dining halls is checked against the campus menu and its own nutrition facts: 2,236 dishes, refreshed every hour.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">04</span><h3>One question, at most</h3><p>If something that changes the numbers isn’t clear from the photo, like diet or regular, it asks you one quick thing, then recomputes.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">05</span><h3>No weighing</h3><p>You just take the photo. It works out the amounts itself, and you can swap a food if it got one wrong.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">06</span><h3>Today and weekly views</h3><p>Every meal with the day’s calories and nutrients. Weeks run Sunday to Saturday, and you can page back to earlier ones.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">07</span><h3>USDA as a backup</h3><p>Anything that isn’t on the campus menu is matched to USDA FoodData Central’s 13,648 foods.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">08</span><h3>Nothing to install</h3><p>It works in the browser on any phone or laptop. On iPhone, add it to your Home Screen if you like.</p></li>
+      </ol>
+    </div>
+
   </section>
 
   <!-- Nutrients -->
@@ -816,48 +876,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
     </div>
   </section>
 
-  <!-- FAQ -->
-  <section class="section" id="faq" aria-labelledby="faq-title">
-    <div class="faq">
-      <div class="faq__intro">
-        <p class="eyebrow">FAQ</p>
-        <h2 id="faq-title" class="h2">Questions, plainly answered</h2>
-        <a class="pill-link" href="/app/">Open the app<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
-      </div>
-      <div class="faq__list">
-        <details open>
-          <summary><span class="faq__n" aria-hidden="true">01</span><span class="faq__q">How does MealScholar estimate my meal?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>The AI looks at your photo, names each food and works out how much is there. It never outputs nutrient numbers. Those come from the campus menu’s nutrition facts when the food is on it, and from USDA FoodData Central otherwise.</p></div>
-        </details>
-        <details>
-          <summary><span class="faq__n" aria-hidden="true">02</span><span class="faq__q">How exact are the numbers?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>A photo can’t show exactly how much food is on the plate, so every amount is an estimate. If you know an amount, set it and the numbers follow.</p></div>
-        </details>
-        <details>
-          <summary><span class="faq__n" aria-hidden="true">03</span><span class="faq__q">Do I need to weigh my food?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>No. You just take the photo. It works out how much is on the plate by itself.</p></div>
-        </details>
-        <details>
-          <summary><span class="faq__n" aria-hidden="true">04</span><span class="faq__q">What if it gets a food wrong?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>Swap it for the right food with one tap, from the campus menu or USDA.</p></div>
-        </details>
-        <details>
-          <summary><span class="faq__n" aria-hidden="true">05</span><span class="faq__q">Do I need to download an app?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>No. It works in the browser on any phone or laptop. On iPhone you can add it to your Home Screen from Safari’s Share button. A Home Screen version for Android is coming soon.</p></div>
-        </details>
-        <details>
-          <summary><span class="faq__n" aria-hidden="true">06</span><span class="faq__q">Is this medical advice?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>No. MealScholar gives you information, not medical advice. Any goal is one you choose, and it never gives insulin or carb dosing advice.</p></div>
-        </details>
-        <details>
-          <summary><span class="faq__n" aria-hidden="true">07</span><span class="faq__q">Does it know the dining hall menus?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>Yes. It has every dining hall, café and food court menu on campus with nutrition facts, refreshed every hour.</p></div>
-        </details>
-      </div>
-    </div>
-  </section>
-
-  <!-- Final call to action -->
+<!-- Final call to action -->
   <section class="section section--band" aria-labelledby="cta-title" data-dock-stop>
     <span class="band-cta__mark" aria-hidden="true"><span>MEALSCHOLAR</span></span>
     <div class="band-cta">
@@ -879,10 +898,12 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
       <span class="band band--kcal"></span>
     </div>
   </section>
-</div>
+  </template>
+
+  </div>
 </main>
 
-<footer class="site-footer">
+<footer class="site-footer" data-dock-stop>
   <div class="wrap footer-inner">
     <div class="footer-top">
       <div class="footer-brand">
@@ -898,23 +919,21 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           <ul>
             <li><a href="/app/">Open the app</a></li>
             <li><a href="#how">How it works</a></li>
-            <li><a href="#nutrients">What it tracks</a></li>
             <li><a href="#faq">FAQ</a></li>
           </ul>
         </div>
         <div>
           <h2>Project</h2>
           <ul>
-            <li><a href="#features">Why MealScholar</a></li>
+            <li><a href="#scan">A real scan</a></li>
             <li><a href="#videos">More features</a></li>
             <li><a href="#examples">Real examples</a></li>
-            <li><a href="#umass">UMass</a></li>
           </ul>
         </div>
         <div>
           <h2>Data</h2>
           <ul>
-            <li><a href="#umass">Campus dining menus</a></li>
+            <li><a href="https://umassdining.com/">Campus dining menus</a></li>
             <li><a href="https://fdc.nal.usda.gov/">USDA FoodData Central</a></li>
             <li><a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a></li>
             <li><a href="fonts/OFL-Geist.txt">Geist font license</a></li>
