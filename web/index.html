@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>MealScholar · Nutrition from a photo, in honest ranges</title>
-<meta name="description" content="Snap a photo of your meal. MealScholar works out the foods and how much is there, checks the campus dining menu first, and shows the nutrients as honest ranges.">
+<title>MealScholar · Nutrition from a photo, matched to the campus menu</title>
+<meta name="description" content="Snap a photo of your meal. MealScholar works out the foods and how much is there, checks the campus dining menu first, and shows the calories and nutrients. No weighing.">
 <meta name="theme-color" content="#EEF0F2">
 <meta name="color-scheme" content="light">
 <meta property="og:type" content="website">
 <meta property="og:title" content="MealScholar">
-<meta property="og:description" content="Snap a photo of your meal and get the foods, how much is there and the nutrients, shown as honest ranges.">
+<meta property="og:description" content="Snap a photo of your meal and get the foods, how much is there and the nutrients, matched to the campus menu first.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <!-- Added to the Home Screen from this page: the app's name and logo, and opening it goes to the app. -->
 <meta name="apple-mobile-web-app-title" content="MealScholar">
@@ -142,8 +142,8 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
     </nav>
 
     <div class="hero__copy wrap">
-      <h1 id="hero-title" class="h1 hero__title">Nutrition from a&nbsp;photo,<br class="h1-br"> in <span class="hl">real ranges<svg class="hl__mark" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M9 21c38-7 93-9 150-10 61-1 128-5 186-3 21 1 37 2 47 5 4 6 1 12-3 15 5 6 8 13 4 20-46 4-120 7-196 8-63 1-121 2-176 0-9-4-12-11-7-17-5-6-6-13-5-18z"/><path class="hl__pass" d="M20 37c57-5 141-8 228-8 52 0 97 1 132 4 4 3 3 7-1 9-42 3-112 4-196 5-58 1-106 1-151-1-6-3-6-7-1-9z"/></svg></span></h1>
-      <p class="hero__lede">Snap your meal. It works out what’s on the plate and <em>how much</em>, checks the campus dining menu first, and shows the nutrients as real ranges.</p>
+      <h1 id="hero-title" class="h1 hero__title">Nutrition from a&nbsp;photo,<br class="h1-br"> matched to the <span class="hl">campus menu<svg class="hl__mark" viewBox="0 0 400 64" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M9 21c38-7 93-9 150-10 61-1 128-5 186-3 21 1 37 2 47 5 4 6 1 12-3 15 5 6 8 13 4 20-46 4-120 7-196 8-63 1-121 2-176 0-9-4-12-11-7-17-5-6-6-13-5-18z"/><path class="hl__pass" d="M20 37c57-5 141-8 228-8 52 0 97 1 132 4 4 3 3 7-1 9-42 3-112 4-196 5-58 1-106 1-151-1-6-3-6-7-1-9z"/></svg></span></h1>
+      <p class="hero__lede">Snap your meal. It works out what’s on the plate and <em>how much</em>, checks the campus dining menu first, and shows the calories and nutrients.</p>
       <div class="hero__actions">
         <a class="cta" href="/app/?install=1" data-hero-cta>
           <span class="cta__pill"><span class="lbl-desktop">Open the app</span><span class="lbl-phone">Add to Home Screen</span></span>
@@ -163,20 +163,20 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
     <!-- The app's screens, fanned out. Without JavaScript this is a plain sideways row. -->
     <div class="fan" data-fan aria-roledescription="carousel" aria-label="Screens from the app" role="region">
       <div class="fan__track" data-fan-track>
-        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="1 of 7: Brunch, in ranges">
+        <article class="fan-card" data-slide aria-roledescription="slide" aria-label="1 of 7: Brunch, from a photo">
           <div class="fan-card__vis fv-lunch" aria-hidden="true">
             <div class="fv-lunch__photo"><img src="img/meal-omelette-640.jpg" alt="" width="640" height="400" loading="lazy" decoding="async"><span class="ps-pin ps-pin--at" style="left:60%;top:72%">1</span><span class="ps-pin ps-pin--at" style="left:26%;top:48%">2</span><span class="ps-pin ps-pin--at" style="left:48%;top:20%">3</span></div>
             <div class="ps-total">
               <span class="ps-total__k">Calories</span>
-              <span class="ps-total__s">most likely</span>
+              <span class="ps-total__s">this meal</span>
               <span class="ps-total__v">866<small>kcal</small></span>
-              <span class="ps-total__r">range 736–997 kcal</span>
+              <span class="ps-total__r">from the photo, no weighing</span>
               <span class="band band--kcal band--dark"></span>
             </div>
           </div>
           <div class="fan-card__body">
-            <p class="fan-card__title">Brunch, in ranges</p>
-            <p class="fan-card__text">Three foods, 736–997 kcal, two from Franklin’s menu.</p>
+            <p class="fan-card__title">Brunch, from a photo</p>
+            <p class="fan-card__text">Three foods, 866 kcal, two from Franklin’s menu.</p>
             <div class="fan-card__btns">
               <a class="fan-btn fan-btn--fill" href="/app/">Open the app</a>
               <a class="fan-btn" href="#how">Learn more</a>
@@ -204,10 +204,9 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <article class="fan-card" data-slide aria-roledescription="slide" aria-label="3 of 7: Today, at a glance">
           <div class="fan-card__vis fv-today" aria-hidden="true">
             <div class="ps-card">
-              <div class="ps-row"><span class="ps-label">Calories today</span><span class="ps-label">likely</span></div>
+              <div class="ps-row"><span class="ps-label">Calories today</span><span class="ps-label">2 meals</span></div>
               <div class="ps-big"><b>737</b><span>kcal</span></div>
               <div class="band band--day"></div>
-              <div class="ps-row ps-ends"><span>616</span><span>858</span></div>
             </div>
             <div class="ps-card ps-meals">
               <div class="ps-meal"><span class="ps-meal__t">Breakfast</span><span class="ps-meal__d">Oatmeal, banana</span><span class="ps-meal__k">275 kcal</span></div>
@@ -216,7 +215,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           </div>
           <div class="fan-card__body">
             <p class="fan-card__title">Today, at a glance</p>
-            <p class="fan-card__text">Every meal, with the day’s calories as a range from 616 to 858.</p>
+            <p class="fan-card__text">Every meal you logged, with the day’s calories and % Daily Value.</p>
             <div class="fan-card__btns">
               <a class="fan-btn fan-btn--fill" href="/app/">Open the app</a>
               <a class="fan-btn" href="#phone">Learn more</a>
@@ -227,14 +226,14 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <article class="fan-card" data-slide aria-roledescription="slide" aria-label="4 of 7: 19 nutrients">
           <div class="fan-card__vis fv-nutr" aria-hidden="true">
             <div class="mini mini--nutr">
-              <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>866</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">736–997</small></div>
-              <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>37.4</b> g</span><span class="band band--prot"></span><small class="nrow__r">62–88% DV</small></div>
-              <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>48.7</b> g</span><span class="band band--carb"></span><small class="nrow__r">14–21% DV</small></div>
+              <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>866</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">menu + USDA</small></div>
+              <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>37.4</b> g</span><span class="band band--prot"></span><small class="nrow__r">75% DV</small></div>
+              <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>48.7</b> g</span><span class="band band--carb"></span><small class="nrow__r">18% DV</small></div>
             </div>
           </div>
           <div class="fan-card__body">
             <p class="fan-card__title">19 nutrients</p>
-            <p class="fan-card__text">The main nine as ranges. Vitamins and minerals are labeled as estimates.</p>
+            <p class="fan-card__text">The main nine from the menu’s own facts or USDA. Vitamins and minerals are labeled as estimates.</p>
             <div class="fan-card__btns">
               <a class="fan-btn fan-btn--fill" href="/app/">Open the app</a>
               <a class="fan-btn" href="#nutrients">Learn more</a>
@@ -279,7 +278,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           </div>
           <div class="fan-card__body">
             <p class="fan-card__title">See it in action</p>
-            <p class="fan-card__text">Short recordings of the real app, from photo to ranges.</p>
+            <p class="fan-card__text">Short recordings of the real app, from photo to nutrients.</p>
             <div class="fan-card__btns">
               <a class="fan-btn fan-btn--fill" href="/app/">Open the app</a>
               <a class="fan-btn" href="#videos">Learn more</a>
@@ -311,7 +310,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <a class="pill-link" href="#how">See how it works<svg aria-hidden="true"><use href="#i-arrow-se"/></svg></a>
       </div>
       <div class="why__visual">
-        <div class="phone" role="img" aria-label="The app on a phone, showing the result for a brunch photo: 3 foods found. An omelet with vegetables and cheese, 180 to 260 grams, likely 220; red potato home fries, 90 to 140 grams, likely 115; guacamole, 70 to 110 grams, likely 90. Two of them come from Franklin's menu and one from USDA. Calories 736 to 997, likely 866.">
+        <div class="phone" role="img" aria-label="The app on a phone, showing the result for a brunch photo: 3 foods found. An omelet with vegetables and cheese, about 220 grams; red potato home fries, about 115 grams; guacamole, about 90 grams. Two of them come from Franklin's menu and one from USDA. Calories: 866.">
           <div class="phone__screen">
             <div class="ps-status"><span>9:41</span><span class="ps-sig"><i></i><i></i><i></i><b></b></span></div>
             <div class="ps-bar">
@@ -325,15 +324,15 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
             </div>
             <div class="ps-total">
               <span class="ps-total__k">Calories</span>
-              <span class="ps-total__s">most likely</span>
+              <span class="ps-total__s">this meal</span>
               <span class="ps-total__v">866<small>kcal</small></span>
-              <span class="ps-total__r">range 736–997 kcal</span>
+              <span class="ps-total__r">from the photo, no weighing</span>
               <span class="band band--kcal band--dark"></span>
             </div>
             <div class="ps-card ps-foods">
-              <div class="ps-food"><span class="pin">1</span><span class="ps-food__nm">Omelet, vegetables and cheese</span><span class="ps-food__g"><b>220 g</b><small>180–260</small></span></div>
-              <div class="ps-food"><span class="pin">2</span><span class="ps-food__nm">Red potato home fries</span><span class="ps-food__g"><b>115 g</b><small>90–140</small></span></div>
-              <div class="ps-food"><span class="pin">3</span><span class="ps-food__nm">Guacamole</span><span class="ps-food__g"><b>90 g</b><small>70–110</small></span></div>
+              <div class="ps-food"><span class="pin">1</span><span class="ps-food__nm">Omelet, vegetables and cheese</span><span class="ps-food__g"><b>220 g</b><small>estimated</small></span></div>
+              <div class="ps-food"><span class="pin">2</span><span class="ps-food__nm">Red potato home fries</span><span class="ps-food__g"><b>115 g</b><small>estimated</small></span></div>
+              <div class="ps-food"><span class="pin">3</span><span class="ps-food__nm">Guacamole</span><span class="ps-food__g"><b>90 g</b><small>estimated</small></span></div>
               <div class="ps-food ps-food--src"><span class="ps-src">2 from Franklin’s menu · 1 from USDA</span></div>
             </div>
           </div>
@@ -341,11 +340,11 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <div class="float float--q" aria-hidden="true">
           <span class="float__label">From Franklin’s menu</span>
           <span class="float__q">Omelet Station, 303 kcal per 5 oz</span>
-          <span class="opts"><span class="opt opt--on">1.3–1.8 servings</span></span>
+          <span class="opts"><span class="opt opt--on">about 1.5 servings</span></span>
         </div>
       </div>
       <ol class="why__list">
-        <li class="why__item"><span class="why__num" aria-hidden="true">01</span><h3>Ranges, not fake precision</h3><p>It estimates how much of each food is there as a low, likely and high amount, so you can see how sure it is.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">01</span><h3>Estimates, not fake precision</h3><p>It works out how much of each food is there from the photo. Every amount is an estimate, and you can set one yourself if you know it.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">02</span><h3>The AI never makes up nutrients</h3><p>The AI names the foods and works out how much is there. The nutrients come from real data and plain arithmetic.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">03</span><h3>Campus menu first</h3><p>Food from the dining halls is checked against the campus menu and its own nutrition facts: 2,236 dishes, refreshed every hour.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">04</span><h3>One question, at most</h3><p>If a photo is unclear, it asks you one thing, then recomputes.</p></li>
@@ -388,14 +387,14 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <div class="step__text">
           <span class="step__num">02</span>
           <h3>Foods and how much</h3>
-          <p>The AI names each food and works out how much is there, as a low, likely and high amount. No weighing.</p>
+          <p>The AI names each food and works out how much is there, sized against the plate. No weighing.</p>
         </div>
-        <div class="mock" role="img" aria-label="3 foods found: an omelet with vegetables and cheese, 180 to 260 grams, likely 220; red potato home fries, 90 to 140 grams, likely 115; guacamole, 70 to 110 grams, likely 90. Sized against the dinner plate, then matched to Franklin's menu, with USDA as the backup.">
+        <div class="mock" role="img" aria-label="3 foods found: an omelet with vegetables and cheese, about 220 grams; red potato home fries, about 115 grams; guacamole, about 90 grams. Sized against the dinner plate, then matched to Franklin's menu, with USDA as the backup.">
           <div class="mini mini--foods">
-            <div class="ml-head"><span>3 foods found</span><span>low · likely · high</span></div>
-            <div class="ml-row"><span class="pin">1</span><span class="ml-n">Omelet, vegetables and cheese</span><span class="ml-g">180 · <b>220</b> · 260 g</span><span class="band band--f2"></span></div>
-            <div class="ml-row"><span class="pin">2</span><span class="ml-n">Red potato home fries</span><span class="ml-g">90 · <b>115</b> · 140 g</span><span class="band band--f2"></span></div>
-            <div class="ml-row"><span class="pin">3</span><span class="ml-n">Guacamole</span><span class="ml-g">70 · <b>90</b> · 110 g</span><span class="band band--f2"></span></div>
+            <div class="ml-head"><span>3 foods found</span><span>grams, from the photo</span></div>
+            <div class="ml-row"><span class="pin">1</span><span class="ml-n">Omelet, vegetables and cheese</span><span class="ml-g">about <b>220</b> g</span><span class="band band--f2"></span></div>
+            <div class="ml-row"><span class="pin">2</span><span class="ml-n">Red potato home fries</span><span class="ml-g">about <b>115</b> g</span><span class="band band--f2"></span></div>
+            <div class="ml-row"><span class="pin">3</span><span class="ml-n">Guacamole</span><span class="ml-g">about <b>90</b> g</span><span class="band band--f2"></span></div>
             <p class="ml-note">Sized against the dinner plate · matched to Franklin’s menu, then USDA</p>
           </div>
         </div>
@@ -418,16 +417,16 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
       <li class="step step--wide">
         <div class="step__text">
           <span class="step__num">04</span>
-          <h3>Nutrients as ranges</h3>
+          <h3>Nutrients from the menu’s own facts</h3>
           <p>If the food is on today’s campus menu, the nutrients come from the dining hall’s own nutrition facts. If not, from USDA FoodData Central. The AI never outputs nutrient numbers.</p>
           <span class="dot-chip">Campus menu first&nbsp;· USDA as a backup</span>
         </div>
-        <div class="mock mock--side" role="img" aria-label="Nutrients for this brunch: calories 736 to 997 kcal, likely 866. Protein 37.4 grams, 62 to 88 percent of the Daily Value. Carbohydrate 48.7 grams, 14 to 21 percent. Worked example from Franklin's own label: the Omelet Station is 303 kcal per 5 ounce serving, and 220 grams is about 1.55 servings, so 470 kcal.">
+        <div class="mock mock--side" role="img" aria-label="Nutrients for this brunch: calories 866 kcal. Protein 37.4 grams, 75 percent of the Daily Value. Carbohydrate 48.7 grams, 18 percent. Worked example from Franklin's own label: the Omelet Station is 303 kcal per 5 ounce serving, and 220 grams is about 1.55 servings, so 470 kcal.">
           <div class="mini mini--nutr">
             <div class="mini__head"><span class="mini__label">Nutrients</span><span class="mini__label">Brunch</span></div>
-            <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>866</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">736–997 kcal</small></div>
-            <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>37.4</b> g</span><span class="band band--prot"></span><small class="nrow__r">62–88% DV</small></div>
-            <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>48.7</b> g</span><span class="band band--carb"></span><small class="nrow__r">14–21% DV</small></div>
+            <div class="nrow"><span class="nrow__nm">Calories</span><span class="nrow__v"><b>866</b> kcal</span><span class="band band--kcal"></span><small class="nrow__r">menu + USDA</small></div>
+            <div class="nrow"><span class="nrow__nm">Protein</span><span class="nrow__v"><b>37.4</b> g</span><span class="band band--prot"></span><small class="nrow__r">75% DV</small></div>
+            <div class="nrow"><span class="nrow__nm">Carbohydrate</span><span class="nrow__v"><b>48.7</b> g</span><span class="band band--carb"></span><small class="nrow__r">18% DV</small></div>
           </div>
           <div class="formula"><span class="formula__k">Omelet Station, Franklin’s label</span>220 g ÷ 5 oz serving × 303 kcal<b>= 470 kcal</b></div>
         </div>
@@ -438,10 +437,10 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           <h3>Check it, log it</h3>
           <p>If it got a food wrong, swap it with one tap. Then log it to your day.</p>
         </div>
-        <div class="mock" role="img" aria-label="Check and log: an omelet with vegetables and cheese, about 180 to 260 grams, likely 220, estimated from the photo. It's on Franklin's menu as the Omelet Station, 303 kcal per 5 ounce serving, with a Swap button. Then Log to Today.">
+        <div class="mock" role="img" aria-label="Check and log: an omelet with vegetables and cheese, about 220 grams, estimated from the photo. It's on Franklin's menu as the Omelet Station, 303 kcal per 5 ounce serving, with a Swap button. Then Log to Today.">
           <div class="mini mini--fix">
             <div class="fx-head"><span class="pin">1</span><b>Omelet, vegetables and cheese</b><span class="fx-chg"><span class="fx-new">~220 g</span></span></div>
-            <div class="fx-row"><span class="fx-k">Amount</span><span class="fx-food">180–260 g, estimated from the photo</span></div>
+            <div class="fx-row"><span class="fx-k">Amount</span><span class="fx-food">About 220 g, estimated from the photo</span></div>
             <div class="fx-row"><span class="fx-k">Match</span><span class="fx-food">On Franklin’s menu: Omelet Station, 303 kcal per 5 oz</span><span class="fx-swap">Swap</span></div>
             <div class="fx-foot"><span class="fx-log">Log to Today</span><span class="fx-ok"><svg><use href="#i-check"/></svg>Added to today</span></div>
           </div>
@@ -456,7 +455,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
     <div class="split__text split__text--stick">
       <p class="eyebrow">Screen recordings</p>
       <h2 id="videos-title" class="h2">See it in action</h2>
-      <p class="section-sub">Short recordings of the real app: adding it to your Home Screen, a photo becoming ranges, the one question, and the day’s totals.</p>
+      <p class="section-sub">Short recordings of the real app: adding it to your Home Screen, a photo becoming nutrients, the one question, and the day’s totals.</p>
       <div class="head-actions">
         <a class="pill-link" href="/app/">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
         <div class="rail-ctrl" data-rail-controls="video-rail">
@@ -479,7 +478,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
             <!-- To add the recording, replace the next line with: <video src="videos/snap-to-nutrients.mp4" poster="videos/snap-to-nutrients.jpg" controls playsinline preload="none"></video> -->
             <div class="video-ph video-ph--a"><span class="chip chip--soon">Coming soon</span><span class="video-ph__idx" aria-hidden="true">02 / 04</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
           </div>
-          <figcaption><h3>Snap to nutrients</h3><p>One photo becomes foods, grams and nutrient ranges.</p></figcaption>
+          <figcaption><h3>Snap to nutrients</h3><p>One photo becomes foods, grams and nutrients.</p></figcaption>
         </figure>
         <figure class="video-card" data-video="one-question">
           <div class="video-frame">
@@ -518,7 +517,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           <span class="ntable__col" aria-hidden="true">Daily Value</span>
         </div>
         <ul class="nlist" aria-label="Main nutrients and their Daily Values">
-        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">01</span><span class="nt-row__nm">Calories</span><span class="nt-row__note">Shown as a range. Set your own goal if you want one.</span><span class="nt-row__dv"><b>Optional</b><small>your goal</small></span></li>
+        <li class="nt-row"><span class="nt-row__i" aria-hidden="true">01</span><span class="nt-row__nm">Calories</span><span class="nt-row__note">Set your own goal if you want one.</span><span class="nt-row__dv"><b>Optional</b><small>your goal</small></span></li>
         <li class="nt-row"><span class="nt-row__i" aria-hidden="true">02</span><span class="nt-row__nm">Protein</span><span class="nt-row__note">In grams, with % Daily Value.</span><span class="nt-row__dv"><b>50 g</b></span></li>
         <li class="nt-row"><span class="nt-row__i" aria-hidden="true">03</span><span class="nt-row__nm">Carbohydrate</span><span class="nt-row__note">With % DV. No carb dosing advice.</span><span class="nt-row__dv"><b>275 g</b></span></li>
         <li class="nt-row"><span class="nt-row__i" aria-hidden="true">04</span><span class="nt-row__nm">Fat</span><span class="nt-row__note">Total fat in grams, with % DV.</span><span class="nt-row__dv"><b>78 g</b></span></li>
@@ -577,7 +576,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
     <div class="promo__copy">
       <span class="chip chip--white">No app store download</span>
       <h2 id="phone-title" class="h2">Made for your phone</h2>
-      <p class="section-sub">MealScholar works in the browser on any phone. Open the link, snap your meal, see the ranges.</p>
+      <p class="section-sub">MealScholar works in the browser on any phone. Open the link, snap your meal, see the numbers.</p>
       <a class="cta" href="/app/">
         <span class="cta__pill">Open on your phone</span>
         <span class="cta__arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></span>
@@ -595,7 +594,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
       </div>
     </div>
     <div class="promo__visual">
-      <div class="phone phone--today" role="img" aria-label="Example Today view on a phone, for illustration: breakfast and lunch logged, the day’s calories as a range from 616 to 858, and % Daily Value ranges for protein, carbohydrate and fiber.">
+      <div class="phone phone--today" role="img" aria-label="Example Today view on a phone, for illustration: breakfast and lunch logged, the day’s calories, 737 so far, and % Daily Value for protein, carbohydrate and fiber.">
         <div class="phone__screen">
           <div class="ps-status"><span>9:41</span><span class="ps-sig"><i></i><i></i><i></i><b></b></span></div>
           <div class="ps-bar">
@@ -603,10 +602,9 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
             <span class="ps-ex">Example</span>
           </div>
           <div class="ps-card">
-            <div class="ps-row"><span class="ps-label">Calories today</span><span class="ps-label">likely</span></div>
+            <div class="ps-row"><span class="ps-label">Calories today</span><span class="ps-label">2 meals</span></div>
             <div class="ps-big"><b>737</b><span>kcal</span></div>
             <div class="band band--day"></div>
-            <div class="ps-row ps-ends"><span>616</span><span>858</span></div>
           </div>
           <div class="ps-card ps-meals">
             <div class="ps-meal"><span class="ps-meal__t">Breakfast</span><span class="ps-meal__d">Oatmeal, banana</span><span class="ps-meal__k">275 kcal</span></div>
@@ -614,9 +612,9 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           </div>
           <div class="ps-card ps-dvs">
             <div class="ps-row"><span class="ps-label">% Daily Value</span></div>
-            <div class="ps-dv"><span>Protein</span><small>91–125%</small><span class="band band--d1"></span></div>
-            <div class="ps-dv"><span>Carbohydrate</span><small>33–46%</small><span class="band band--d2"></span></div>
-            <div class="ps-dv"><span>Fiber</span><small>31–43%</small><span class="band band--d3"></span></div>
+            <div class="ps-dv"><span>Protein</span><small>108%</small><span class="band band--d1"></span></div>
+            <div class="ps-dv"><span>Carbohydrate</span><small>40%</small><span class="band band--d2"></span></div>
+            <div class="ps-dv"><span>Fiber</span><small>37%</small><span class="band band--d3"></span></div>
           </div>
         </div>
       </div>
@@ -659,11 +657,11 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
       <div class="faq__list">
         <details open>
           <summary><span class="faq__n" aria-hidden="true">01</span><span class="faq__q">How does MealScholar estimate my meal?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>The AI looks at your photo, names each food and works out how much is there as a low, likely and high amount. It never outputs nutrient numbers. Those come from the campus menu’s nutrition facts when the food is on it, and from USDA FoodData Central otherwise.</p></div>
+          <div class="faq__a"><p>The AI looks at your photo, names each food and works out how much is there. It never outputs nutrient numbers. Those come from the campus menu’s nutrition facts when the food is on it, and from USDA FoodData Central otherwise.</p></div>
         </details>
         <details>
-          <summary><span class="faq__n" aria-hidden="true">02</span><span class="faq__q">Why ranges instead of one number?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>A photo can’t show exactly how much food is on the plate, so one precise number would be a guess. The range shows how sure the estimate is.</p></div>
+          <summary><span class="faq__n" aria-hidden="true">02</span><span class="faq__q">How exact are the numbers?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
+          <div class="faq__a"><p>A photo can’t show exactly how much food is on the plate, so every amount is an estimate. If you know an amount, set it and the numbers follow.</p></div>
         </details>
         <details>
           <summary><span class="faq__n" aria-hidden="true">03</span><span class="faq__q">Do I need to weigh my food?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
@@ -707,7 +705,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
     </div>
     <div class="band-cta__chip" aria-hidden="true">
       <span class="band-cta__chip-top"><span>Brunch</span><span class="band-cta__ex">Example</span></span>
-      <span class="band-cta__chip-v">736–997 <small>kcal</small></span>
+      <span class="band-cta__chip-v">866 <small>kcal</small></span>
       <span class="band band--kcal"></span>
     </div>
   </section>
@@ -722,7 +720,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           <svg aria-hidden="true"><use href="#mark"/></svg>
           <span>MealScholar</span>
         </a>
-        <p>Foods, amounts and nutrients from one photo, as honest ranges.</p>
+        <p>Foods, amounts and nutrients from one photo, matched to the campus menu.</p>
       </div>
       <div class="footer-cols">
         <div>

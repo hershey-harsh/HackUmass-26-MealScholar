@@ -45,7 +45,7 @@
   --veil-rgb: 236, 235, 228;
   --page-rgb: 238, 240, 242;
   --hero-scrim: rgba(17, 17, 18, 0);
-  /* The highlighter band behind "real ranges". Ink on it is 12.7:1. */
+  /* The highlighter band behind "campus menu". Ink on it is 12.7:1. */
   --marker: #F5DF6E;
   --radius: 22px;
   --radius-sm: 16px;
@@ -574,7 +574,7 @@ html:not(.js) .theme { display: none; }
 /* The break only applies once the headline has room for "Nutrition from a photo," on one line. */
 .h1-br { display: none; }
 
-/* A loose highlighter stroke behind "real ranges", drawn left to right once on load. */
+/* A loose highlighter stroke behind "campus menu", drawn left to right once on load. */
 .hl { position: relative; z-index: 0; white-space: nowrap; }
 .hl__mark {
   position: absolute;
@@ -648,7 +648,7 @@ html:not(.js) .theme { display: none; }
 .facts li.is-line-start::before { display: none; }
 
 @media (max-width: 359px) {
-  .hero__title { font-size: 34px; }
+  .hero__title { font-size: 33px; } /* keeps "matched to the campus menu" on three lines at 320px */
   .hero .cta { padding: 0 12px 0 16px; }
 }
 @media (min-width: 600px) {
@@ -985,7 +985,7 @@ html:not(.js) .theme { display: none; }
 .ps-big b { font-size: 3.7em; font-weight: 300; letter-spacing: -0.035em; line-height: 1; }
 .ps-big span { font-size: 1.35em; color: var(--ink-2); }
 .ps-ends { margin-top: .6em; font-family: var(--mono); font-size: 1.05em; color: var(--ink-2); }
-/* The meal's calories, as a dark card with the range first. */
+/* The meal's calories, as a dark card with the number first. */
 .ps-total {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1052,10 +1052,8 @@ html:not(.js) .theme { display: none; }
   font: 600 11px/1 var(--mono);
 }
 
-/* Range band: a track, the low to high range, and a tick at the likely value */
+/* Amount bar: a track with a plain bar from zero to the value, as the app draws it */
 .band {
-  --lo: 20%;
-  --hi: 80%;
   --at: 50%;
   position: relative;
   display: block;
@@ -1068,36 +1066,23 @@ html:not(.js) .theme { display: none; }
   position: absolute;
   top: 0;
   bottom: 0;
-  left: var(--lo);
-  right: calc(100% - var(--hi));
+  left: 0;
+  right: calc(100% - var(--at));
   border-radius: inherit;
-  background: var(--range);
-}
-.band::after {
-  content: "";
-  position: absolute;
-  top: -.3em;
-  bottom: -.3em;
-  left: var(--at);
-  width: .34em;
-  margin-left: -.17em;
-  border-radius: .2em;
   background: var(--ink);
-  box-shadow: 0 0 0 1px var(--surface);
 }
 .band--dark { background: rgba(var(--surface-rgb), .18); }
-.band--dark::before { background: rgba(var(--surface-rgb), .5); }
-.band--dark::after { background: var(--surface); box-shadow: 0 0 0 1px var(--ink); }
-.band--kcal { --lo: 64.2%; --hi: 89.8%; --at: 77%; }
-.band--f1 { --lo: 55%; --hi: 75%; --at: 65%; }
-.band--f2 { --lo: 56%; --hi: 80%; --at: 68%; }
-.band--f3 { --lo: 50%; --hi: 75%; --at: 62.5%; }
-.band--prot { --lo: 69.3%; --hi: 95.2%; --at: 82.3%; }
-.band--carb { --lo: 15.9%; --hi: 22.8%; --at: 19.4%; }
-.band--day { --lo: 61.6%; --hi: 85.8%; --at: 73.7%; }
-.band--d1 { --lo: 69.1%; --hi: 95.2%; --at: 82.2%; }
-.band--d2 { --lo: 32.9%; --hi: 46.3%; --at: 39.6%; }
-.band--d3 { --lo: 30.5%; --hi: 43%; --at: 36.8%; }
+.band--dark::before { background: var(--surface); }
+.band--kcal { --at: 77%; }
+.band--f1 { --at: 65%; }
+.band--f2 { --at: 68%; }
+.band--f3 { --at: 62.5%; }
+.band--prot { --at: 82.3%; }
+.band--carb { --at: 19.4%; }
+.band--day { --at: 73.7%; }
+.band--d1 { --at: 82.2%; }
+.band--d2 { --at: 39.6%; }
+.band--d3 { --at: 36.8%; }
 
 /* Why: an intro beside a ruled, numbered list in two columns */
 .why { display: grid; gap: 36px; }
@@ -1265,7 +1250,7 @@ html:not(.js) .theme { display: none; }
   box-shadow: inset 0 0 0 3px var(--surface), 0 0 0 2px var(--ink);
 }
 
-/* Step 02: the foods with low, likely and high weights. Stacked when narrow, in columns when there is room. */
+/* Step 02: the foods with their estimated weights. Stacked when narrow, in columns when there is room. */
 .mini--foods { container-type: inline-size; }
 .ml-head {
   display: flex;

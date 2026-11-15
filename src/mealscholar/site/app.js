@@ -1,8 +1,10 @@
 // MealScholar web client: a plain ES module over the JSON API (web.py, plus auth.py when accounts
 // are on, and prefs.py and dining.py when the server has them); no build step. Product rules
-// (README, AGENTS.md): every number is a range until the user weighs the food, micronutrients are
-// labelled estimates, and % Daily Value is information only. Goals exist only when the person sets
-// one themselves (GET /api/me/prefs); without that layer there are no targets or "remaining" numbers.
+// (README, AGENTS.md): every amount is an estimate, shown as its likely value; the low–high range
+// behind it shows only for people who switch ranges on (prefs.show_ranges, see rangesOn),
+// micronutrients are labelled estimates, and % Daily Value is information only. Goals exist only
+// when the person sets one themselves (GET /api/me/prefs); without that layer there are no targets
+// or "remaining" numbers.
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -227,16 +229,40 @@ const esc = (value) =>
 
 const TO = '<span aria-hidden="true">–</span><span class="visually-hidden"> to </span>';
 
-/** Likely value, then the low–high range; a single number only once low and high agree. */
+/** Whether the low–high range shows next to each likely amount. It is the person's own choice
+    (the set-up step, or Settings → Display), off until they switch it on, and off without
+    preferences. Every place that prints an amount asks here, so the two looks never mix. */
+const rangesOn = () => state.prefs?.show_ranges === true;
+
+/** The same answer on <body data-ranges="on|off">, for the stylesheet (the bands). */
+function applyRanges() {
+  document.body.dataset.ranges = rangesOn() ? "on" : "off";
+}
+
+/** The switch changed: everything on screen that prints an amount draws again, in place. */
+function redrawRanges() {
+  applyRanges();
+  if (document.body.dataset.screen !== "app") return;
+  rendered.day = "";
+  rendered.week = "";
+  renderDashHead();
+  renderDay();
+  renderWeek();
+  if (state.shown && !els.result.hidden) renderResult("update");
+}
+
+/** Likely value, then the low–high range when ranges are on; a single number once low and high
+    agree. */
 function rangeHtml(range, unit, format = (v) => amount(v, unit), { stack = false } = {}) {
   const [low, likely, high] = [format(range.low), format(range.likely), format(range.high)];
   const unitHtml = unit ? ` ${esc(unit)}` : "";
   const cls = stack ? "value value--stack" : "value";
-  if (low === high) return `<span class="${cls}"><strong>${likely}${unitHtml}</strong></span>`;
+  if (low === high || !rangesOn()) return `<span class="${cls}"><strong>${likely}${unitHtml}</strong></span>`;
   return `<span class="${cls}"><strong>${likely}${unitHtml}</strong><span class="value__range"><span class="visually-hidden">, range </span>${low}${TO}${high}</span></span>`;
 }
 
 function dvHtml(range) {
+  if (!rangesOn()) return `${nf0.format(range.likely)}% DV`;
   const [low, high] = [nf0.format(range.low), nf0.format(range.high)];
   return low === high ? `${low}% DV` : `${low}${TO}${high}% DV`;
 }
@@ -297,10 +323,12 @@ function placeKind(place) {
 // transforms only; on re-render each band moves from where it was, so weighing a food visibly
 // collapses its range onto one line, and changing days slides every bar to the new day.
 
-/** `scale` is the value at the track's right end; bands that share a scale are comparable. */
+/** `scale` is the value at the track's right end; bands that share a scale are comparable. With
+    ranges off the band is a plain bar from zero to the likely value (the stylesheet drops the tick). */
 function bandHtml(key, range, { index = 0, scale = range.high * 1.12 || 1, dark = false } = {}) {
-  const cls = `band${isExact(range) ? " is-exact" : ""}${dark ? " band--dark" : ""}`;
-  return `<span class="${cls}" style="--i:${index}" data-band="${esc(String(key))}" data-scale="${scale}" data-low="${range.low}" data-likely="${range.likely}" data-high="${range.high}" aria-hidden="true"><span class="band__range"></span><span class="band__tick"></span></span>`;
+  const shown = rangesOn() ? range : { low: 0, likely: range.likely, high: range.likely };
+  const cls = `band${isExact(shown) ? " is-exact" : ""}${dark ? " band--dark" : ""}`;
+  return `<span class="${cls}" style="--i:${index}" data-band="${esc(String(key))}" data-scale="${scale}" data-low="${shown.low}" data-likely="${shown.likely}" data-high="${shown.high}" aria-hidden="true"><span class="band__range"></span><span class="band__tick"></span></span>`;
 }
 
 const readBand = (el) => ({ low: Number(el.dataset.low), likely: Number(el.dataset.likely), high: Number(el.dataset.high) });
@@ -888,8 +916,9 @@ function totalHtml(result, photoUrl) {
     return `<p class="total__empty">No food or drink found in this photo. Try another shot with the whole plate in view.</p>`;
   }
   const noPhoto = photoUrl ? "" : '<p class="answered">No photo was saved with this meal.</p>';
+  const ranges = rangesOn();
   const answered = result.answer
-    ? `<p class="answered">${icon("check")}<span>You said: “${esc(result.answer)}”. The foods and ranges below include it.</span></p>`
+    ? `<p class="answered">${icon("check")}<span>You said: “${esc(result.answer)}”. The foods and ${ranges ? "ranges" : "numbers"} below include it.</span></p>`
     : "";
   if (!kcal) {
     return `
@@ -901,18 +930,18 @@ function totalHtml(result, photoUrl) {
   const [low, likely, high] = [amount(kcal.low, "kcal"), amount(kcal.likely, "kcal"), amount(kcal.high, "kcal")];
   const exact = low === high;
   const weighable = result.items.some((r) => r.match && !isExact(itemGrams(r.item)));
-  // The likely number leads and the range sits under it, the same shape as the Today panel.
+  // The likely number leads and the range (when ranges are on) sits under it, the same shape as
+  // the Today panel.
+  const rangeLine = exact
+    ? "Every counted food has a set amount, so this is one number."
+    : `Most likely, in a range of <strong>${low}${TO}${high}&nbsp;kcal</strong>`;
   return `
     <div class="total">
       <p class="eyebrow">Calories, this meal</p>
-      <p class="total__value"><span class="total__num">${likely}</span><span class="total__unit">kcal</span>${exact ? "" : '<span class="visually-hidden">, most likely</span>'}</p>
-      <p class="total__range">${
-        exact
-          ? "Every counted food has a set amount, so this is one number."
-          : `Most likely, in a range of <strong>${low}${TO}${high}&nbsp;kcal</strong>`
-      }</p>
+      <p class="total__value"><span class="total__num">${likely}</span><span class="total__unit">kcal</span>${exact || !ranges ? "" : '<span class="visually-hidden">, most likely</span>'}</p>
+      ${ranges ? `<p class="total__range">${rangeLine}</p>` : ""}
       ${bandHtml("total-kcal", kcal, { dark: true })}
-      ${weighable ? '<p class="total__likely">Know an amount? Set it to narrow the range.</p>' : ""}
+      ${weighable ? `<p class="total__likely">Know an amount? Set it to ${ranges ? "narrow the range" : "update the numbers"}.</p>` : ""}
     </div>${answered}${noPhoto}`;
 }
 
@@ -943,7 +972,7 @@ function questionHtml(result) {
   if (!result.question || result.id == null || state.dismissedQuestion === result.id) return "";
   return `
     <form class="question" data-form="answer" aria-labelledby="question-text">
-      <p class="eyebrow">One answer narrows the range</p>
+      <p class="eyebrow">${rangesOn() ? "One answer narrows the range" : "One quick answer"}</p>
       <p id="question-text" class="question__text">${esc(result.question)}</p>
       <div class="question__row">
         <label class="visually-hidden" for="answer">Your answer</label>
@@ -1152,7 +1181,7 @@ function itemHtml(r, i, gramsScale) {
   const meta = [
     method && `<span class="chip">${esc(method)}</span>`,
     weighed ? `<span class="chip chip--ok">${icon("check")}Set amount</span>` : null,
-    item.hidden_fat_likely ? `<span class="chip chip--warn">${icon("drop")}Likely hidden oil or butter</span>` : null,
+    item.hidden_fat_likely ? `<span class="chip chip--warn">${icon("drop")}${rangesOn() ? "Likely" : "Probably"} hidden oil or butter</span>` : null,
   ].filter(Boolean);
   const energy = match || dish
     ? kcal
@@ -1377,7 +1406,7 @@ els.result.addEventListener("submit", async (event) => {
       const result = await api(`/api/meals/${id}/answer`, { method: "POST", ...jsonBody({ answer }) });
       if (epoch !== state.epoch) return; // signed out meanwhile
       updateMeal(result, { focus: "#result-title" });
-      toast("Thanks. The ranges now include your answer.");
+      toast(`Thanks. The ${rangesOn() ? "ranges" : "numbers"} now include your answer.`);
     } catch (err) {
       if (form.isConnected && !err.signedOut) $(".question__error", form).textContent = err.message;
     }
@@ -1569,7 +1598,7 @@ function weighHtml(r, i) {
         </span>
         <button class="btn btn--primary" type="submit">${icon("check")}Set amount</button>
       </div>
-      <p id="weigh-hint" class="sheet-hint">Collapses this food's range to one number. MealScholar remembers it as your usual portion.</p>
+      <p id="weigh-hint" class="sheet-hint">${rangesOn() ? "Collapses this food's range to one number." : "Replaces the estimate from the photo."} MealScholar remembers it as your usual portion.</p>
       <p class="sheet-error" role="alert"></p>
     </form>`;
 }
@@ -1751,7 +1780,8 @@ function renderDashHead() {
   els.todayTitle.textContent = title;
   els.todayDate.textContent = sub;
   // Text, never HTML: the name comes from the server.
-  els.greeting.textContent = isToday ? `${greetingText()}. Your day so far, every amount a range.` : "What you ate that day, every amount a range.";
+  const tail = rangesOn() ? "every amount a range" : "estimated from your photos";
+  els.greeting.textContent = isToday ? `${greetingText()}. Your day so far, ${tail}.` : `What you ate that day, ${tail}.`;
   const active = document.activeElement;
   els.dayNext.disabled = isToday; // never a future day
   els.dayToday.hidden = isToday;
@@ -1986,21 +2016,21 @@ function heroHtml(view) {
   const [low, likely, high] = [amount(kcal.low, "kcal"), amount(kcal.likely, "kcal"), amount(kcal.high, "kcal")];
   const exact = low === high;
   if (goalsMode()) return goalHeroHtml(kcal, head, state.prefs.calorie_goal);
+  const ranges = rangesOn();
   const setGoal = state.prefsOn ? ` ${settingsLinkHtml("Set a goal", "goals", { light: true })}` : "";
+  const rangeLine = exact
+    ? "Every counted food has a set amount, so this is one number."
+    : `Most likely, in a range of <strong>${low}${TO}${high}&nbsp;kcal</strong>`;
   return `
     <section class="card hero" aria-labelledby="hero-title">
       ${head}
       <div class="hero__main">
-        <p class="hero__value"><span class="hero__num">${likely}</span><span class="hero__unit">kcal</span>${exact ? "" : '<span class="visually-hidden">, most likely</span>'}</p>
-        <p class="hero__range">${
-          exact
-            ? "Every counted food has a set amount, so this is one number."
-            : `Most likely, in a range of <strong>${low}${TO}${high}&nbsp;kcal</strong>`
-        }</p>
+        <p class="hero__value"><span class="hero__num">${likely}</span><span class="hero__unit">kcal</span>${exact || !ranges ? "" : '<span class="visually-hidden">, most likely</span>'}</p>
+        ${ranges ? `<p class="hero__range">${rangeLine}</p>` : ""}
       </div>
       <div class="hero__foot">
         ${bandHtml("dash-kcal", kcal, { dark: true })}
-        <p class="hero__note">${icon("info")}<span>A range, not a target. There's no goal to hit.${setGoal}</span></p>
+        <p class="hero__note">${icon("info")}<span>${ranges ? "A range" : "An estimate"}, not a target. There's no goal to hit.${setGoal}</span></p>
       </div>
     </section>`;
 }
@@ -2030,10 +2060,11 @@ function leftRangeText(goal, range, unit, format = (v) => amount(v, unit)) {
 function goalHeroHtml(kcal, head, goal) {
   const [low, likely, high] = [amount(kcal.low, "kcal"), amount(kcal.likely, "kcal"), amount(kcal.high, "kcal")];
   const exact = low === high;
+  const ranges = rangesOn();
   const left = goal - kcal.likely;
   const atGoal = amount(Math.abs(left), "kcal") === "0";
   const leftLine = atGoal
-    ? exact
+    ? exact || !ranges
       ? "Right at your goal"
       : "Right at your goal, most likely"
     : exact
@@ -2041,20 +2072,19 @@ function goalHeroHtml(kcal, head, goal) {
       : left >= 0
         ? `About ${leftText(left, "kcal")}`
         : `Over by about ${amount(-left, "kcal")} kcal`;
+  const rangeLine = exact
+    ? "Every counted food has a set amount, so this is one number."
+    : `Likely, in a range of <strong>${low}${TO}${high}&nbsp;kcal</strong>`;
   return `
     <section class="card hero hero--goal" aria-labelledby="hero-title">
       ${head}
       <div class="hero__main">
-        <p class="hero__value"><span class="visually-hidden">Likely </span><span class="hero__num">${likely}</span><span class="hero__unit">of ${amount(goal, "kcal")} kcal</span></p>
-        <p class="hero__range">${
-          exact
-            ? "Every counted food has a set amount, so this is one number."
-            : `Likely, in a range of <strong>${low}${TO}${high}&nbsp;kcal</strong>`
-        }</p>
+        <p class="hero__value">${ranges ? '<span class="visually-hidden">Likely </span>' : ""}<span class="hero__num">${likely}</span><span class="hero__unit">of ${amount(goal, "kcal")} kcal</span></p>
+        ${ranges ? `<p class="hero__range">${rangeLine}</p>` : ""}
       </div>
       <div class="hero__foot">
         ${bandHtml("dash-kcal", kcal, { dark: true, scale: goal })}
-        <p class="hero__left"><strong>${leftLine}</strong>${exact ? "" : `<span class="hero__left-range">${SEP}Range: ${leftRangeText(goal, kcal, "kcal")}</span>`}</p>
+        <p class="hero__left"><strong>${leftLine}</strong>${exact || !ranges ? "" : `<span class="hero__left-range">${SEP}Range: ${leftRangeText(goal, kcal, "kcal")}</span>`}</p>
         <p class="hero__note">${icon("info")}<span>Your daily goal is ${amount(goal, "kcal")} kcal. ${settingsLinkHtml("Change goal", "goals", { light: true })}</span></p>
       </div>
     </section>`;
@@ -2066,10 +2096,11 @@ function statHtml(view, key, label, size) {
   const unit = unitOf(key);
   const fmt = range ? tileFormat(range) : null;
   const goal = goalsMode() ? nutrientGoal(key) : null;
+  const ranges = rangesOn();
   const figure = range
     ? `<p class="stat__figure">
-         <span class="stat__value"><strong>${fmt(range.likely)}</strong><span class="stat__unit">${esc(unit)}</span>${isExact(range) ? "" : '<span class="visually-hidden">, most likely</span>'}</span>
-         <span class="stat__range">${isExact(range) ? "Set amount" : `<span class="visually-hidden">range </span>${fmt(range.low)}${TO}${fmt(range.high)}`}</span>
+         <span class="stat__value"><strong>${fmt(range.likely)}</strong><span class="stat__unit">${esc(unit)}</span>${isExact(range) || !ranges ? "" : '<span class="visually-hidden">, most likely</span>'}</span>
+         ${ranges ? `<span class="stat__range">${isExact(range) ? "Set amount" : `<span class="visually-hidden">range </span>${fmt(range.low)}${TO}${fmt(range.high)}`}</span>` : ""}
        </p>`
     : '<p class="stat__figure"><span class="stat__none">No data</span></p>';
   let foot;
@@ -2085,7 +2116,8 @@ function statHtml(view, key, label, size) {
   return `<li class="card stat stat--${size}"><p class="stat__label">${esc(label)}</p>${figure}${foot}</li>`;
 }
 
-const GOAL_NOTE = "Bars run to your daily goal, or to the FDA Daily Value where you have none. What's left counts from the likely amount.";
+const GOAL_NOTE = "Bars run to your daily goal, or to the FDA Daily Value where you have none.";
+const goalNote = () => (rangesOn() ? `${GOAL_NOTE} What's left counts from the likely amount.` : GOAL_NOTE);
 
 function statsHtml(view) {
   return `
@@ -2093,7 +2125,7 @@ function statsHtml(view) {
       <h2 id="stats-title" class="visually-hidden">Nutrients</h2>
       <ul class="stats stats--macro">${MACROS.map(([key, label]) => statHtml(view, key, label, "macro")).join("")}</ul>
       <ul class="stats stats--mini">${MINIS.map(([key, label]) => statHtml(view, key, label, "mini")).join("")}</ul>
-      <p class="note stats__note">${goalsMode() ? GOAL_NOTE : DV_NOTE}</p>
+      <p class="note stats__note">${goalsMode() ? goalNote() : DV_NOTE}</p>
     </section>`;
 }
 
@@ -2115,7 +2147,7 @@ function swipeHtml(view, score) {
       <div class="swipe__dots">
         ${pages.map(([label], i) => `<button class="swipe__dot" type="button" data-swipe-to="${i}" aria-label="${label}"${i === at ? ' aria-current="true"' : ""}></button>`).join("")}
       </div>
-      <p class="note stats__note">${goalsMode() ? GOAL_NOTE : DV_NOTE}</p>
+      <p class="note stats__note">${goalsMode() ? goalNote() : DV_NOTE}</p>
     </section>`;
 }
 
@@ -2245,7 +2277,7 @@ function emptyDayHtml(key) {
       <h2 class="empty__title">Nothing logged ${esc(when)}</h2>
       <p>${
         isToday
-          ? "Snap a meal and it lands here with its ranges. No targets, just what you ate."
+          ? `Snap a meal and it lands here with its ${rangesOn() ? "ranges" : "calories and nutrients"}. No targets, just what you ate.`
           : "Meals with photos from this day show up here."
       }</p>
       ${
@@ -2324,7 +2356,7 @@ function weekHead() {
   return `
     <div class="section-head">
       <h2 id="week-title" class="section-title" tabindex="-1">Calories by day</h2>
-      <p class="eyebrow">Likely kcal and range</p>
+      <p class="eyebrow">${rangesOn() ? "Likely kcal and range" : "Estimated kcal"}</p>
     </div>`;
 }
 
@@ -2418,7 +2450,7 @@ function weekColHtml(d, top, i) {
     kind = "";
     const f = (v) => Math.max(0, Math.min(1, v / top)).toFixed(4);
     const [low, likely, high] = [amount(d.kcal.low, "kcal"), amount(d.kcal.likely, "kcal"), amount(d.kcal.high, "kcal")];
-    const exact = low === high;
+    const exact = low === high || !rangesOn(); // ranges off: a plain bar at the likely value, no whiskers
     plot = `<span class="wk__plot" style="--lo:${f(d.kcal.low)};--likely:${f(d.kcal.likely)};--hi:${f(d.kcal.high)};--i:${i}"><span class="wk__bar"></span>${
       exact ? "" : '<span class="wk__whisker wk__whisker--lo"></span><span class="wk__whisker wk__whisker--hi"></span>'
     }</span>`;
@@ -2863,6 +2895,7 @@ function resetData() {
   state.prefs = null;
   state.prefsError = null;
   state.prefsVersion += 1;
+  applyRanges();
   state.dining = null;
   state.alerts = [];
   state.nearest = null;
@@ -2969,7 +3002,7 @@ function sampleHtml() {
       <div class="total">
         <p class="eyebrow">Calories, this meal</p>
         <p class="total__value"><span class="total__num">520</span><span class="total__unit">kcal</span></p>
-        <p class="total__range">Most likely, in a range of <strong>407–655&nbsp;kcal</strong></p>
+        ${rangesOn() ? "<p class=\"total__range\">Most likely, in a range of <strong>407–655&nbsp;kcal</strong></p>" : ""}
         ${bandHtml("sample-kcal", { low: 407, likely: 520, high: 655 }, { dark: true })}
       </div>
       <ul class="welcome__foods">
@@ -2984,8 +3017,8 @@ const AUTH_SCREENS = {
     <div class="auth-screen auth-screen--welcome">
       <header class="view-head welcome__head">
         <p class="eyebrow">Meal photo <span aria-hidden="true">&rarr;</span><span class="visually-hidden">to</span> foods <span aria-hidden="true">&rarr;</span><span class="visually-hidden">to</span> USDA nutrients</p>
-        <h1 class="view-title" tabindex="-1">Every meal is a range</h1>
-        <p class="lede">Photograph a meal to see its foods, how much is there and its nutrients, as honest ranges instead of one fake-precise number.</p>
+        <h1 class="view-title" tabindex="-1">Every meal, from one photo</h1>
+        <p class="lede">Photograph a meal to see its foods, how much is there and its nutrients, checked against the campus menu first. No weighing.</p>
       </header>
       ${sampleHtml()}
       <div class="welcome__actions">
@@ -3941,6 +3974,7 @@ function normalizePrefs(prefs) {
     avoid_allergens: list(prefs.avoid_allergens).filter((a) => typeof a === "string"),
     favorites: list(prefs.favorites).filter((f) => f && typeof f.name === "string"),
     notify: { in_app: prefs.notify?.in_app !== false, email: prefs.notify?.email === true },
+    show_ranges: prefs.show_ranges === true,
     updated_at: typeof prefs.updated_at === "string" ? prefs.updated_at : null,
   };
 }
@@ -3950,6 +3984,7 @@ function enablePrefs(prefs) {
   state.prefs = prefs;
   state.prefsVersion += 1;
   document.body.dataset.prefs = "on";
+  applyRanges();
   updatePrefsUi();
 }
 
@@ -4015,6 +4050,7 @@ async function savePrefs(changes) {
   const touched = (...keys) => keys.some((k) => changed.includes(k));
   state.prefs = normalizePrefs(reply);
   state.prefsVersion += 1;
+  if (touched("show_ranges")) redrawRanges();
   if (document.body.dataset.screen === "app") {
     if (touched("calorie_goal", "nutrient_goals")) renderDay();
     if (touched("dining_halls", "favorites", "diets", "avoid_allergens")) {
@@ -4887,7 +4923,7 @@ function scoreHtml(view) {
         <details class="disclosure score__how"${state.scoreOpen ? " open" : ""}>
           <summary>How it's scored</summary>
           <div class="disclosure__body">
-            <p class="note">Up to ${nf1.format(PLUS_POINTS)} points each for ${esc(plusNames.slice(0, -1).join(", "))} and ${esc(plusNames.at(-1))} as today's likely amount reaches 100% of its Daily Value. Up to ${MINUS_POINTS} points off each for saturated fat, sodium and sugars past 100% (${ADDED_SUGARS_DV} g for sugars, the label value for added sugars).</p>
+            <p class="note">Up to ${nf1.format(PLUS_POINTS)} points each for ${esc(plusNames.slice(0, -1).join(", "))} and ${esc(plusNames.at(-1))} as today's ${rangesOn() ? "likely " : ""}amount reaches 100% of its Daily Value. Up to ${MINUS_POINTS} points off each for saturated fat, sodium and sugars past 100% (${ADDED_SUGARS_DV} g for sugars, the label value for added sugars).</p>
             <ul class="score__parts">${rows}</ul>
           </div>
         </details>
@@ -5138,7 +5174,7 @@ function goalFieldsHtml(prefs) {
         <p id="goal-kcal-error" class="field-error" hidden></p>
       </div>
       ${choice("reference", `Use the ${nf0.format(REFERENCE_KCAL)} kcal label reference`, "The number food labels use for % Daily Value. Not advice for you in particular.")}
-      ${choice("none", "No goal", "Just the ranges of what you ate.")}
+      ${choice("none", "No goal", rangesOn() ? "Just the ranges of what you ate." : "Just what you ate.")}
     </fieldset>
     <details class="disclosure" data-nutrient-goals>
       <summary>Adjust nutrient goals</summary>
@@ -5431,11 +5467,47 @@ const readNotify = (root) => ({
   email: Boolean($('[data-notify="email"]', root)?.checked),
 });
 
+// Ranges: every amount is an estimate, shown as its likely value. The set-up step offers the
+// low–high range beside it as two choices; Settings → Display has the same choice as a switch.
+// Both inputs carry data-ranges-input, and the checked one's value "on" means show them.
+
+function rangesChoiceHtml(prefs) {
+  const on = prefs.show_ranges === true;
+  const choice = (value, title, hint) => `
+    <label class="choice">
+      <input class="visually-hidden" type="radio" name="show_ranges" value="${value}" data-ranges-input${on === (value === "on") ? " checked" : ""}>
+      <span class="choice__ring" aria-hidden="true"></span>
+      <span class="choice__text"><span class="choice__title">${title}</span><span class="choice__hint">${hint}</span></span>
+    </label>`;
+  return `
+    <fieldset class="choices">
+      <legend class="visually-hidden">Ranges</legend>
+      ${choice("off", "Just the likely number", "One number for each amount, like 866 kcal.")}
+      ${choice("on", "Show ranges too", "The low to high range next to it, like 866 kcal, 736–997.")}
+    </fieldset>`;
+}
+
+function rangesSwitchHtml(prefs) {
+  return `
+    <div class="switches">
+      <label class="switch-row switch-row--plain">
+        <span class="switch-row__text">
+          <span class="switch-row__title" id="ranges-title">Show ranges</span>
+          <span class="switch-row__hint" id="ranges-hint">Every amount is an estimate. On, the low to high range shows next to the likely number: 866 kcal, 736–997.</span>
+        </span>
+        <input id="show-ranges" class="switch" type="checkbox" role="switch" value="on" data-ranges-input${prefs.show_ranges === true ? " checked" : ""} aria-labelledby="ranges-title" aria-describedby="ranges-hint">
+      </label>
+    </div>`;
+}
+
+const readRanges = (root) => ({ show_ranges: $("[data-ranges-input]:checked", root)?.value === "on" });
+
 function summaryHtml(prefs) {
   const halls = prefs.dining_halls.map(hallNameById).filter(Boolean);
   const n = prefs.favorites.length;
   const rows = [
     ["Daily goal", prefs.calorie_goal == null ? "No calorie goal" : `${amount(prefs.calorie_goal, "kcal")} kcal a day`],
+    ["Ranges", prefs.show_ranges ? "Shown next to each amount" : "Off, just the likely number"],
     diningOn() ? ["Dining halls", halls.length ? halls.join(", ") : "None chosen"] : null,
     ["Diet", prefs.diets.length ? prefs.diets.join(", ") : "No diet labels"],
     ["Allergens to avoid", prefs.avoid_allergens.length ? prefs.avoid_allergens.join(", ") : "None"],
@@ -5479,6 +5551,9 @@ function readSection(section, root) {
       return { favorites: readFavorites(root) };
     case "alerts":
       return { notify: readNotify(root) };
+    case "ranges": // the set-up step
+    case "display": // the Settings section
+      return readRanges(root);
     default:
       return {};
   }
@@ -5519,6 +5594,8 @@ function sectionBodyHtml(section, prefs) {
       return favoritesHtml(prefs);
     case "alerts":
       return alertsFieldsHtml(prefs);
+    case "display":
+      return rangesSwitchHtml(prefs);
     default:
       return null;
   }
@@ -5531,6 +5608,7 @@ function controlSelector(el) {
   if (el.matches("[data-chip]")) return `[data-chip=${quote(el.dataset.chip)}][data-value=${quote(el.dataset.value)}]`;
   if (el.matches("[data-hall]")) return `[data-hall][value=${quote(el.value)}]`;
   if (el.matches("[data-notify]")) return `[data-notify=${quote(el.dataset.notify)}]`;
+  if (el.matches("[data-ranges-input]")) return `[data-ranges-input][value=${quote(el.value)}]`;
   if (el.matches("[data-fav-add]")) return `[data-fav-add=${quote(el.dataset.favAdd)}]`;
   if (el.closest("[data-favorites]")) return "[data-fav-search]";
   if (el.matches('[data-action="nearest"]')) return '[data-action="nearest"]';
@@ -5691,6 +5769,7 @@ function prefsChange(event) {
     return autosave(root, "dining");
   }
   if (input.matches("[data-notify]")) return autosave(root, "alerts");
+  if (input.matches("[data-ranges-input]")) return autosave(root, "display");
 }
 
 function prefsInput(event) {
@@ -5843,10 +5922,11 @@ function renderSettingsBody() {
   const favorites = dining ? section("favorites", "Favorite foods", favoritesHtml(prefs)) : "";
   const alerts = dining ? section("alerts", "Alerts", alertsFieldsHtml(prefs)) : "";
   const noDining = dining ? "" : `<p class="note settings__nodining">Campus menus aren't connected on this server, so dining halls, favorites and alerts are off.</p>`;
+  const display = section("display", "Display", rangesSwitchHtml(prefs));
   els.accountBody.innerHTML = `
     ${user ? accountIdHtml(user) : '<p class="note">You\'re using MealScholar on this device without an account. These settings stay on this server.</p>'}
     ${goals}${halls}${diet}${favorites}${alerts}${noDining}
-    ${appearanceSectionHtml()}
+    ${display}${appearanceSectionHtml()}
     ${user ? passwordSectionHtml(user) : ""}
     <p class="account__status status" role="status"></p>
     <button class="btn btn--soft btn--block" type="button" data-install${installable() ? "" : " hidden"}>${icon("home")}Add to Home Screen</button>
@@ -5862,6 +5942,7 @@ function renderSettingsBody() {
 const STEP_TITLES = {
   name: "Your name",
   goal: "Daily goal",
+  ranges: "Ranges",
   halls: "Where you eat",
   diet: "Diet and allergies",
   favorites: "Favorite foods",
@@ -5869,9 +5950,12 @@ const STEP_TITLES = {
   done: "All set",
 };
 
+// A lede is a sentence, or a function of the choices so far (the goal step comes before Ranges).
 const STEP_LEDES = {
   name: "This is how the dashboard greets you.",
-  goal: "Optional. With a goal, the dashboard shows what's left for the day. Without one, it shows the ranges of what you ate.",
+  goal: () =>
+    `Optional. With a goal, the dashboard shows what's left for the day. Without one, it shows ${rangesOn() ? "the ranges of" : "just"} what you ate.`,
+  ranges: "Every amount is an estimate. Show the range it falls in next to the likely number?",
   halls: "Pick the dining halls you eat at most. The first one is your main hall.",
   diet: "Dishes that don't fit your diet are marked on menus, and allergens you avoid get a mark.",
   favorites: "We'll tell you when these are on the menu.",
@@ -5881,7 +5965,7 @@ const STEP_LEDES = {
 
 function onboardingSteps() {
   const dining = diningOn();
-  return ["name", "goal", ...(dining ? ["halls"] : []), "diet", ...(dining ? ["favorites", "alerts"] : []), "done"];
+  return ["name", "goal", "ranges", ...(dining ? ["halls"] : []), "diet", ...(dining ? ["favorites", "alerts"] : []), "done"];
 }
 
 function startOnboarding() {
@@ -5918,6 +6002,8 @@ function stepBodyHtml(step) {
     }
     case "goal":
       return goalFieldsHtml(prefs);
+    case "ranges":
+      return rangesChoiceHtml(prefs);
     case "halls":
       return hallsPickerHtml(prefs, { note: state.onboard?.nearest ?? null });
     case "diet":
@@ -5939,6 +6025,7 @@ function renderOnboarding() {
   const step = ob.steps[ob.at];
   const n = ob.steps.length;
   const last = step === "done";
+  const lede = typeof STEP_LEDES[step] === "function" ? STEP_LEDES[step]() : STEP_LEDES[step];
   const dots = ob.steps.map((_, i) => `<li class="dots__dot${i < ob.at ? " is-done" : i === ob.at ? " is-current" : ""}"></li>`).join("");
   els.onboard.innerHTML = `
     <div class="onboard__screen" data-step="${step}">
@@ -5950,7 +6037,7 @@ function renderOnboarding() {
       <header class="auth-head">
         <p class="eyebrow">Step ${ob.at + 1} of ${n}</p>
         <h1 id="onboard-title" class="view-title" tabindex="-1">${esc(STEP_TITLES[step])}</h1>
-        <p class="lede">${STEP_LEDES[step]}</p>
+        <p class="lede">${lede}</p>
       </header>
       <form class="card form onboard__form" data-prefs-root data-mode="onboard" data-step="${step}" novalidate>
         ${stepBodyHtml(step)}

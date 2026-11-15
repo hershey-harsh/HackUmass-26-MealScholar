@@ -8657,3 +8657,21 @@ body .recent .recent-card {
     transform: none;
   }
 }
+
+/* ------------------------------------------------------------- ranges off */
+/* Ranges are opt-in (the set-up step, or Settings → Display; app.js rangesOn). With them off every
+   amount prints as its likely value alone, and a band is a plain bar from zero to that value: the
+   range segment takes the tick's colour and the tick itself goes. The week intro's "all as ranges"
+   goes with it. */
+
+body[data-ranges="off"] .band__range {
+  background: var(--tick);
+}
+
+body[data-ranges="off"] .band__tick {
+  display: none;
+}
+
+body[data-ranges="off"] [data-ranges-only] {
+  display: none;
+}

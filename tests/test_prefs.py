@@ -41,6 +41,7 @@ DEFAULTS = {
     "avoid_allergens": [],
     "favorites": [],
     "notify": {"in_app": True, "email": False},
+    "show_ranges": False,
     "updated_at": None,
 }
 
@@ -145,6 +146,29 @@ def test_patch_changes_only_what_it_sends(make_app):
         "favorites": [],
         "dining_halls": [],
         "updated_at": cleared["updated_at"],
+    }
+
+
+def test_ranges_are_off_until_switched_on(make_app):
+    """show_ranges only changes what the app shows; it is a plain flag that round-trips."""
+    store = MemoryPrefsStore()
+    client = browser(make_app(prefs=store))
+    user_id = register(client)
+    assert client.get("/api/me/prefs").json()["show_ranges"] is False
+
+    on = patch(client, {"show_ranges": True})
+    assert on.status_code == 200
+    assert on.json()["show_ranges"] is True
+    assert client.get("/api/me/prefs").json() == on.json()
+    assert store.get(user_id) == {"show_ranges": True, "updated_at": store.get(user_id)["updated_at"]}
+
+    # the other fields are untouched, and the flag goes back off on its own
+    patch(client, {"calorie_goal": 2000})
+    assert client.get("/api/me/prefs").json()["show_ranges"] is True
+    assert patch(client, {"show_ranges": False}).json() == {
+        **DEFAULTS,
+        "calorie_goal": 2000,
+        "updated_at": client.get("/api/me/prefs").json()["updated_at"],
     }
 
 
@@ -275,6 +299,9 @@ FAVORITE_LENGTH = "Keep each favorite between 2 and 120 characters."
         ({"notify": {"email": "yes"}}, "notify.email", "Set notify.email to true or false."),
         ({"notify": {"in_app": None}}, "notify.in_app", "Set notify.in_app to true or false."),
         ({"notify": {"sms": True}}, "notify.sms", "Unknown field: notify.sms."),
+        ({"show_ranges": "yes"}, "show_ranges", "Set show_ranges to true or false."),
+        ({"show_ranges": 1}, "show_ranges", "Set show_ranges to true or false."),
+        ({"show_ranges": None}, "show_ranges", "Set show_ranges to true or false."),
         ({"theme": "dark"}, "theme", "Unknown field: theme."),
         ({"email": "someone@example.com"}, "email", "Unknown field: email."),
         ({"$set": {"onboarded": True}}, None, "Unknown field."),  # odd names aren't repeated back
