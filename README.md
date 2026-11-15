@@ -50,8 +50,8 @@ supply the nutrition facts. Review the sources, correct a match and log your mea
 | Feature | What you get |
 |---|---|
 | **Photo analysis** | JPEG, PNG and HEIC uploads up to 25 MB and 50 megapixels; foods and portion estimates with boxes on the photo. |
-| **Honest uncertainty** | Low, likely and high values for portions and nutrients, with at most one clarifying question. |
-| **Check the match** | Inspect the USDA source, search alternatives and correct the selected food. |
+| **Estimates, ranges on request** | One likely number per amount by default. Turn on Show ranges (asked once in onboarding, a switch in Settings) to see low, likely and high for portions and nutrients. At most one clarifying question. |
+| **Check the match** | See where each label came from ("From UMass Dining: Worcester · lunch · Sat, Nov 14"), re-match against another hall or day, or pick another USDA food. |
 | **Your food diary** | Meals with retained, metadata-stripped photos; daily calorie/nutrient totals, % Daily Value and weekly views. |
 | **Phone-first app** | Today, Menu and Week views, camera entry points and Add to Home Screen. |
 | **Campus menu first** | Each upload names a dining hall: the one you're at with location on, else the hall picked on Menu, else your main hall. A food that is a listed dish uses the hall's label; the rest use USDA. |
@@ -129,10 +129,10 @@ Keep this single-user development server on a trusted network.
 ```mermaid
 flowchart LR
     Photo(["Photo + context<br/>Location is opt-in"]) --> Vision["Gemini vision<br/>Foods + portions"]
-    Menu[("Optional campus menu<br/>Explicit hall required")] --> Vision
+    Menu[("Campus menu<br/>Hall sent by the app")] --> Vision
     Vision --> Sources["Matched campus label<br/>USDA otherwise"]
     Sources --> Math["Nutrient math<br/>Low · likely · high"]
-    Math --> Result["Meal result<br/>Ranges + % Daily Value"]
+    Math --> Result["Meal result<br/>Likely values + % Daily Value"]
     Result --> Diary(["Food diary<br/>Daily + weekly views"])
     Result -.->|Optional answer| Refine["Gemini refinement<br/>Text only"]
     Refine --> Sources
@@ -231,9 +231,12 @@ three data sets and verify restoration.
 
 - **Data, not guesses:** the model estimates foods and amounts; a matching campus label supplies
   the main nutrients when the upload names a hall, with USDA as fallback and micronutrient source.
-- **Ranges stay visible:** photo-based amounts have low/likely/high estimates. A meal's or a day's
-  range adds its foods' errors as partly correlated (`compute.SHARED_ERROR`), not every low and
-  every high at once. Exact-weight corrections through the CLI or API can collapse a range.
+- **Ranges are computed; showing them is the user's choice:** photo-based amounts always have
+  low/likely/high estimates. The app shows the likely value unless the user turns on Show ranges
+  (asked once in onboarding, a switch in Settings); with it on, a range is never collapsed to one
+  number. A meal's or a day's range adds its foods' errors as partly correlated
+  (`compute.SHARED_ERROR`), not every low and every high at once. Exact-weight corrections through
+  the CLI or API can collapse a range.
 - **Photo retention:** logged meal photos are retained as JPEGs up to 1280 px on the long edge
   and thumbnails up to 320 px, re-encoded without EXIF/GPS, XMP, comments or color-profile metadata.
   The raw upload is not saved. Deleting the meal, history or account removes its server photo copies.
