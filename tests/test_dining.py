@@ -681,6 +681,18 @@ def test_alerts_list_favorites_on_upcoming_menus(make_app, source):
     ]
 
 
+def test_alerts_cover_every_dining_commons_whatever_halls_are_chosen(make_app, source):
+    client = browser(make_app())
+    register(client)
+    # Only Blue Wall chosen: a favorite on any dining commons' menu still counts, and so does Blue Wall.
+    save_prefs(client, {"favorites": [{"name": "Pad Thai"}, {"name": "Turkey Club"}], "dining_halls": [7]})
+    assert client.get("/api/me/alerts", params={"days": 1}).json() == [
+        alert("Pad Thai", 1, TODAY, "dinner"),
+        alert("Pad Thai", 2, TOMORROW, "dinner"),
+        alert("Turkey Club", 7, TOMORROW, "grab_n_go"),
+    ]
+
+
 def test_alerts_window(make_app, clock):
     client = browser(make_app())
     register(client)
@@ -1009,7 +1021,9 @@ def test_mongo_queries_are_built_from_checked_values(clock):
 
     (full, full_fields), (names, names_fields) = db["daily_menus"].finds
     assert full == {"_id": {"$in": ["1|2026-11-14"]}}
-    assert names == {"_id": {"$in": ["1|2026-11-14", "1|2026-11-15"]}}
+    # alerts read every dining commons' menus (here Berkshire, Franklin and Worcester), not only the chosen hall
+    commons = ["2|2026-11-14", "2|2026-11-15", "3|2026-11-14", "3|2026-11-15", "1|2026-11-14", "1|2026-11-15"]
+    assert names == {"_id": {"$in": commons}}
     assert full_fields["meals.categories.items.total_carb_g"] is True and "meals" not in full_fields
     assert set(names_fields) == {
         "location_name",

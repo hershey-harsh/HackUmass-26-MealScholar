@@ -493,16 +493,18 @@ class Dining:
         return list(self._cached(("dishes", text), lambda: self._search(text))[:limit])
 
     def alerts(self, prefs: Prefs, days: int) -> list[Alert]:
-        """Each favorite on the menus of the user's dining halls (every dining commons if they
-        chose none) from today through `days` days ahead: once per dish, location and meal, by
-        date and meal. At most MAX_ALERTS."""
+        """Each favorite on the menus of every dining commons, plus any other place the user
+        picked, from today through `days` days ahead: once per dish, location and meal, by date
+        and meal. At most MAX_ALERTS. A favorite counts wherever it's served, not only at the
+        user's own halls."""
         if not 1 <= days <= MAX_ALERT_DAYS:
             raise ValueError(f"days must be from 1 to {MAX_ALERT_DAYS}.")
         favorites = {favorite.key for favorite in prefs.favorites}
         if not favorites:
             return []
         today = self.now().date()
-        halls = prefs.dining_halls or [loc.id for loc in self.locations() if loc.is_dining_commons]
+        commons = [loc.id for loc in self.locations() if loc.is_dining_commons]
+        halls = list(dict.fromkeys([*commons, *prefs.dining_halls]))
         wanted = [(hall, today + timedelta(days=n)) for hall in halls for n in range(days + 1)]
         found: dict[tuple[str, int, date, str], Alert] = {}
         for menu in self._menus(wanted, names_only=True).values():

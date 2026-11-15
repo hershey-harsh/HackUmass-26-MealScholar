@@ -5299,7 +5299,7 @@ function renderAlertsPanel({ refocus = true } = {}) {
     {
       kicker: "Alerts",
       title: alerts.length ? "Your favorites on the menu" : "Nothing on the menu yet",
-      intro: "When a dish you starred is served at your halls in the next 7 days.",
+      intro: "When a dish you starred is on any dining hall's menu in the next 7 days.",
       html,
       kind: "alerts",
     },
