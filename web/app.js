@@ -18,9 +18,7 @@
     if (s && sections.indexOf(s) < 0) sections.push(s);
   });
   sections.sort(function (a, b) { return a.compareDocumentPosition(b) & 4 ? -1 : 1; });
-  var queued = false;
   function onScroll() {
-    queued = false;
     if (header) header.classList.toggle('is-scrolled', w.scrollY > 8);
     if (dock && heroCta && stop) {
       dock.classList.toggle('is-shown', heroCta.getBoundingClientRect().bottom < 0 &&
@@ -31,13 +29,17 @@
     if (w.scrollY < 10) active = '';
     navLinks.forEach(function (a) {
       var on = a.getAttribute('href') === '#' + active;
+      if (on === a.classList.contains('is-active')) return;
       a.classList.toggle('is-active', on);
       if (on) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current');
     });
   }
-  function queue() { if (!queued) { queued = true; w.requestAnimationFrame(onScroll); } }
-  w.addEventListener('scroll', queue, { passive: true });
-  w.addEventListener('resize', queue);
+  // Straight from the scroll event, with no animation frame in between: a frame callback queued
+  // from every scroll event makes Safari render each one on the main thread instead of on the
+  // compositor. The reads force nothing while the layout is clean, and nothing is written unless
+  // a state changed.
+  w.addEventListener('scroll', onScroll, { passive: true });
+  w.addEventListener('resize', onScroll);
   onScroll();
 
   // Phone menu: close after a pick, on Escape, or on a tap outside
@@ -223,7 +225,7 @@
     if (byUser) { announce(); restart(); }
   }
 
-  // Auto-advance, only while fanned, in view, not held by hover or focus, and not paused.
+  // Auto-advance, only while fanned, at least half on screen, not held by hover or focus, and not paused.
   function canPlay() { return wide.matches && !reduce.matches && !userPaused && !held && inView && !d.hidden; }
   function restart() {
     w.clearTimeout(timer);
@@ -242,7 +244,7 @@
   fan.addEventListener('focusout', function (e) { if (!fan.contains(e.relatedTarget)) { held = false; restart(); } });
   d.addEventListener('visibilitychange', restart);
   if ('IntersectionObserver' in w) {
-    new IntersectionObserver(function (es) { inView = es[0].isIntersecting; restart(); }, { threshold: 0.2 }).observe(fan);
+    new IntersectionObserver(function (es) { inView = es[0].isIntersecting; restart(); }, { threshold: 0.5 }).observe(fan);
   }
 
   // A card behind the front one comes forward when clicked.
