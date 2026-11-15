@@ -5771,10 +5771,15 @@ function openLegal(kind) {
 
 document.addEventListener("click", (event) => {
   const link = event.target.closest?.("[data-legal]");
-  if (link) openLegal(link.dataset.legal);
+  if (!link) return;
+  link.focus({ preventScroll: true }); // so closing the sheet comes back here (Safari doesn't focus on click)
+  openLegal(link.dataset.legal);
 });
 
-function openAlerts() {
+/** From the bell or the sidebar's Alerts, with the click event. */
+function openAlerts(event) {
+  // Safari doesn't focus a clicked button: focus it, so closing the sheet comes back to it.
+  if (event?.currentTarget instanceof HTMLElement) event.currentTarget.focus({ preventScroll: true });
   renderAlertsPanel();
   loadAlerts(); // fresh, in case a menu changed
 }
