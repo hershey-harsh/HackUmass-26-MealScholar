@@ -1,7 +1,7 @@
 """Busy / not-busy predictor. Pure functions, no I/O.
 
-Per hall and sample window (~20 s, ~10 frames):
-  people = median person count across the frames
+Per hall and sample window (16 s, counted on 6 of its 32 frames):
+  people = median person count across the counted frames
   tracks = number of distinct track ids seen in the window
 
 Level:
@@ -54,20 +54,33 @@ class Thresholds:
             raise ValueError("need 0 <= quiet_max < busy_min <= full")
 
 
-# Cold-start thresholds per camera (youtube id). PROVISIONAL: these are not yet
-# calibrated on real frames, because the Mac mini's current egress (a Mullvad
-# exit node) is bot-walled by YouTube and no frame could be captured on
-# 2026-11-14. They are sized for the wide dining-room views the pages show
-# (a yolo11n pass at imgsz 640 typically resolves 0-40 people in such a view)
-# and MUST be re-checked against the first real frames: open the demo clips,
-# note the counts at a visibly quiet and a visibly packed moment, and set
-# quiet_max to roughly the quiet count and busy_min to ~60% of the packed count.
+# Cold-start thresholds per camera (youtube id), in the detector's own units: what the
+# counting setup in config.py reads on the frames, which is the number busy.py sees.
+#
+# PROVISIONAL (2026-11-14). Evidence: 14 frames of the three primary cams from a Saturday
+# dinner (~19:17 local), counted by eye three times each (cam-eval key, no detector),
+# and the chosen detector's reading on the same frames:
+#   Worcester North  key 72-77 (mean 74.3)  detector 76,69,75,70,75,85 (mean 75.0, k=1.01)
+#   Berkshire        key 32-36 (mean 33.8)  detector 35,34,35,33       (mean 34.3, k=1.01)
+#   Hampshire South  key 26-27 (mean 26.8)  detector 23,19,16,25       (mean 20.8, k=0.77)
+# The bounds were set in real people from what the frames show, then multiplied by
+# k = detector / key (rounded to the nearest person) so the detector's under-count on the
+# blurred Hampshire lens does not make it read quieter than it is:
+#   Worcester (~110-120 seats in view, nearly every table taken at 74): 20 / 60 / 110
+#   Berkshire (a concourse plus ~25 seats, 34 = packed entrance):        8 / 30 / 50 -> 8 / 31 / 51
+#   Hampshire (~60 seats in view, half taken at 27):                     8 / 30 / 55 -> 6 / 24 / 44
+# "quiet" is a handful of people, "busy" is where a student would struggle to find a table
+# in view, "full" is a weekday dinner peak (above the Saturday count). One evening of
+# frames is thin: re-check against a weekday lunch and a late night once there is history
+# (history mode then grades between the bounds on its own).
 DEFAULT_THRESHOLDS = Thresholds(quiet_max=6, busy_min=18, full=35)
 CAMERA_THRESHOLDS: dict[str, Thresholds] = {
-    "7wHgOpwHz8k": Thresholds(quiet_max=3, busy_min=8, full=18),  # Worcester Commons North (high, glary: undercounts)
-    "89KPOnjHEC4": Thresholds(quiet_max=5, busy_min=14, full=30),  # Worcester Commons South
-    "AoceCqa6MWw": Thresholds(quiet_max=3, busy_min=10, full=20),  # Berkshire entrance (narrow view)
-    "RprORF_ggOA": Thresholds(quiet_max=5, busy_min=14, full=30),  # Hampshire Commons South
+    "7wHgOpwHz8k": Thresholds(quiet_max=20, busy_min=60, full=110),  # Worcester Commons North
+    "AoceCqa6MWw": Thresholds(quiet_max=8, busy_min=31, full=51),  # Berkshire Commons Entrance
+    "RprORF_ggOA": Thresholds(quiet_max=6, busy_min=24, full=44),  # Hampshire Commons South
+    # Not benchmarked (not a hall's main cam, never sampled by the launchd job): a guess in real
+    # people, to be calibrated the same way before either is shown.
+    "89KPOnjHEC4": Thresholds(quiet_max=15, busy_min=45, full=90),  # Worcester Commons South (wide view)
     "nMFduwGyYUY": Thresholds(quiet_max=3, busy_min=8, full=16),  # Roots Cafe (small venue)
 }
 

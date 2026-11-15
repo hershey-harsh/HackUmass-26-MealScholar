@@ -76,8 +76,9 @@ def main(argv: list[str] | None = None) -> int:
                 }
                 log.warning("%s: no clip, %s (%s)", s.location_name, res.status, res.player_text[:60])
                 continue
-            tracker = PersonTracker()
-            counts, ids, per_frame = run_window(tracker, res.frames)
+            tracker = PersonTracker(conf=config.conf_for(s.youtube_id))
+            win = run_window(tracker, res.frames)  # counts config.COUNT_FRAMES of them, boxes held in between
+            counts, ids, per_frame = win.counts, win.ids, win.per_frame
             people, tracks = busy.summarize_window(counts, ids)
             level = busy.level_from_thresholds(people, busy.thresholds_for(s.youtube_id))
             clip = write_annotated_mp4(per_frame, out / f"{name}_{stamp}.mp4", title=s.label, fps=1.0 / args.interval)
@@ -87,7 +88,10 @@ def main(argv: list[str] | None = None) -> int:
                 "hall": s.location_name,
                 "status": "ok",
                 "frames": len(counts),
+                "clip_frames": len(per_frame),
                 "counts": counts,
+                "detector": tracker.setup,
+                "count_s": round(win.seconds, 1),
                 "people": people,
                 "tracks": tracks,
                 "level": level,

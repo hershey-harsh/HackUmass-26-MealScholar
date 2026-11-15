@@ -110,6 +110,10 @@ class FrameGrabberOK:
 
 class FakeTracker:
     model_name = "yolo11n"
+    setup = "fake"
+
+    def __init__(self, *a, **kw):  # sample.main builds one per hall with the camera's conf
+        pass
 
     def track(self, frame):
         return [Detection(1, 10, 10, 50, 90, 0.9), Detection(2, 200, 10, 260, 90, 0.8)]

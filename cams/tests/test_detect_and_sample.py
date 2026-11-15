@@ -173,3 +173,49 @@ def test_latest_json_written_even_when_the_grabber_dies(monkeypatch, tmp_path):
 
     data = json.loads(config.LATEST_JSON.read_text())
     assert sorted(data["halls"]) == ["1", "4"]  # the two halls sampled before the crash
+
+
+def test_history_only_uses_readings_from_the_same_model():
+    """Counts from different detectors are not on one scale, so the history that grades a reading comes
+    from the model in use only (and never from unknown readings)."""
+    from datetime import UTC, datetime, timedelta
+
+    from umass_cams import sample, streams
+
+    class Cursor:
+        def __init__(self, docs):
+            self.docs = docs
+
+        def sort(self, key, direction):
+            return sorted(self.docs, key=lambda d: d[key], reverse=direction < 0)
+
+    class Coll:
+        def __init__(self):
+            self.queries = []
+
+        def find(self, query, projection=None):
+            self.queries.append(query)
+            now = datetime(2026, 11, 15, 1, 0, tzinfo=UTC)
+            docs = [
+                {"ts": now - timedelta(hours=1), "people": 6, "model": "yolo11n", "level": "busy"},
+                {"ts": now - timedelta(hours=2), "people": 70, "model": "yolo11l", "level": "busy"},
+                {"ts": now - timedelta(hours=3), "people": 0, "model": "yolo11l", "level": "unknown"},
+            ]
+            keep = []
+            for d in docs:
+                if query["model"] != d["model"] or d["level"] == query["level"]["$ne"]:
+                    continue
+                if d["ts"] < query["ts"]["$gte"]:
+                    continue
+                keep.append(d)
+            return Cursor(keep)
+
+    coll = Coll()
+    stream = streams.by_youtube_id("7wHgOpwHz8k")
+    now = datetime(2026, 11, 15, 1, 0, tzinfo=UTC)
+    assert sample.load_history(coll, stream, now, model="yolo11l") == [(now - timedelta(hours=2), 70)]
+    assert coll.queries[-1]["model"] == "yolo11l"
+    assert sample.load_history(coll, stream, now, model="yolo11n") == [(now - timedelta(hours=1), 6)]
+    # the default is the model the sampler runs
+    sample.load_history(coll, stream, now)
+    assert coll.queries[-1]["model"] == sample.MODEL_STEM

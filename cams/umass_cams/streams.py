@@ -13,7 +13,9 @@ currentTime advancing between two polls, and only then copies the <video>
 element to a canvas about every 2 seconds. Player screenshots (diagnostics)
 are taken only while the player is not playing, never of the video itself.
 No cookies, no credentials, no attempt to get past YouTube's sign-in or bot
-checks: if the player shows one, the grab reports it and stops.
+checks: if the player shows one, the grab reports it and stops. A window whose
+frames never change (the player froze on one picture while its clock ran on) is
+reported as "stalled" and never counted.
 """
 
 from __future__ import annotations
@@ -161,7 +163,7 @@ def classify_player_text(text: str) -> str | None:
 class GrabResult:
     stream: Stream
     engine: str
-    status: str  # "ok" | a reason from classify_player_text | "no_video" | "timeout" | "error:<...>"
+    status: str  # "ok" | a reason from classify_player_text | "no_video" | "timeout" | "stalled" | "error:<...>"
     frames: list[tuple[float, np.ndarray]] = field(default_factory=list)  # (unix ts, BGR frame)
     player_text: str = ""
     video_size: tuple[int, int] = (0, 0)
@@ -171,6 +173,28 @@ class GrabResult:
     @property
     def ok(self) -> bool:
         return self.status == "ok" and bool(self.frames)
+
+
+STALL_DIFF = 0.5
+"""Mean absolute gray difference (0..255) between consecutive frames below which the picture is not
+moving. Live video, even of an empty room, differs by a few levels from frame to frame (compression
+noise, lighting); a stalled player hands back the same decoded picture every time, difference 0."""
+
+
+def frames_stalled(frames: list[tuple[float, np.ndarray]], min_diff: float = STALL_DIFF) -> bool:
+    """True when the window holds several frames and none differs from the one before it: the player
+    froze on one picture (its clock kept running, so playback detection passed), and counting it would
+    report the hall from minutes ago as the hall now."""
+    if len(frames) < 2:
+        return False
+    prev = None
+    for _, frame in frames:
+        small = frame[::4, ::4]
+        gray = small.mean(axis=2) if small.ndim == 3 else small.astype(float)
+        if prev is not None and float(np.abs(gray - prev).mean()) >= min_diff:
+            return False
+        prev = gray
+    return True
 
 
 def _decode_data_url(data_url: str) -> np.ndarray | None:
@@ -355,6 +379,10 @@ class FrameGrabber:
                     if frame is not None:
                         res.frames.append((time.time(), frame))
                 next_at += interval_s
+            if frames_stalled(res.frames):
+                res.status = "stalled"  # one picture for the whole window: not the hall right now
+                res.frames.clear()
+                return res
             res.status = "ok" if res.frames else "no_frames"
             return res
         except Exception as e:
