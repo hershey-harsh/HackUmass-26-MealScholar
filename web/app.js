@@ -413,3 +413,35 @@
   d.addEventListener('visibilitychange', sync);
   w.__syncVideos = sync;
 })();
+
+// Recordings start as a poster with a play button (.vplay). A tap swaps in the video, so scrolling
+// past one never loads or decodes it. One plays at a time, and it pauses once it's scrolled away.
+(function () {
+  var d = document, w = window;
+  var io = 'IntersectionObserver' in w ? new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) { if (!e.isIntersecting && !e.target.paused) e.target.pause(); });
+  }, { threshold: 0.2 }) : null;
+  d.addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('.vplay[data-video-src]') : null;
+    if (!btn) return;
+    var img = btn.querySelector('img');
+    var v = d.createElement('video');
+    v.muted = true;
+    v.loop = true;
+    v.controls = true;
+    v.playsInline = true;
+    v.setAttribute('playsinline', '');
+    v.preload = 'auto';
+    v.width = +btn.getAttribute('data-video-w') || 720;
+    v.height = +btn.getAttribute('data-video-h') || 900;
+    if (img) v.poster = img.currentSrc || img.src;
+    v.setAttribute('aria-label', btn.getAttribute('data-video-label') || '');
+    v.src = btn.getAttribute('data-video-src');
+    d.querySelectorAll('video').forEach(function (o) { if (!o.paused) o.pause(); });
+    btn.replaceWith(v);
+    if (io) io.observe(v);
+    v.focus({ preventScroll: true });
+    var p = v.play();
+    if (p && p.catch) p.catch(function () {});
+  });
+})();

@@ -59,6 +59,8 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.6A7.8 7.8 0 0 1 9.4 4.5a7.8 7.8 0 1 0 10.1 10.1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
   <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10.6 18.4h2.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4.5" y="5" width="15" height="10.5" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2.5 19h19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   <symbol id="mark" viewBox="0 0 512 512"><rect width="512" height="512" rx="128" fill="currentColor"/><circle cx="256" cy="292" r="140" fill="#FAFAFF"/><circle cx="256" cy="292" r="124" fill="none" stroke="currentColor" stroke-width="8" stroke-opacity=".18"/><g fill="currentColor" stroke="currentColor" stroke-linejoin="round" stroke-linecap="round"><path d="M176 174v52q80 44 160 0v-52Z" stroke-width="20"/><path d="M256 80 420 146 256 212 92 146Z" stroke-width="20"/><path d="M197 272v18c0 9 8 16 17 16s17-7 17-16v-18m-17 0v58" fill="none" stroke-width="12"/><path d="M287 266c16 8 26 24 26 40 0 3-3 6-6 6h-11v18a6 6 0 0 1-12 0V270q0-6 3-4Z" stroke="none"/><path d="M204 360C216 398 296 398 308 360" fill="none" stroke-width="14"/><path d="M412 148v100" fill="none" stroke-width="28"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" stroke-width="12"/></g><path d="M176 174v52q80 44 160 0v-52Z" fill="#FAFAFF"/><path d="M256 80 420 146 256 212 92 146Z" fill="currentColor" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><path d="M256 80 420 146 256 212 92 146Z" fill="#FAFAFF" stroke="#FAFAFF" stroke-width="6" stroke-linejoin="round"/><path d="M412 148v100" fill="none" stroke="#E9B44C" stroke-width="11" stroke-linecap="round"/><path d="M405 244h14l7 25q1 6-5 6h-18q-6 0-5-6Z" fill="#E9B44C" stroke="#E9B44C" stroke-width="2" stroke-linejoin="round"/></symbol>
   <symbol id="plate" viewBox="0 0 320 200">
     <rect width="320" height="200" fill="url(#g-table)"/>
@@ -133,11 +135,12 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
 
     <nav class="nav-chips" aria-label="Sections">
       <span class="nav-chips__label" aria-hidden="true">Jump to</span>
-      <a href="#how">How it works</a>
       <a href="#features">Features</a>
-      <a href="#videos">Videos</a>
+      <a href="#videos">More features</a>
+      <a href="#examples">Examples</a>
+      <a href="#how">How it works</a>
       <a href="#nutrients">Nutrients</a>
-      <a href="#umass">Pilot</a>
+      <a href="#umass">UMass</a>
       <a href="#faq">FAQ</a>
     </nav>
 
@@ -351,10 +354,228 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <li class="why__item"><span class="why__num" aria-hidden="true">05</span><h3>No weighing</h3><p>You just take the photo. It works out the amounts itself, and you can swap a food if it got one wrong.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">06</span><h3>Today and weekly views</h3><p>Every meal with the day’s calories and nutrients. Weeks run Sunday to Saturday, and you can page back to earlier ones.</p></li>
         <li class="why__item"><span class="why__num" aria-hidden="true">07</span><h3>USDA as a backup</h3><p>Anything that isn’t on the campus menu is matched to USDA FoodData Central’s 13,648 foods.</p></li>
-        <li class="why__item"><span class="why__num" aria-hidden="true">08</span><h3>Nothing to install</h3><p>It works in the browser on any phone. Add it to your Home Screen if you like.</p></li>
+        <li class="why__item"><span class="why__num" aria-hidden="true">08</span><h3>Nothing to install</h3><p>It works in the browser on any phone or laptop. On iPhone, add it to your Home Screen if you like.</p></li>
       </ol>
     </div>
+
+    <!-- A real scan in the live app, and where MealScholar works. The recording loads only when played. -->
+    <div class="scan">
+      <figure class="scan__stage">
+        <div class="scan__frame">
+          <button type="button" class="vplay" data-video-src="/app/media/scan-meal.mp4" data-video-w="1440" data-video-h="1080" data-video-label="Screen recording of a real scan: a photo of an omelet with home fries and guacamole, the app boxes each food, and the result shows 849 kcal, likely 740 to 976, with each food’s source, Worcester’s label or USDA">
+            <img src="/app/media/scan-meal.jpg" width="1440" height="1080" alt="" loading="lazy" decoding="async">
+            <span class="vplay__btn" aria-hidden="true"><svg><use href="#i-play"/></svg></span>
+            <span class="sr-only">Play the recording of a real scan</span>
+          </button>
+        </div>
+        <figcaption class="scan__cap"><b>A real scan in the live app.</b> Snap a plate, see each food boxed, and get numbers from the hall’s own label or USDA.</figcaption>
+      </figure>
+      <aside class="scan__side" aria-labelledby="where-title">
+        <p class="eyebrow">Where it works</p>
+        <h3 id="where-title" class="scan__title">On your phone, on your laptop, and soon on Android</h3>
+        <ul class="where">
+          <li class="where__item">
+            <span class="where__icon" aria-hidden="true"><svg><use href="#i-phone"/></svg></span>
+            <div class="where__text"><p class="where__k">iPhone<span class="where__tag">Available</span></p><p>Use it in Safari, or add it to your Home Screen so it opens like an app.</p></div>
+          </li>
+          <li class="where__item">
+            <span class="where__icon" aria-hidden="true"><svg><use href="#i-laptop"/></svg></span>
+            <div class="where__text"><p class="where__k">Laptop<span class="where__tag">Available</span></p><p>Open app.mealscholar.health in any browser. Same account, a wider layout, and photos from your files.</p></div>
+          </li>
+          <li class="where__item">
+            <span class="where__icon" aria-hidden="true"><svg><use href="#i-clock"/></svg></span>
+            <div class="where__text"><p class="where__k">Android Home Screen<span class="where__tag where__tag--soon">Coming soon</span></p><p>Until then, open it in your phone’s browser.</p></div>
+          </li>
+        </ul>
+        <a class="pill-link" href="/app/">Open MealScholar<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+      </aside>
+    </div>
   </section>
+
+  <!-- Other features: short recordings of the real app. Each one loads only when played. -->
+  <section class="section" id="videos" aria-labelledby="videos-title">
+    <div class="section-head section-head--split">
+      <div>
+        <p class="eyebrow">Other features</p>
+        <h2 id="videos-title" class="h2">More than a calorie counter</h2>
+      </div>
+      <div>
+        <p class="section-sub">Short recordings of the real app: the one question, favorite dishes with menu alerts, and adding it to your Home Screen.</p>
+        <div class="head-actions">
+          <a class="pill-link" href="/app/">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
+          <div class="rail-ctrl" data-rail-controls="video-rail">
+            <button type="button" class="round-btn" data-dir="-1" aria-label="Previous video"><svg aria-hidden="true"><use href="#i-chev-l"/></svg></button>
+            <button type="button" class="round-btn" data-dir="1" aria-label="Next video"><svg aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="rail rail--gallery" id="video-rail" data-rail role="region" aria-label="Screen recordings" tabindex="0">
+      <ul class="gallery">
+        <li class="gallery__item" data-video="one-question">
+          <div class="gallery__frame">
+            <button type="button" class="vplay" data-video-src="/app/media/gallery-one-question.mp4" data-video-w="720" data-video-h="900" data-video-label="Screen recording: the app reads a photo of ramen and a cola, asks whether the dark soda is regular or diet, Diet is typed in, and the meal goes from 649 to 553 kcal">
+              <img src="/app/media/gallery-one-question.jpg?v=2" width="720" height="900" alt="" loading="lazy" decoding="async">
+              <span class="vplay__btn" aria-hidden="true"><svg><use href="#i-play"/></svg></span>
+              <span class="sr-only">Play the recording: one question</span>
+            </button>
+          </div>
+          <h3>One question</h3>
+          <p>When something like diet or regular changes the numbers, it asks once and recomputes. Here, Diet took the meal from 649 to 553 kcal.</p>
+        </li>
+        <li class="gallery__item" data-video="favorites">
+          <div class="gallery__frame">
+            <button type="button" class="vplay" data-video-src="/app/media/gallery-favorites.mp4" data-video-w="720" data-video-h="900" data-video-label="Screen recording: in Settings, searching the campus menus for paneer, adding three paneer dishes to favorites, and alerts on for when they're on the menu">
+              <img src="/app/media/gallery-favorites.jpg" width="720" height="900" alt="" loading="lazy" decoding="async">
+              <span class="vplay__btn" aria-hidden="true"><svg><use href="#i-play"/></svg></span>
+              <span class="sr-only">Play the recording: favorite a dish</span>
+            </button>
+          </div>
+          <h3>Favorite a dish</h3>
+          <p>Search the campus menus and add what you love. The bell tells you when it’s on at any dining hall this week.</p>
+        </li>
+        <li class="gallery__item" data-video="add-to-home-screen">
+          <div class="gallery__frame">
+            <button type="button" class="vplay" data-video-src="/app/media/gallery-home-screen.mp4" data-video-w="720" data-video-h="900" data-video-label="Screen recording: in Safari, Share, then Add to Home Screen, then Add, and MealScholar appears on the Home Screen">
+              <img src="/app/media/gallery-home-screen.jpg" width="720" height="900" alt="" loading="lazy" decoding="async">
+              <span class="vplay__btn" aria-hidden="true"><svg><use href="#i-play"/></svg></span>
+              <span class="sr-only">Play the recording: add it to your Home Screen</span>
+            </button>
+          </div>
+          <h3>Add it to your Home Screen</h3>
+          <p>In Safari: Share, then Add to Home Screen, then Add. It opens like an app.</p>
+        </li>
+      </ul>
+    </div>
+    <div class="rail-dots" data-rail-dots="video-rail" aria-hidden="true"></div>
+  </section>
+
+  <!-- Real examples: six real plates from the dining halls, as the live app read them (likely values). -->
+  <section class="section examples" id="examples" aria-labelledby="examples-title">
+    <div class="section-head section-head--split">
+      <div>
+        <p class="eyebrow">Real examples</p>
+        <h2 id="examples-title" class="h2">Six real plates from the dining halls</h2>
+      </div>
+      <div>
+        <p class="section-sub">Photos from Worcester and Berkshire, run through the live app. Every food shows where its numbers came from: the hall’s own label, or USDA when the menu doesn’t have it or the label doesn’t fit.</p>
+        <div class="head-actions">
+          <div class="rail-ctrl" data-rail-controls="plate-rail">
+            <button type="button" class="round-btn" data-dir="-1" aria-label="Previous example"><svg aria-hidden="true"><use href="#i-chev-l"/></svg></button>
+            <button type="button" class="round-btn" data-dir="1" aria-label="Next example"><svg aria-hidden="true"><use href="#i-chev-r"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="rail rail--plates" id="plate-rail" data-rail role="region" aria-label="Real examples" tabindex="0">
+      <ol class="plates__list">
+        <li class="plate">
+          <div class="plate__media">
+            <img class="plate__img" src="img/plate-ramen.jpg" width="800" height="600" alt="A bowl of tantanmen ramen with nori and an egg, chopsticks in it, and a glass of cola behind it on a wooden table." loading="lazy" decoding="async">
+            <span class="plate__hall">Worcester</span>
+          </div>
+          <p class="plate__kind plate__kind--mix">Hall label + USDA</p>
+          <div class="plate__top">
+            <h3 class="plate__name">Tantanmen ramen and a cola</h3>
+            <p class="plate__kcal">553<small>kcal</small></p>
+          </div>
+          <ul class="plate__foods">
+            <li><span class="plate__food">Tantanmen Ramen Bar<span class="src">Worcester label</span></span><span class="plate__k">490<small>kcal</small></span></li>
+            <li><span class="plate__food">Hard Boiled Egg<span class="src">Worcester label</span></span><span class="plate__k">56<small>kcal</small></span></li>
+            <li><span class="plate__food">Nori Seaweed<span class="src">Worcester label</span></span><span class="plate__k">3<small>kcal</small></span></li>
+            <li><span class="plate__food">Diet cola<span class="src src--usda">USDA</span></span><span class="plate__k">5<small>kcal</small></span></li>
+          </ul>
+          <p class="plate__note"><b>One question:</b> it asked whether the cola was regular or diet. Diet took the meal from 649 to 553&nbsp;kcal.</p>
+        </li>
+        <li class="plate">
+          <div class="plate__media">
+            <img class="plate__img" src="img/plate-omelette.jpg" width="800" height="600" alt="An omelet with home fries and guacamole on a white plate." loading="lazy" decoding="async">
+            <span class="plate__hall">Worcester</span>
+          </div>
+          <p class="plate__kind plate__kind--mix">Hall label + USDA</p>
+          <div class="plate__top">
+            <h3 class="plate__name">Omelet, home fries and guacamole</h3>
+            <p class="plate__kcal">795<small>kcal</small></p>
+          </div>
+          <ul class="plate__foods">
+            <li><span class="plate__food">Omelet Station<span class="src">Worcester label</span></span><span class="plate__k">449<small>kcal</small></span></li>
+            <li><span class="plate__food">Red Potato Home Fries<span class="src src--usda">USDA</span></span><span class="plate__k">242<small>kcal</small></span></li>
+            <li><span class="plate__food">Homemade Guacamole<span class="src">Worcester label</span></span><span class="plate__k">104<small>kcal</small></span></li>
+          </ul>
+          <p class="plate__note"><b>Label didn’t fit:</b> the home fries are on Worcester’s menu, but their label didn’t fit the amount, so USDA.</p>
+        </li>
+        <li class="plate">
+          <div class="plate__media">
+            <img class="plate__img" src="img/plate-salad.jpg" width="800" height="600" alt="A salad of greens, red onion, shredded cheddar and hard-boiled eggs with honey mustard on a white plate." loading="lazy" decoding="async">
+            <span class="plate__hall">Berkshire</span>
+          </div>
+          <p class="plate__kind plate__kind--mix">Hall label + USDA</p>
+          <div class="plate__top">
+            <h3 class="plate__name">Salad with eggs and honey mustard</h3>
+            <p class="plate__kcal">454<small>kcal</small></p>
+          </div>
+          <ul class="plate__foods">
+            <li><span class="plate__food">Hard Boiled Egg<span class="src">Berkshire label</span></span><span class="plate__k">166<small>kcal</small></span></li>
+            <li><span class="plate__food">Mixed salad greens<span class="src src--usda">USDA</span></span><span class="plate__k">11<small>kcal</small></span></li>
+            <li><span class="plate__food">Onions<span class="src">Berkshire label</span></span><span class="plate__k">13<small>kcal</small></span></li>
+            <li><span class="plate__food">Cheddar Cheese<span class="src">Berkshire label</span></span><span class="plate__k">101<small>kcal</small></span></li>
+            <li><span class="plate__food">Honey mustard dressing<span class="src src--usda">USDA</span></span><span class="plate__k">162<small>kcal</small></span></li>
+          </ul>
+          <p class="plate__note"><b>Five foods:</b> the greens and the dressing didn’t match a dish on Berkshire’s menu, so they come from USDA.</p>
+        </li>
+        <li class="plate">
+          <div class="plate__media">
+            <img class="plate__img" src="img/plate-pizza.jpg" width="800" height="600" alt="Two slices of pizza on a white plate on a wooden table." loading="lazy" decoding="async">
+            <span class="plate__hall">Berkshire</span>
+          </div>
+          <p class="plate__kind">Hall label</p>
+          <div class="plate__top">
+            <h3 class="plate__name">Two slices of pizza</h3>
+            <p class="plate__kcal">420<small>kcal</small></p>
+          </div>
+          <ul class="plate__foods">
+            <li><span class="plate__food">Pepperoni Pizza<span class="src">Berkshire label</span></span><span class="plate__k">217<small>kcal</small></span></li>
+            <li><span class="plate__food">Cheese Pizza<span class="src">Berkshire label</span></span><span class="plate__k">203<small>kcal</small></span></li>
+          </ul>
+          <p class="plate__note"><b>One slice each:</b> both are on Berkshire’s menu, so both use its label.</p>
+        </li>
+        <li class="plate">
+          <div class="plate__media">
+            <img class="plate__img" src="img/plate-cake.jpg" width="360" height="270" alt="A square of coconut key lime cake on a small white plate, with chopsticks across it." loading="lazy" decoding="async">
+            <span class="plate__hall">Worcester</span>
+          </div>
+          <p class="plate__kind">Hall label</p>
+          <div class="plate__top">
+            <h3 class="plate__name">Coconut key lime cake</h3>
+            <p class="plate__kcal">194<small>kcal</small></p>
+          </div>
+          <ul class="plate__foods">
+            <li><span class="plate__food">Coconut Key Lime Cake<span class="src">Worcester label</span></span><span class="plate__k">194<small>kcal</small></span></li>
+          </ul>
+          <p class="plate__note"><b>By weight:</b> Worcester’s label says 193&nbsp;kcal per 2&nbsp;oz, and the photo shows about 57&nbsp;g.</p>
+        </li>
+        <li class="plate">
+          <div class="plate__media">
+            <img class="plate__img" src="img/plate-yogurt.jpg" width="640" height="480" alt="A white bowl of strawberry yogurt topped with granola, with a spoon in it." loading="lazy" decoding="async">
+            <span class="plate__hall">Worcester</span>
+          </div>
+          <p class="plate__kind plate__kind--usda">USDA backup</p>
+          <div class="plate__top">
+            <h3 class="plate__name">Strawberry yogurt and granola</h3>
+            <p class="plate__kcal">334<small>kcal</small></p>
+          </div>
+          <ul class="plate__foods">
+            <li><span class="plate__food">Strawberry yogurt<span class="src src--usda">USDA</span></span><span class="plate__k">163<small>kcal</small></span></li>
+            <li><span class="plate__food">Granola<span class="src src--usda">USDA</span></span><span class="plate__k">171<small>kcal</small></span></li>
+          </ul>
+          <p class="plate__note"><b>All from USDA:</b> Worcester’s menu had no yogurt or granola that night.</p>
+        </li>
+      </ol>
+    </div>
+    <div class="rail-dots" data-rail-dots="plate-rail" aria-hidden="true"></div>
+    <p class="fineprint examples__fine">Calories are the likely value. Totals are added up before rounding, so a plate’s foods can be one off its total.</p>
+  </section>
+
 
   <!-- How it works -->
   <section class="section" id="how" aria-labelledby="how-title">
@@ -449,59 +670,6 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
     </ol>
   </section>
 
-  <!-- Videos -->
-  <section class="section" id="videos" aria-labelledby="videos-title">
-    <div class="section-head section-head--split">
-      <div>
-        <p class="eyebrow">Screen recordings</p>
-        <h2 id="videos-title" class="h2">See it in action</h2>
-      </div>
-      <div>
-        <p class="section-sub">Short recordings of the real app: adding it to your Home Screen, the one question, favorite dishes, and the day’s totals.</p>
-        <div class="head-actions">
-          <a class="pill-link" href="/app/">Try it yourself<svg aria-hidden="true"><use href="#i-arrow"/></svg></a>
-          <div class="rail-ctrl" data-rail-controls="video-rail">
-            <button type="button" class="round-btn" data-dir="-1" aria-label="Previous video"><svg aria-hidden="true"><use href="#i-chev-l"/></svg></button>
-            <button type="button" class="round-btn" data-dir="1" aria-label="Next video"><svg aria-hidden="true"><use href="#i-chev-r"/></svg></button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="rail rail--gallery" id="video-rail" data-rail role="region" aria-label="Screen recordings" tabindex="0">
-      <ul class="gallery">
-        <li class="gallery__item" data-video="add-to-home-screen">
-          <div class="gallery__frame">
-            <video src="/app/media/gallery-home-screen.mp4" poster="/app/media/gallery-home-screen.jpg" width="720" height="900" muted loop playsinline controls preload="none" aria-label="Screen recording: in Safari, Share, then Add to Home Screen, then Add, and MealScholar appears on the Home Screen"></video>
-          </div>
-          <h3>Add it to your Home Screen</h3>
-          <p>In Safari: Share, then Add to Home Screen, then Add. It opens like an app.</p>
-        </li>
-        <li class="gallery__item" data-video="one-question">
-          <div class="gallery__frame">
-            <video src="/app/media/gallery-one-question.mp4" poster="/app/media/gallery-one-question.jpg?v=2" width="720" height="900" muted loop playsinline controls preload="none" aria-label="Screen recording: the app reads a photo of ramen and a cola, asks whether the dark soda is regular or diet, Diet is typed in, and the meal goes from 649 to 553 kcal"></video>
-          </div>
-          <h3>One question</h3>
-          <p>When something like diet or regular changes the numbers, it asks once and recomputes. Here, Diet took the meal from 649 to 553 kcal.</p>
-        </li>
-        <li class="gallery__item" data-video="favorites">
-          <div class="gallery__frame">
-            <video src="/app/media/gallery-favorites.mp4" poster="/app/media/gallery-favorites.jpg" width="720" height="900" muted loop playsinline controls preload="none" aria-label="Screen recording: in Settings, searching the campus menus for paneer, adding three paneer dishes to favorites, and alerts on for when they're on the menu"></video>
-          </div>
-          <h3>Favorite a dish</h3>
-          <p>Search the campus menus and add what you love. The bell tells you when it’s on at any dining hall this week.</p>
-        </li>
-        <li class="gallery__item" data-video="fix-and-today">
-          <div class="gallery__frame">
-            <div class="video-ph video-ph--c"><span class="chip chip--soon">Coming soon</span><span class="video-ph__play" aria-hidden="true"><svg><use href="#i-play"/></svg></span></div>
-          </div>
-          <h3>Check it, then see today</h3>
-          <p>Swap a food if it got one wrong, then check the day’s totals.</p>
-        </li>
-      </ul>
-    </div>
-    <div class="rail-dots" data-rail-dots="video-rail" aria-hidden="true"></div>
-  </section>
-
   <!-- Nutrients -->
   <section class="section" id="nutrients" aria-labelledby="nutrients-title">
     <div class="split split--flip">
@@ -571,40 +739,6 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
       </div>
     </div>
 
-    <!-- Two real dinners from Worcester, November 14, as the app read them (likely values). -->
-    <div class="plates">
-      <div class="plates__head">
-        <h3 class="plates__title">Two real examples</h3>
-        <p class="plates__sub">Photos from dinner at Worcester on November 14, run through the app. A dish on the menu uses its own label. Anything the menu doesn’t have comes from USDA.</p>
-      </div>
-      <ol class="plates__list">
-        <li class="plate">
-          <p class="plate__kind">Worcester example</p>
-          <img class="plate__img" src="img/plate-cake.jpg" width="360" height="270" alt="A square of coconut key lime cake on a small white plate, with chopsticks across it." loading="lazy" decoding="async">
-          <div class="plate__top">
-            <h4 class="plate__name">Coconut Key Lime Cake</h4>
-            <p class="plate__kcal">194<small>kcal</small></p>
-          </div>
-          <ul class="plate__foods">
-            <li><span class="plate__food">Coconut Key Lime Cake</span><span class="src">Worcester menu</span></li>
-          </ul>
-          <p class="plate__note"><b>All from the menu.</b> Worcester’s label says 193&nbsp;kcal per 2&nbsp;oz, and the photo shows about 57&nbsp;g.</p>
-        </li>
-        <li class="plate">
-          <p class="plate__kind plate__kind--usda">USDA backup example</p>
-          <img class="plate__img" src="img/plate-yogurt.jpg" width="640" height="480" alt="A white bowl of strawberry yogurt topped with granola, with a spoon in it." loading="lazy" decoding="async">
-          <div class="plate__top">
-            <h4 class="plate__name">Strawberry yogurt and granola</h4>
-            <p class="plate__kcal">334<small>kcal</small></p>
-          </div>
-          <ul class="plate__foods">
-            <li><span class="plate__food">Strawberry yogurt</span><span class="src src--usda">USDA</span></li>
-            <li><span class="plate__food">Granola</span><span class="src src--usda">USDA</span></li>
-          </ul>
-          <p class="plate__note"><b>All from USDA.</b> Worcester’s menu had no yogurt or granola that night.</p>
-        </li>
-      </ol>
-    </div>
   </section>
 
   <!-- Phone -->
@@ -621,7 +755,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         <h3>Add it to your Home Screen</h3>
         <ul>
           <li><span class="a2hs__icon"><svg aria-hidden="true"><use href="#i-share"/></svg></span><span><b>iPhone:</b> tap Share, then Add to Home Screen.</span></li>
-          <li><span class="a2hs__icon"><svg aria-hidden="true"><use href="#i-menu-dots"/></svg></span><span><b>Android:</b> open the browser menu, then Add to Home screen.</span></li>
+          <li><span class="a2hs__icon"><svg aria-hidden="true"><use href="#i-clock"/></svg></span><span><b>Android:</b> a Home Screen version is coming soon. For now, open it in your browser.</span></li>
         </ul>
       </div>
       <div class="qr">
@@ -661,8 +795,8 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
     <div class="umass">
       <div class="umass__main">
         <p class="eyebrow">On campus</p>
-        <h2 id="umass-title" class="h2">Piloting at UMass</h2>
-        <p class="section-sub">MealScholar is piloting with students at UMass Amherst, starting with every UMass Dining menu.</p>
+        <h2 id="umass-title" class="h2">Built for UMass Amherst</h2>
+        <p class="section-sub">MealScholar is built for students at UMass Amherst, starting with every UMass Dining menu.</p>
         <div class="logo-tile">
           <img src="brand/umass-logo.svg" alt="University of Massachusetts Amherst" width="351" height="92">
         </div>
@@ -708,7 +842,7 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
         </details>
         <details>
           <summary><span class="faq__n" aria-hidden="true">05</span><span class="faq__q">Do I need to download an app?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
-          <div class="faq__a"><p>No. It works in the browser on any phone. On iPhone or Android you can add it to your Home Screen from the browser’s share button or menu.</p></div>
+          <div class="faq__a"><p>No. It works in the browser on any phone or laptop. On iPhone you can add it to your Home Screen from Safari’s Share button. A Home Screen version for Android is coming soon.</p></div>
         </details>
         <details>
           <summary><span class="faq__n" aria-hidden="true">06</span><span class="faq__q">Is this medical advice?</span><span class="faq__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 12h12"/><path class="v" d="M12 6v12"/></svg></span></summary>
@@ -771,8 +905,9 @@ if (/[?&]home=1(&|$)/.test(location.search)) location.replace('/app/');
           <h2>Project</h2>
           <ul>
             <li><a href="#features">Why MealScholar</a></li>
-            <li><a href="#videos">See it in action</a></li>
-            <li><a href="#umass">The pilot</a></li>
+            <li><a href="#videos">More features</a></li>
+            <li><a href="#examples">Real examples</a></li>
+            <li><a href="#umass">UMass</a></li>
           </ul>
         </div>
         <div>
