@@ -122,6 +122,7 @@
       if (!q) { q = true; w.requestAnimationFrame(update); }
     }, { passive: true });
     w.addEventListener('resize', build);
+    w.addEventListener('load', build);
     build();
   });
 })();
