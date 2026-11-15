@@ -4570,14 +4570,35 @@ function refreshDining() {
   if (state.view === "menu" && menuHallIds().some((id) => !freshMeal(menus.data.get(id)))) ensureMenus({ refresh: true });
 }
 
-/** Draw the side column from what's known; fetch it when nothing is. */
+let upcomingShown = null; // what the side card was last drawn from: { entry, sig }
+const upcomingSig = () => `${busyNow.sig}|${state.prefsVersion}|${state.todayKey}`;
+
+/** Draw the side column from what's known, unless it shows that already (a day pick leaves the card,
+    its scroll and its focus alone); fetch it when nothing is, unless that's on its way. */
 function ensureUpcoming() {
   if (!diningOn()) {
     els.dashSide.innerHTML = "";
     return;
   }
-  if (freshMeal(state.upcoming)) renderUpcoming();
-  else loadUpcoming();
+  if (!freshMeal(state.upcoming)) {
+    if (!upcomingLoading) loadUpcoming();
+  } else if (upcomingShown?.entry !== state.upcoming) renderUpcoming();
+  else if (upcomingShown.sig !== upcomingSig()) redrawUpcoming();
+}
+
+/** Draw the same meal again in place: the list keeps its scroll, and keyboard focus stays on the same dish
+    (or on the list, or the cam line). For a busy reading or a change of settings that keeps the meal. */
+function redrawUpcoming() {
+  const list = $(".dishes", els.dashSide);
+  const top = list?.scrollTop ?? 0;
+  const active = els.dashSide.contains(document.activeElement) ? document.activeElement : null;
+  const dish = active?.closest("[data-dish]")?.dataset.dish;
+  renderUpcoming();
+  const next = $(".dishes", els.dashSide);
+  if (next && top) next.scrollTop = top;
+  if (!active) return;
+  const target = dish != null ? $(`[data-dish="${CSS.escape(dish)}"]`, els.dashSide) : active.matches("[data-cam]") ? $("[data-cam]", els.dashSide) : active === list ? next : null;
+  target?.focus({ preventScroll: true });
 }
 
 /** Fetch the upcoming meal and draw it; a call while one is on its way starts it over. */
@@ -4595,6 +4616,7 @@ async function loadUpcoming() {
 
 async function fetchUpcoming(seq) {
   const epoch = state.epoch;
+  const held = els.dashSide.contains(document.activeElement); // the card had keyboard focus (its Try again)
   if (!state.upcoming) els.dashSide.innerHTML = upcomingSkeletonHtml(); // a refresh keeps the card until the answer
   let locationId = null;
   let note = null;
@@ -4621,13 +4643,17 @@ async function fetchUpcoming(seq) {
     if (err.status === 503) return diningLost();
     state.upcoming = { error: err, note, locationId, at: Date.now() };
   }
+  const refocus = els.dashSide.contains(document.activeElement) || (held && document.activeElement === document.body);
   renderUpcoming();
+  // Focus that was in the card goes to the new one: its Try again, or its list.
+  if (refocus) $('[data-action="retry-upcoming"], .dishes', els.dashSide)?.focus({ preventScroll: true });
 }
 
 const upcomingSkeletonHtml = () =>
   `<div class="card upcoming is-skeleton" aria-hidden="true"><span class="sk sk--eyebrow"></span><span class="sk sk--num"></span><span class="sk sk--line"></span>${'<span class="sk-row"><span class="sk sk--line"></span><span class="sk sk--short"></span></span>'.repeat(4)}</div>`;
 
 function renderUpcoming() {
+  upcomingShown = { entry: state.upcoming, sig: upcomingSig() };
   if (!diningOn() || !state.upcoming) {
     els.dashSide.innerHTML = "";
     return;
@@ -4848,7 +4874,7 @@ function ensureBusy() {
       busyNow.sig = sig;
       if (document.body.dataset.screen !== "app") return;
       if (state.view === "menu") renderMenu();
-      if (state.upcoming && !state.upcoming.error) renderUpcoming();
+      if (state.upcoming && !state.upcoming.error) redrawUpcoming();
     })
     .catch((err) => {
       busyNow.at = Date.now();
@@ -4953,7 +4979,7 @@ async function ensureMenus({ refresh = false } = {}) {
   const epoch = state.epoch;
   // With location on, find the nearest hall first (once), so it leads the chips.
   if (els.location.checked && !state.nearest && !refresh) {
-    renderMenu();
+    renderMenu({ reveal: true });
     await nearestHall();
     if (epoch !== state.epoch) return;
   }
@@ -4964,7 +4990,7 @@ async function ensureMenus({ refresh = false } = {}) {
   const missing = wanted.filter((id) => !menus.data.has(id));
   for (const id of wanted) loading.add(id);
   for (const id of missing) menus.data.set(id, { pending: true });
-  if (!refresh || missing.length) renderMenu();
+  if (!refresh || missing.length) renderMenu({ reveal: !refresh });
   ensureMenuDay();
   await Promise.all(
     wanted.map(async (id) => {
@@ -4993,7 +5019,8 @@ async function ensureMenus({ refresh = false } = {}) {
   ensureMenuDay(); // with no hall chosen, the server's default hall is known only now
 }
 
-function renderMenu() {
+/** `reveal`: the tab just opened, so the picked hall's chip comes into the chip row's view. */
+function renderMenu({ reveal = false } = {}) {
   if (!diningOn()) {
     els.menuHalls.innerHTML = "";
     els.menuActions.innerHTML = "";
@@ -5007,6 +5034,9 @@ function renderMenu() {
   const focusedHall = document.activeElement?.closest?.("[data-hall]")?.dataset.hall ?? null;
   const focusedDish = document.activeElement?.closest?.("[data-dish]")?.dataset.dish ?? null;
   const focusedMeal = document.activeElement?.matches?.("[data-meal-pick]") ? document.activeElement.value : null;
+  // The chip row keeps its scroll. Not read as the tab opens: hidden, the row lost it, and reading it then
+  // would lay the old menu out once more for nothing.
+  const chipScroll = reveal ? 0 : $(".halls-bar__track", els.menuHalls)?.scrollLeft ?? 0;
   renderMenuDays(pick);
   const noHalls = !(state.prefs?.dining_halls ?? []).length;
   els.menuHalls.innerHTML = `
@@ -5041,6 +5071,19 @@ function renderMenu() {
   els.menuBody.innerHTML = `${menus.note ? `<p class="menu-note" role="status">${esc(menus.note)}</p>` : ""}${body}`;
   const tabs = $(".menu-meals", els.menuBody);
   if (tabs) fitMealTabs(tabs);
+  const track = $(".halls-bar__track", els.menuHalls);
+  if (chipScroll) track.scrollLeft = chipScroll;
+  const chip = reveal && track.scrollWidth > track.clientWidth ? $('[aria-pressed="true"]', track) : null;
+  if (chip) {
+    // Scroll the chip row only (the page stays put) until the picked chip clears the row's padding.
+    const row = track.getBoundingClientRect();
+    const box = chip.getBoundingClientRect();
+    const { paddingLeft, paddingRight } = getComputedStyle(track);
+    const under = box.left - (row.left + parseFloat(paddingLeft));
+    const over = box.right - (row.right - parseFloat(paddingRight));
+    if (under < 0) track.scrollLeft += under;
+    else if (over > 0) track.scrollLeft += Math.min(over, under);
+  }
   if (focusedHall != null) $(`[data-hall="${CSS.escape(focusedHall)}"]`, els.menuHalls)?.focus({ preventScroll: true });
   else if (focusedDish != null) $(`[data-dish="${CSS.escape(focusedDish)}"]`, els.menuBody)?.focus({ preventScroll: true });
   else if (focusedMeal != null) $(`[data-meal-pick][value="${CSS.escape(focusedMeal)}"]`, els.menuBody)?.focus({ preventScroll: true });
